@@ -630,8 +630,8 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
         )}
         {deliveryAddress && filteredStores.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              📍 {filteredStores.length} negozi trovati entro 10km dall'indirizzo
+            <p className="text-sm text-muted-foreground" key={filteredStores.length}>
+              📍 {filteredStores.length} {filteredStores.length === 1 ? 'negozio trovato' : 'negozi trovati'} entro 10km dall'indirizzo
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
