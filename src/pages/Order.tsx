@@ -12,7 +12,6 @@ import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { Plus, X, Loader2, CalendarIcon } from "lucide-react";
 import SupermarketMap from "@/components/SupermarketMap";
-import ProductPriceSearch from "@/components/ProductPriceSearch";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -267,11 +266,6 @@ const Order = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Cerca prezzi prodotti</Label>
-                <ProductPriceSearch storeName={store} />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="timeSlot">Fascia oraria</Label>
                 <Select value={timeSlot} onValueChange={setTimeSlot}>
                   <SelectTrigger id="timeSlot">
@@ -299,7 +293,7 @@ const Order = () => {
                 {items.map((item, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex gap-2 items-start">
-                      <div className="flex-1">
+                      <div className="flex-[2] min-w-0">
                         <Input
                           placeholder="Es: Latte Conad 1L"
                           value={item.name}
@@ -309,7 +303,7 @@ const Order = () => {
                           className="w-full"
                         />
                       </div>
-                      <div className="w-20 flex-shrink-0">
+                      <div className="w-16 flex-shrink-0">
                         <Input
                           type="number"
                           min="1"
@@ -319,7 +313,7 @@ const Order = () => {
                           placeholder="Qtà"
                         />
                       </div>
-                      <div className="w-28 flex-shrink-0 text-right font-medium flex items-center justify-end gap-2">
+                      <div className="w-20 flex-shrink-0 text-right font-medium flex items-center justify-end gap-2">
                         {item.loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : item.price !== null ? (

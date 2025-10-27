@@ -10,6 +10,7 @@ import Checkout from "./pages/Checkout";
 import OrderTracking from "./pages/OrderTracking";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import PriceSearch from "./pages/PriceSearch";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/tracking" element={<OrderTracking />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/profilo" element={<Profile />} />
+          <Route path="/prezzi" element={<PriceSearch />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

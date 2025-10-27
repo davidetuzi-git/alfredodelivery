@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface Store {
   name: string;
@@ -157,6 +158,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [userLocation, setUserLocation] = useState<[number, number]>([41.9028, 12.4964]);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>(stores);
+  const [selectedStore, setSelectedStore] = useState<string | null>(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -262,22 +264,13 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         popupContent += `<br/><small>${dist.toFixed(1)} km di distanza</small>`;
       }
       
-      popupContent += `<br/><button 
-        onclick="window.selectStore('${store.name} - ${store.address}')" 
-        style="margin-top: 8px; padding: 6px 12px; background: hsl(var(--primary)); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;"
-      >
-        Seleziona questo supermercato
-      </button></div>`;
+      popupContent += `</div>`;
       
       marker.bindPopup(popupContent);
+      marker.on('click', () => {
+        setSelectedStore(`${store.name} - ${store.address}`);
+      });
     });
-
-    // Aggiungi funzione globale per gestire la selezione
-    (window as any).selectStore = (storeName: string) => {
-      if (confirm(`Vuoi utilizzare questo supermercato?\n\n${storeName}`)) {
-        onSelectStore(storeName);
-      }
-    };
 
     return () => {
       if (mapRef.current) {
@@ -288,17 +281,43 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   }, [userLocation, addressLocation, filteredStores, onSelectStore]);
 
   return (
-    <div className="space-y-2">
-      <div 
-        ref={mapContainerRef} 
-        className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
-      />
-      {deliveryAddress && filteredStores.length === 0 && (
-        <p className="text-sm text-amber-600 dark:text-amber-400">
-          ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato
-        </p>
-      )}
-    </div>
+    <>
+      <AlertDialog open={selectedStore !== null} onOpenChange={(open) => !open && setSelectedStore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma selezione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vuoi utilizzare questo supermercato?
+              <br /><br />
+              <strong>{selectedStore}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (selectedStore) {
+                onSelectStore(selectedStore);
+                setSelectedStore(null);
+              }
+            }}>
+              Conferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-2">
+        <div 
+          ref={mapContainerRef} 
+          className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
+        />
+        {deliveryAddress && filteredStores.length === 0 && (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato
+          </p>
+        )}
+      </div>
+    </>
   );
 };
 

@@ -1,4 +1,4 @@
-import { Home, ShoppingCart, Clock, MessageCircle, User } from "lucide-react";
+import { Home, ShoppingCart, Clock, Search, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 export const Navigation = () => {
@@ -8,7 +8,7 @@ export const Navigation = () => {
     { path: "/home", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
     { path: "/tracking", icon: Clock, label: "Ordini" },
-    { path: "/chat", icon: MessageCircle, label: "Chat" },
+    { path: "/prezzi", icon: Search, label: "Prezzi" },
     { path: "/profilo", icon: User, label: "Profilo" },
   ];
 
