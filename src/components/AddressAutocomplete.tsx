@@ -54,18 +54,8 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
           }
         );
         const data = await response.json();
-        
-        // CRITICAL: Filter to only show addresses with house numbers
-        const addressesWithNumbers = data.filter((item: any) => {
-          // Check if the address contains a number (civico)
-          const hasNumber = /\b\d+\b/.test(item.display_name);
-          // Also check if it has house_number in address details
-          const hasHouseNumber = item.address?.house_number;
-          return hasNumber || hasHouseNumber;
-        });
-        
-        setSuggestions(addressesWithNumbers || []);
-        setOpen(addressesWithNumbers && addressesWithNumbers.length > 0);
+        setSuggestions(data || []);
+        setOpen(data && data.length > 0);
         // Mantieni il focus sull'input
         setTimeout(() => {
           inputRef.current?.focus();
@@ -104,7 +94,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
             onChange={(e) => {
               setInputValue(e.target.value);
             }}
-            placeholder={placeholder || "Inserisci indirizzo COMPLETO con numero civico..."}
+            placeholder={placeholder || "Inizia a digitare un indirizzo..."}
             required={required}
             className="w-full"
             onFocus={() => {
@@ -124,7 +114,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
         <Command>
           <CommandList>
             <CommandEmpty>
-              {loading ? "Ricerca in corso..." : "Nessun indirizzo trovato con numero civico. Scrivi l'indirizzo completo (es: Via Roma 123, Milano)"}
+              {loading ? "Ricerca in corso..." : "Nessun indirizzo trovato"}
             </CommandEmpty>
             <CommandGroup>
               {suggestions.map((suggestion) => (

@@ -39,6 +39,8 @@ const Order = () => {
   const [name, setName] = useState(savedState?.name || "");
   const [phone, setPhone] = useState(savedState?.phone || "");
   const [address, setAddress] = useState(savedState?.address || "");
+  const [streetNumber, setStreetNumber] = useState(savedState?.streetNumber || "");
+  const [addressNotes, setAddressNotes] = useState(savedState?.addressNotes || "");
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(savedState?.addressCoords || null);
   const [store, setStore] = useState(savedState?.store || "");
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(savedState?.deliveryDate ? new Date(savedState.deliveryDate) : undefined);
@@ -183,24 +185,10 @@ const Order = () => {
     
     const validItems = items.filter(item => item.name.trim() !== "");
     
-    if (!name || !phone || !address || !store || !deliveryDate || !timeSlot || validItems.length === 0) {
+    if (!name || !phone || !address || !streetNumber || !store || !deliveryDate || !timeSlot || validItems.length === 0) {
       toast({
         title: "Errore",
         description: "Compila tutti i campi obbligatori e aggiungi almeno un prodotto",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // CRITICAL: Validate that address contains a street number (civico)
-    // The regex checks for a number that appears after street name (e.g., "Via Roma 123")
-    const streetNumberPattern = /[,\s]\d+($|[,\s])/;
-    const hasStreetNumber = streetNumberPattern.test(address) || /\d+[,\s]/.test(address);
-    
-    if (!hasStreetNumber) {
-      toast({
-        title: "Numero civico mancante",
-        description: "L'indirizzo deve contenere il numero civico (es. Via Roma 123, Milano)",
         variant: "destructive",
       });
       return;
@@ -253,12 +241,14 @@ const Order = () => {
       return sum + (itemPrice * item.quantity);
     }, 0);
 
+    const fullAddress = `${address}, ${streetNumber}${addressNotes ? ` - ${addressNotes}` : ''}`;
+    
     navigate("/riepilogo-ordine", { 
       state: { 
         orderData: {
           name,
           phone,
-          address,
+          address: fullAddress,
           store,
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
@@ -271,6 +261,8 @@ const Order = () => {
           name,
           phone,
           address,
+          streetNumber,
+          addressNotes,
           addressCoords,
           store,
           deliveryDate: deliveryDate.toISOString(),
@@ -329,9 +321,31 @@ const Order = () => {
                     setAddress(addr);
                     setAddressCoords({ lat, lon });
                   }}
-                  placeholder="Inizia a digitare un indirizzo in Italia..."
+                  placeholder="Via, Piazza, Corso... (senza numero civico)"
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="streetNumber">Numero civico *</Label>
+                  <Input
+                    id="streetNumber"
+                    placeholder="Es: 123"
+                    value={streetNumber}
+                    onChange={(e) => setStreetNumber(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addressNotes">Note indirizzo (opzionale)</Label>
+                  <Input
+                    id="addressNotes"
+                    placeholder="Es: Scala A, Interno 5"
+                    value={addressNotes}
+                    onChange={(e) => setAddressNotes(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
