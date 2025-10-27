@@ -394,27 +394,39 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       if (!mapRef.current) return;
       const marker = L.marker([store.lat, store.lng], { icon: DefaultIcon }).addTo(mapRef.current);
       
-      let popupContent = `<div class="text-center">
-        <strong>${store.name}</strong><br/>
-        ${store.address}`;
+      let popupContent = `<div class="text-center p-2">
+        <strong class="text-base">${store.name}</strong><br/>
+        <span class="text-sm text-gray-600">${store.address}</span>`;
       
       if (addressLocation) {
         const dist = calculateDistance(addressLocation[0], addressLocation[1], store.lat, store.lng);
-        popupContent += `<br/><small>${dist.toFixed(1)} km di distanza</small>`;
+        popupContent += `<br/><small class="text-gray-500">${dist.toFixed(1)} km di distanza</small>`;
       }
       
-      popupContent += `</div>`;
+      popupContent += `<br/><br/>
+        <button 
+          onclick="window.selectStore('${store.name.replace(/'/g, "\\'")} - ${store.address.replace(/'/g, "\\'")}', ${store.lat}, ${store.lng})"
+          class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md text-sm cursor-pointer"
+        >
+          Seleziona questo negozio
+        </button>
+      </div>`;
       
-      marker.bindPopup(popupContent);
-      marker.on('click', () => {
-        setSelectedStore(`${store.name} - ${store.address}`);
-        
-        // Fetch route when a store is selected
-        if (addressLocation) {
-          fetchRoute(addressLocation, [store.lat, store.lng]);
-        }
+      marker.bindPopup(popupContent, {
+        maxWidth: 300,
+        className: 'store-popup'
       });
     });
+
+    // Add global function for store selection
+    (window as any).selectStore = (storeName: string, lat: number, lng: number) => {
+      setSelectedStore(storeName);
+      
+      // Fetch route when a store is selected
+      if (addressLocation) {
+        fetchRoute(addressLocation, [lat, lng]);
+      }
+    };
 
     return () => {
       if (mapRef.current) {
