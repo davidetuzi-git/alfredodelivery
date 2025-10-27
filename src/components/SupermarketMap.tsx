@@ -220,6 +220,14 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       iconAnchor: [12, 41],
     });
 
+    const DeliveryIcon = L.icon({
+      iconUrl: icon,
+      shadowUrl: iconShadow,
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      className: 'hue-rotate-[240deg] saturate-150'
+    });
+
     const center = addressLocation || userLocation;
     
     if (mapRef.current) {
@@ -246,7 +254,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         radius: 7000
       }).addTo(mapRef.current);
 
-      L.marker(addressLocation, { icon: DefaultIcon })
+      L.marker(addressLocation, { icon: DeliveryIcon })
         .addTo(mapRef.current)
         .bindPopup('📍 Indirizzo di consegna');
     }
@@ -283,7 +291,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   return (
     <>
       <AlertDialog open={selectedStore !== null} onOpenChange={(open) => !open && setSelectedStore(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle>Conferma selezione</AlertDialogTitle>
             <AlertDialogDescription>
