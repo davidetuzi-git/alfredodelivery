@@ -286,18 +286,12 @@ const Order = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Lista della spesa</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Aggiungi prodotto
-                  </Button>
-                </div>
+                <Label>Lista della spesa</Label>
                 
                 {items.map((item, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex gap-2 items-start">
-                      <div className="flex-[4] min-w-0">
+                      <div className="flex-[5] min-w-0">
                         <Input
                           placeholder="Es: Latte Conad 1L"
                           value={item.name}
@@ -347,6 +341,11 @@ const Order = () => {
                   </div>
                 ))}
                 
+                <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Aggiungi prodotto
+                </Button>
+                
                 {total > 0 && (
                   <div className="pt-3 border-t flex justify-between items-center">
                     <span className="font-semibold text-lg">Totale stimato:</span>
@@ -355,7 +354,7 @@ const Order = () => {
                 )}
               </div>
 
-              <PriceComparison items={items} />
+              <PriceComparison items={items} currentStore={store} />
 
               <Button type="submit" className="w-full" size="lg">
                 Procedi al pagamento
