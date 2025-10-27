@@ -71,6 +71,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          allergies: string | null
+          created_at: string
+          delivery_notes: string | null
+          dietary_preferences: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          allergies?: string | null
+          created_at?: string
+          delivery_notes?: string | null
+          dietary_preferences?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allergies?: string | null
+          created_at?: string
+          delivery_notes?: string | null
+          dietary_preferences?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
