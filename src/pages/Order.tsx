@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { Plus, X, Loader2, CalendarIcon } from "lucide-react";
-import SupermarketMap from "@/components/SupermarketMap";
+import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,17 +29,21 @@ interface ShoppingItem {
 
 const Order = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [store, setStore] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState<Date>();
+  const location = useLocation();
+  const savedState = location.state?.orderFormData;
+  
+  const [name, setName] = useState(savedState?.name || "");
+  const [phone, setPhone] = useState(savedState?.phone || "");
+  const [address, setAddress] = useState(savedState?.address || "");
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(savedState?.addressCoords || null);
+  const [store, setStore] = useState(savedState?.store || "");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(savedState?.deliveryDate ? new Date(savedState.deliveryDate) : undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [timeSlot, setTimeSlot] = useState("");
-  const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+  const [timeSlot, setTimeSlot] = useState(savedState?.timeSlot || "");
+  const [items, setItems] = useState<ShoppingItem[]>(savedState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+  const [filteredStores, setFilteredStores] = useState<string[]>([]);
 
-  const stores = [
+  const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
     "Carrefour Express - Via Appia Nuova 45, Roma",
     "Coop - Via dei Castani 67, Roma",
@@ -57,6 +61,25 @@ const Order = () => {
     "Esselunga - Via Pisana 130, Firenze",
     "Conad - Via Emilia Ponente 74, Bologna",
   ];
+
+  // Filter stores when address changes
+  useEffect(() => {
+    const filterNearbyStores = async () => {
+      if (!address.trim() || !addressCoords) {
+        setFilteredStores([]);
+        return;
+      }
+
+      const nearby = stores.filter(store => {
+        const distance = calculateDistance(addressCoords.lat, addressCoords.lon, store.lat, store.lng);
+        return distance <= 7;
+      });
+
+      setFilteredStores(nearby.map(s => `${s.name} - ${s.address}`));
+    };
+
+    filterNearbyStores();
+  }, [address, addressCoords]);
 
   const timeSlots = [
     "9:00 - 11:00",
@@ -161,6 +184,16 @@ const Order = () => {
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
           items: validItems
+        },
+        orderFormData: {
+          name,
+          phone,
+          address,
+          addressCoords,
+          store,
+          deliveryDate: deliveryDate.toISOString(),
+          timeSlot,
+          items
         }
       } 
     });
@@ -198,7 +231,7 @@ const Order = () => {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+39 333 123 4567"
+                  placeholder="333 123 4567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
@@ -220,34 +253,46 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="store">Supermercato</Label>
-                <Tabs defaultValue="list" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="list">Lista</TabsTrigger>
-                    <TabsTrigger value="map">Mappa</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="list" className="mt-4">
-                    <Select value={store} onValueChange={setStore}>
-                      <SelectTrigger id="store">
-                        <SelectValue placeholder="Seleziona un supermercato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TabsContent>
-                  <TabsContent value="map" className="mt-4">
-                    <SupermarketMap onSelectStore={setStore} deliveryAddress={address} />
-                    {store && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Selezionato: <strong>{store}</strong>
-                      </p>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                {address && addressCoords ? (
+                  <Tabs defaultValue="list" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="list">Lista</TabsTrigger>
+                      <TabsTrigger value="map">Mappa</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="list" className="mt-4">
+                      <Select value={store} onValueChange={setStore}>
+                        <SelectTrigger id="store">
+                          <SelectValue placeholder="Seleziona un supermercato" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredStores.length > 0 ? (
+                            filteredStores.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              Nessun supermercato nel raggio di 7km
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </TabsContent>
+                    <TabsContent value="map" className="mt-4">
+                      <SupermarketMap onSelectStore={setStore} deliveryAddress={address} />
+                      {store && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Selezionato: <strong>{store}</strong>
+                        </p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-2">
+                    Inserisci prima l'indirizzo di consegna per vedere i supermercati disponibili
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

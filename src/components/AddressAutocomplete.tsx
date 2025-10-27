@@ -82,10 +82,17 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
     onSelect(suggestion.display_name, lat, lon);
     setOpen(false);
     setSuggestions([]);
+    
+    // Prevent reopening
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.blur();
+      }
+    }, 100);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
+    <Popover open={open && suggestions.length > 0} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <div className="relative">
           <Input
@@ -98,9 +105,17 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
             required={required}
             className="w-full"
             onFocus={() => {
-              if (suggestions.length > 0) {
+              if (suggestions.length > 0 && inputValue.length >= 3) {
                 setOpen(true);
               }
+            }}
+            onBlur={(e) => {
+              // Allow time for selection before closing
+              setTimeout(() => {
+                if (!e.currentTarget.contains(document.activeElement)) {
+                  setOpen(false);
+                }
+              }, 200);
             }}
           />
           {loading && (

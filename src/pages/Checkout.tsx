@@ -22,6 +22,14 @@ const Checkout = () => {
   const itemCount = orderData.itemCount || 0;
   const finalTotal = subtotal + deliveryFee - discount;
 
+  const handleBackToOrder = () => {
+    navigate("/ordina", { 
+      state: { 
+        orderFormData: orderData.orderFormData 
+      } 
+    });
+  };
+
   const handlePayment = async () => {
     if (!paymentMethod) {
       toast({
@@ -104,7 +112,7 @@ const Checkout = () => {
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => navigate(-1)}
+            onClick={handleBackToOrder}
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

@@ -17,7 +17,7 @@ interface SupermarketMapProps {
   deliveryAddress: string;
 }
 
-const stores: Store[] = [
+export const stores: Store[] = [
   // Roma e Provincia
   { name: "Esselunga", address: "Via Tuscolana 123, Roma", lat: 41.8719, lng: 12.5144 },
   { name: "Carrefour Express", address: "Via Appia Nuova 45, Roma", lat: 41.8769, lng: 12.5186 },
@@ -140,7 +140,7 @@ const stores: Store[] = [
   { name: "Conad", address: "Via Roma 89, Bolzano", lat: 46.4983, lng: 11.3548 },
 ];
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
