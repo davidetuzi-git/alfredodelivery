@@ -115,14 +115,6 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
-// Component to update map center
-function MapUpdater({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, 14);
-  }, [center, map]);
-  return null;
-}
 
 const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, deliveryAddress, onStoresUpdate }) => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -296,16 +288,16 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
       <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg">
         <MapContainer 
+          key={`${center[0]}-${center[1]}`}
           center={center} 
           zoom={14} 
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={false}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
-          <MapUpdater center={center} />
           
           {addressLocation && (
             <Marker position={addressLocation}>
@@ -318,7 +310,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
           {filteredStores.map((store, index) => (
             <Marker 
-              key={`${store.lat}-${store.lng}-${index}`} 
+              key={`store-${store.lat}-${store.lng}-${index}`} 
               position={[store.lat, store.lng]}
             >
               <Popup>
