@@ -85,30 +85,11 @@ const Order = () => {
     "Conad - Via Emilia Ponente 74, Bologna",
   ];
 
-  // Filter stores when address changes
-  useEffect(() => {
-    const filterNearbyStores = async () => {
-      // If we have saved filtered stores, use them
-      if (initialState?.filteredStores && initialState.filteredStores.length > 0) {
-        setFilteredStores(initialState.filteredStores);
-        return;
-      }
-
-      if (!address.trim() || !addressCoords) {
-        setFilteredStores([]);
-        return;
-      }
-
-      const nearby = stores.filter(store => {
-        const distance = calculateDistance(addressCoords.lat, addressCoords.lon, store.lat, store.lng);
-        return distance <= 7;
-      });
-
-      setFilteredStores(nearby.map(s => `${s.name} - ${s.address}`));
-    };
-
-    filterNearbyStores();
-  }, [address, addressCoords]);
+  // Update stores list when map updates
+  const handleStoresUpdate = (newStores: Array<{name: string; address: string; lat: number; lng: number}>) => {
+    const storeStrings = newStores.map(s => `${s.name} - ${s.address}`);
+    setFilteredStores(storeStrings);
+  };
 
   // Auto-save form data to sessionStorage whenever it changes
   useEffect(() => {
@@ -413,7 +394,7 @@ const Order = () => {
                       </Select>
                     </TabsContent>
                     <TabsContent value="map" className="mt-4">
-                      <SupermarketMap onSelectStore={setStore} deliveryAddress={address} />
+                      <SupermarketMap onSelectStore={setStore} deliveryAddress={address} onStoresUpdate={handleStoresUpdate} />
                       {store && (
                         <p className="text-sm text-muted-foreground mt-2">
                           Selezionato: <strong>{store}</strong>

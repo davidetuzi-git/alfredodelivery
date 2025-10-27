@@ -17,6 +17,7 @@ interface Store {
 interface SupermarketMapProps {
   onSelectStore: (storeName: string) => void;
   deliveryAddress: string;
+  onStoresUpdate?: (stores: Store[]) => void;
 }
 
 export const stores: Store[] = [
@@ -154,7 +155,7 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
-const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps) => {
+const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: SupermarketMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [userLocation, setUserLocation] = useState<[number, number]>([41.9028, 12.4964]);
@@ -278,6 +279,11 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       
       setAllStores(uniqueStores);
       setFilteredStores(uniqueStores);
+      
+      // Notify parent component
+      if (onStoresUpdate) {
+        onStoresUpdate(uniqueStores);
+      }
     } catch (error) {
       console.error("Error fetching stores from Overpass API:", error);
       // Fallback to hardcoded stores
@@ -354,7 +360,12 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     }
 
     setFilteredStores(filtered);
-  }, [storeTypeFilter, chainFilter, allStores]);
+    
+    // Notify parent component
+    if (onStoresUpdate) {
+      onStoresUpdate(filtered);
+    }
+  }, [storeTypeFilter, chainFilter, allStores, onStoresUpdate]);
 
   const fetchRoute = async (from: [number, number], to: [number, number]) => {
     try {

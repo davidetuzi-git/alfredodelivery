@@ -25,6 +25,50 @@ const OrderSummary = () => {
   
   const [productImages, setProductImages] = useState<Record<string, string>>({});
   const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
+  const [productWarnings, setProductWarnings] = useState<Record<string, string>>({});
+
+  // Product brand compatibility checker
+  const checkProductCompatibility = (productName: string, storeName: string): string | null => {
+    const product = productName.toLowerCase();
+    const store = storeName.toLowerCase();
+    
+    // Known discount-exclusive brands
+    const discountBrands = {
+      'lidl': ['freeway', 'preferred selection', 'cien', 'w5', 'lupilu'],
+      'eurospin': ['tre mulini', 'montebello', 'bio premium'],
+      'md': ['md', 'tesori del gusto'],
+      'penny': ['penny', 'bravo'],
+      'aldi': ['aldi', 'cucina', 'trader joe'],
+    };
+    
+    // Known supermarket-exclusive brands
+    const supermarketBrands = {
+      'esselunga': ['esselunga', 'fidel', 'smart'],
+      'coop': ['coop', 'fior fiore', 'vivi verde'],
+      'conad': ['conad', 'sapori&dintorni', 'verso natura'],
+      'carrefour': ['carrefour', 'terre d\'italia'],
+      'pam': ['pam', 'panorama'],
+    };
+    
+    // Check if product contains exclusive brand
+    for (const [discountStore, brands] of Object.entries(discountBrands)) {
+      if (brands.some(brand => product.includes(brand))) {
+        if (!store.includes(discountStore)) {
+          return `⚠️ "${productName}" è un prodotto esclusivo ${discountStore.toUpperCase()}. Potrebbe non essere disponibile in questo negozio.`;
+        }
+      }
+    }
+    
+    for (const [supermarket, brands] of Object.entries(supermarketBrands)) {
+      if (brands.some(brand => product.includes(brand))) {
+        if (!store.includes(supermarket)) {
+          return `⚠️ "${productName}" è un prodotto esclusivo ${supermarket.toUpperCase()}. Potrebbe non essere disponibile in questo negozio.`;
+        }
+      }
+    }
+    
+    return null;
+  };
 
   useEffect(() => {
     if (!orderData) {
@@ -85,6 +129,16 @@ const OrderSummary = () => {
     };
 
     generateImages();
+    
+    // Check product compatibility
+    const warnings: Record<string, string> = {};
+    items.forEach((item) => {
+      const warning = checkProductCompatibility(item.name, orderData.store);
+      if (warning) {
+        warnings[item.name] = warning;
+      }
+    });
+    setProductWarnings(warnings);
   }, [orderData, navigate]);
 
   if (!orderData) {
@@ -244,6 +298,15 @@ const OrderSummary = () => {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Product compatibility warning */}
+                  {productWarnings[item.name] && (
+                    <div className="mt-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-2">
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        {productWarnings[item.name]}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
