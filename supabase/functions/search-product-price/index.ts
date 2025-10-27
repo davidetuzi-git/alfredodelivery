@@ -34,6 +34,32 @@ serve(async (req) => {
 
     console.log(`Searching price for product: ${product} at ${chainName}`);
 
+    // Check if product has size/format information
+    const sizePatterns = [
+      /\d+\s*(ml|l|litri|litro)/i,
+      /\d+\s*(g|kg|grammi|chili)/i,
+      /\d+\s*(pz|pezzi|unità)/i,
+      /\d+x\d+/i,
+      /confezione/i,
+      /formato/i
+    ];
+    
+    const hasSize = sizePatterns.some(pattern => pattern.test(product));
+    
+    if (!hasSize) {
+      console.log('Product missing size/format information');
+      return new Response(
+        JSON.stringify({
+          needsDetails: true,
+          suggestion: `Per trovare il prezzo esatto di "${product}", specifica il formato (es: 1L, 500g, confezione da 6, ecc.)`
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    }
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -45,11 +71,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Se il prodotto è descritto in modo generico (senza marca, formato o quantità specifica), suggerisci cosa specificare iniziando con "SPECIFICA:" seguito dal suggerimento. Altrimenti, fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
+            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Se il prodotto è descritto in modo generico (senza marca o dettagli sufficienti), suggerisci cosa specificare iniziando con "SPECIFICA:" seguito dal suggerimento. Altrimenti, fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
           },
           {
             role: 'user',
-            content: `Prodotto: "${product}" al supermercato ${chainName}. Se mancano dettagli (marca, formato, peso), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
+            content: `Prodotto: "${product}" al supermercato ${chainName}. Se mancano dettagli importanti (marca, tipo specifico), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
           }
         ],
       }),
