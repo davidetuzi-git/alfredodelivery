@@ -303,23 +303,34 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
     // Add store markers
     if (mapRef.current) {
-      filteredStores.forEach((store) => {
+      filteredStores.forEach((store, index) => {
         const marker = L.marker([store.lat, store.lng]).addTo(mapRef.current!);
         
-        const popupContent = `
-          <div class="text-sm">
-            <strong>${store.name}</strong><br/>
-            ${store.address}<br/>
-            <button 
-              onclick="window.selectStore('${store.name.replace(/'/g, "\\'")}', '${store.address.replace(/'/g, "\\'")}', ${store.lat}, ${store.lng})"
-              style="margin-top: 8px; padding: 4px 12px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: none; border-radius: 4px; cursor: pointer;"
-            >
-              Seleziona
-            </button>
-          </div>
+        const popupContent = document.createElement('div');
+        popupContent.className = 'text-sm p-2';
+        popupContent.innerHTML = `
+          <strong class="block mb-1">${store.name}</strong>
+          <span class="block mb-2 text-muted-foreground">${store.address}</span>
         `;
         
-        marker.bindPopup(popupContent);
+        const button = document.createElement('button');
+        button.textContent = 'Seleziona';
+        button.className = 'mt-2 px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 cursor-pointer w-full';
+        button.style.zIndex = '9999';
+        button.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setSelectedStore(store);
+          setShowConfirmDialog(true);
+        };
+        
+        popupContent.appendChild(button);
+        
+        marker.bindPopup(popupContent, { 
+          className: 'custom-popup',
+          closeButton: true,
+          autoClose: false,
+        });
         markersRef.current.push(marker);
       });
     }
@@ -332,17 +343,6 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     };
   }, [addressLocation, userLocation, filteredStores, deliveryAddress]);
 
-  // Global function for store selection
-  useEffect(() => {
-    (window as any).selectStore = (name: string, address: string, lat: number, lng: number) => {
-      setSelectedStore({ name, address, lat, lng });
-      setShowConfirmDialog(true);
-    };
-
-    return () => {
-      delete (window as any).selectStore;
-    };
-  }, []);
 
   const handleConfirmStore = () => {
     if (selectedStore) {
@@ -389,7 +389,8 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
       <div 
         ref={mapContainerRef}
-        className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg"
+        className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg relative"
+        style={{ zIndex: 1 }}
       />
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
