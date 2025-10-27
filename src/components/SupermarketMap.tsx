@@ -1,11 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
+
+// Fix default marker icons
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface Store {
   name: string;
@@ -49,43 +60,6 @@ export const stores: Store[] = [
   { name: "Pam", address: "Corso Buenos Aires 33, Milano", lat: 45.4781, lng: 9.2060 },
   { name: "Esselunga", address: "Via Roma 45, Monza", lat: 45.5845, lng: 9.2744 },
   { name: "Carrefour", address: "Viale Europa 3, Brescia", lat: 45.5416, lng: 10.2118 },
-  
-  // Altre regioni...
-  
-  // Veneto
-  { name: "Conad", address: "Via Guglielmo Marconi 2, Venezia", lat: 45.4372, lng: 12.3352 },
-  { name: "Pam", address: "Rio Terà San Leonardo, 1384, Venezia", lat: 45.4427, lng: 12.3214 },
-  
-  // Lazio
-  { name: "Elite", address: "Via Anagnina, 320, Roma", lat: 41.8275, lng: 12.5946 },
-  { name: "Todis", address: "Viale Palmiro Togliatti, 1095, Roma", lat: 41.8742, lng: 12.5983 },
-  
-  // Emilia Romagna
-  { name: "Pam", address: "Via dell'Indipendenza, 69, Bologna", lat: 44.4950, lng: 11.3430 },
-  
-  // Toscana
-  { name: "Conad", address: "Via Maso Finiguerra, 18, Firenze", lat: 43.7748, lng: 11.2468 },
-  
-  // Sicilia
-  { name: "Decò", address: "Via Dante Alighieri, 77, Palermo", lat: 38.1222, lng: 13.3578 },
-  
-  // Puglia
-  { name: "Dok", address: "Via Papa Giovanni Paolo Ii, 4, Bari", lat: 41.1063, lng: 16.8282 },
-  
-  // Campania
-  { name: "Superò", address: "Via Toledo, 342, Napoli", lat: 40.8455, lng: 14.2453 },
-  
-  // Piemonte
-  { name: "Mercatò", address: "Corso Novara, 75, Torino", lat: 45.0774, lng: 7.6894 },
-  
-  // Liguria
-  { name: " Basko", address: "Via Felice Cavallotti, 10, Genova", lat: 44.4082, lng: 8.9315 },
-  
-  // Calabria
-  { name: "Conad", address: "Via Roma, 12, Cosenza", lat: 39.2972, lng: 16.2544 },
-  
-  // Sardegna
-  { name: "Super Pan", address: "Via Giuseppe Garibaldi, 74, Cagliari", lat: 39.2225, lng: 9.1127 },
   
   // Napoli e Campania
   { name: "Coop", address: "Via Nazionale delle Puglie 112, Napoli", lat: 40.8656, lng: 14.2814 },
@@ -141,13 +115,16 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
+// Component to update map center
+function MapUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 14);
+  }, [center, map]);
+  return null;
+}
+
 const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, deliveryAddress, onStoresUpdate }) => {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<mapboxgl.Marker[]>([]);
-  
-  const [mapboxToken, setMapboxToken] = useState('');
-  const [showTokenInput, setShowTokenInput] = useState(true);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
@@ -267,87 +244,10 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     setFilteredStores(filtered);
   }, [storeTypeFilter, chainFilter, allStores]);
 
-  useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
-
-    mapboxgl.accessToken = mapboxToken;
-    setShowTokenInput(false);
-
-    const center = addressLocation || userLocation || [41.9028, 12.4964];
-
-    if (!map.current) {
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [center[1], center[0]],
-        zoom: 14,
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    } else {
-      map.current.setCenter([center[1], center[0]]);
-    }
-
-    // Clear existing markers
-    markers.current.forEach(marker => marker.remove());
-    markers.current = [];
-
-    // Add delivery address marker
-    if (addressLocation) {
-      const el = document.createElement('div');
-      el.className = 'delivery-marker';
-      el.style.backgroundImage = 'url(https://cdn-icons-png.flaticon.com/512/684/684908.png)';
-      el.style.width = '40px';
-      el.style.height = '40px';
-      el.style.backgroundSize = '100%';
-
-      new mapboxgl.Marker(el)
-        .setLngLat([addressLocation[1], addressLocation[0]])
-        .setPopup(new mapboxgl.Popup().setHTML(`<strong>Indirizzo di consegna</strong><br/>${deliveryAddress}`))
-        .addTo(map.current!);
-    }
-
-    // Add store markers
-    filteredStores.forEach((store) => {
-      const el = document.createElement('div');
-      el.className = 'store-marker';
-      el.style.backgroundImage = 'url(https://cdn-icons-png.flaticon.com/512/891/891462.png)';
-      el.style.width = '32px';
-      el.style.height = '32px';
-      el.style.backgroundSize = '100%';
-      el.style.cursor = 'pointer';
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([store.lng, store.lat])
-        .setPopup(
-          new mapboxgl.Popup().setHTML(
-            `<strong>${store.name}</strong><br/>${store.address}<br/><button onclick="window.selectStore('${store.name}', '${store.address}', ${store.lat}, ${store.lng})" style="margin-top: 8px; padding: 4px 12px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer;">Seleziona</button>`
-          )
-        )
-        .addTo(map.current!);
-
-      markers.current.push(marker);
-    });
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [mapboxToken, addressLocation, userLocation, filteredStores, deliveryAddress]);
-
-  // Global function for store selection from popup
-  useEffect(() => {
-    (window as any).selectStore = (name: string, address: string, lat: number, lng: number) => {
-      setSelectedStore({ name, address, lat, lng });
-      setShowConfirmDialog(true);
-    };
-
-    return () => {
-      delete (window as any).selectStore;
-    };
-  }, []);
+  const handleStoreSelect = (store: Store) => {
+    setSelectedStore(store);
+    setShowConfirmDialog(true);
+  };
 
   const handleConfirmStore = () => {
     if (selectedStore) {
@@ -356,36 +256,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     }
   };
 
-  if (showTokenInput) {
-    return (
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="mapbox-token">Token Mapbox</Label>
-            <Input
-              id="mapbox-token"
-              type="text"
-              placeholder="Inserisci il tuo token Mapbox"
-              value={mapboxToken}
-              onChange={(e) => setMapboxToken(e.target.value)}
-              className="mt-2"
-            />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Ottieni un token gratuito su{' '}
-            <a
-              href="https://account.mapbox.com/access-tokens/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              mapbox.com
-            </a>
-          </p>
-        </div>
-      </Card>
-    );
-  }
+  const center: [number, number] = addressLocation || userLocation || [41.9028, 12.4964];
 
   return (
     <div className="space-y-4">
@@ -423,10 +294,49 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         </div>
       </div>
 
-      <div 
-        ref={mapContainer} 
-        className="w-full h-[400px] md:h-[500px] rounded-lg shadow-lg"
-      />
+      <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg">
+        <MapContainer 
+          center={center} 
+          zoom={14} 
+          style={{ height: '100%', width: '100%' }}
+          scrollWheelZoom={false}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          />
+          <MapUpdater center={center} />
+          
+          {addressLocation && (
+            <Marker position={addressLocation}>
+              <Popup>
+                <strong>Indirizzo di consegna</strong><br />
+                {deliveryAddress}
+              </Popup>
+            </Marker>
+          )}
+
+          {filteredStores.map((store, index) => (
+            <Marker 
+              key={`${store.lat}-${store.lng}-${index}`} 
+              position={[store.lat, store.lng]}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <strong>{store.name}</strong><br />
+                  {store.address}<br />
+                  <button
+                    onClick={() => handleStoreSelect(store)}
+                    className="mt-2 px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                  >
+                    Seleziona
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
