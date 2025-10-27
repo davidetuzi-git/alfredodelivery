@@ -17,68 +17,126 @@ interface SupermarketMapProps {
 }
 
 const stores: Store[] = [
-  // Roma
+  // Roma e Provincia
   { name: "Esselunga", address: "Via Tuscolana 123, Roma", lat: 41.8719, lng: 12.5144 },
   { name: "Carrefour Express", address: "Via Appia Nuova 45, Roma", lat: 41.8769, lng: 12.5186 },
   { name: "Coop", address: "Via dei Castani 67, Roma", lat: 41.8689, lng: 12.5204 },
   { name: "Conad", address: "Viale Manzoni 89, Roma", lat: 41.8929, lng: 12.5014 },
   { name: "Lidl", address: "Via Casilina 234, Roma", lat: 41.8799, lng: 12.5456 },
+  { name: "Conad", address: "Via Nettunense 255, Anzio", lat: 41.4497, lng: 12.6293 },
+  { name: "Lidl", address: "Via Ardeatina 574, Anzio", lat: 41.4521, lng: 12.6187 },
+  { name: "MD Discount", address: "Via di Villa Claudia 90, Anzio", lat: 41.4535, lng: 12.6251 },
   
-  // Milano
+  // Abruzzo
+  { name: "Conad", address: "Via Monte Velino 15, Avezzano", lat: 42.0371, lng: 13.4219 },
+  { name: "Eurospin", address: "Via Corradini 34, Avezzano", lat: 42.0301, lng: 13.4268 },
+  { name: "Tigre", address: "Via Tiburtina Valeria 168, Avezzano", lat: 42.0329, lng: 13.4357 },
+  { name: "Coop", address: "Corso della Libertà 47, Pescara", lat: 42.4618, lng: 14.2144 },
+  { name: "Eurospin", address: "Via Tiburtina 429, Pescara", lat: 42.4534, lng: 14.2089 },
+  { name: "Lidl", address: "Via Lago di Campotosto 1, L'Aquila", lat: 42.3498, lng: 13.3995 },
+  { name: "Conad", address: "Via Strinella 50, L'Aquila", lat: 42.3621, lng: 13.3876 },
+  { name: "Coop", address: "Via Nazionale 45, Teramo", lat: 42.6589, lng: 13.7044 },
+  
+  // Milano e Lombardia
   { name: "Esselunga", address: "Viale Piave 10, Milano", lat: 45.4773, lng: 9.2058 },
   { name: "Carrefour", address: "Via Lorenteggio 251, Milano", lat: 45.4515, lng: 9.1371 },
   { name: "Coop", address: "Via Famagosta 75, Milano", lat: 45.4484, lng: 9.1595 },
   { name: "Pam", address: "Corso Buenos Aires 33, Milano", lat: 45.4781, lng: 9.2060 },
-  { name: "Iper", address: "Via Rubattino 84, Milano", lat: 45.5041, lng: 9.2417 },
+  { name: "Esselunga", address: "Via Roma 45, Monza", lat: 45.5845, lng: 9.2744 },
+  { name: "Carrefour", address: "Viale Europa 3, Brescia", lat: 45.5416, lng: 10.2118 },
+  { name: "Coop", address: "Via Bergamo 125, Bergamo", lat: 45.6983, lng: 9.6773 },
+  { name: "Lidl", address: "Via Milano 78, Como", lat: 45.8081, lng: 9.0852 },
   
-  // Torino
+  // Torino e Piemonte
   { name: "Carrefour", address: "Via Livorno 60, Torino", lat: 45.0703, lng: 7.6869 },
   { name: "Esselunga", address: "Corso Sebastopoli 150, Torino", lat: 45.0351, lng: 7.6533 },
   { name: "Coop", address: "Via Nizza 262, Torino", lat: 45.0415, lng: 7.6696 },
-  { name: "Iper", address: "Corso Romania 460, Torino", lat: 45.0838, lng: 7.6916 },
+  { name: "Conad", address: "Corso Cavour 23, Asti", lat: 44.9008, lng: 8.2067 },
+  { name: "Lidl", address: "Via Torino 156, Cuneo", lat: 44.3914, lng: 7.5512 },
   
-  // Napoli
+  // Napoli e Campania
   { name: "Carrefour", address: "Via Argine 380, Napoli", lat: 40.8646, lng: 14.3054 },
   { name: "Coop", address: "Via Galileo Ferraris 148, Napoli", lat: 40.8551, lng: 14.2820 },
   { name: "Lidl", address: "Via Ferrante Imparato 200, Napoli", lat: 40.8734, lng: 14.2463 },
-  { name: "MD", address: "Via Nazionale 1000, Napoli", lat: 40.9086, lng: 14.3414 },
+  { name: "Conad", address: "Via Roma 134, Salerno", lat: 40.6824, lng: 14.7681 },
+  { name: "Eurospin", address: "Via Nazionale 89, Caserta", lat: 41.0732, lng: 14.3357 },
+  { name: "Todis", address: "Corso Umberto I 67, Benevento", lat: 41.1297, lng: 14.7817 },
   
-  // Firenze
+  // Firenze e Toscana
   { name: "Esselunga", address: "Via Pisana 130, Firenze", lat: 43.7696, lng: 11.2268 },
   { name: "Coop", address: "Via Faentina 210, Firenze", lat: 43.8014, lng: 11.3086 },
   { name: "Carrefour", address: "Viale Europa 175, Firenze", lat: 43.7583, lng: 11.2086 },
+  { name: "Conad", address: "Via Aurelia Nord 156, Pisa", lat: 43.7228, lng: 10.4017 },
+  { name: "Coop", address: "Via Senese 195, Siena", lat: 43.3188, lng: 11.3308 },
+  { name: "Lidl", address: "Via Provinciale 234, Lucca", lat: 43.8430, lng: 10.5079 },
+  { name: "Esselunga", address: "Via Pistoiese 567, Prato", lat: 43.8777, lng: 11.0955 },
   
-  // Bologna
+  // Bologna e Emilia-Romagna
   { name: "Conad", address: "Via Emilia Ponente 74, Bologna", lat: 44.4899, lng: 11.2954 },
   { name: "Coop", address: "Via Marconi 25, Bologna", lat: 44.4899, lng: 11.3426 },
   { name: "Esselunga", address: "Via Marco Polo 1, Bologna", lat: 44.5067, lng: 11.3449 },
+  { name: "Conad", address: "Via Emilia 278, Modena", lat: 44.6471, lng: 10.9252 },
+  { name: "Coop", address: "Via Roma 123, Parma", lat: 44.8015, lng: 10.3279 },
+  { name: "Lidl", address: "Via Flaminia 234, Rimini", lat: 44.0678, lng: 12.5695 },
+  { name: "Conad", address: "Viale Carducci 89, Cesena", lat: 44.1395, lng: 12.2433 },
   
-  // Palermo
+  // Sicilia
   { name: "Carrefour", address: "Via Empedocle Restivo 408, Palermo", lat: 38.1418, lng: 13.3405 },
   { name: "Lidl", address: "Via Ugo La Malfa 103, Palermo", lat: 38.1656, lng: 13.3464 },
-  { name: "Coop", address: "Via Montepellegrino 1, Palermo", lat: 38.1553, lng: 13.3608 },
-  
-  // Genova
-  { name: "Esselunga", address: "Via Giotto 36, Genova", lat: 44.4283, lng: 8.9265 },
-  { name: "Coop", address: "Via Piacenza 4, Genova", lat: 44.4169, lng: 8.9326 },
-  { name: "Carrefour", address: "Via Greto di Cornigliano 11, Genova", lat: 44.4171, lng: 8.8788 },
-  
-  // Venezia
-  { name: "Conad", address: "Via Triestina 172, Mestre", lat: 45.4894, lng: 12.2784 },
-  { name: "Lidl", address: "Via Torino 147, Mestre", lat: 45.4867, lng: 12.2437 },
-  { name: "Coop", address: "Piazzale Candiani 18, Mestre", lat: 45.4840, lng: 12.2314 },
-  
-  // Verona
-  { name: "Esselunga", address: "Viale del Lavoro 12, Verona", lat: 45.4114, lng: 10.9787 },
-  { name: "Pam", address: "Via Sommacampagna 63, Verona", lat: 45.4542, lng: 10.9392 },
-  
-  // Bari
-  { name: "Carrefour", address: "Via Melo 222, Bari", lat: 41.1177, lng: 16.8718 },
-  { name: "Lidl", address: "Via Giulio Petroni 85, Bari", lat: 41.1179, lng: 16.8825 },
-  
-  // Catania
   { name: "Lidl", address: "Via Passo Gravina 197, Catania", lat: 37.5135, lng: 15.0867 },
   { name: "Carrefour", address: "Via Vincenzo Giuffrida 23, Catania", lat: 37.5165, lng: 15.0840 },
+  { name: "Conad", address: "Via Vittorio Emanuele 234, Messina", lat: 38.1938, lng: 15.5540 },
+  { name: "Eurospin", address: "Via Archimede 67, Siracusa", lat: 37.0755, lng: 15.2866 },
+  { name: "Todis", address: "Corso Italia 178, Ragusa", lat: 36.9267, lng: 14.7256 },
+  
+  // Veneto
+  { name: "Conad", address: "Via Triestina 172, Mestre", lat: 45.4894, lng: 12.2784 },
+  { name: "Lidl", address: "Via Torino 147, Mestre", lat: 45.4867, lng: 12.2437 },
+  { name: "Esselunga", address: "Viale del Lavoro 12, Verona", lat: 45.4114, lng: 10.9787 },
+  { name: "Pam", address: "Via Sommacampagna 63, Verona", lat: 45.4542, lng: 10.9392 },
+  { name: "Coop", address: "Via Roma 89, Padova", lat: 45.4064, lng: 11.8768 },
+  { name: "Conad", address: "Viale Italia 234, Vicenza", lat: 45.5455, lng: 11.5354 },
+  { name: "Lidl", address: "Via Feltrina 156, Treviso", lat: 45.6669, lng: 12.2430 },
+  
+  // Puglia
+  { name: "Carrefour", address: "Via Melo 222, Bari", lat: 41.1177, lng: 16.8718 },
+  { name: "Lidl", address: "Via Giulio Petroni 85, Bari", lat: 41.1179, lng: 16.8825 },
+  { name: "Conad", address: "Via Lecce 134, Brindisi", lat: 40.6383, lng: 17.9464 },
+  { name: "Eurospin", address: "Via Appia 267, Taranto", lat: 40.4762, lng: 17.2403 },
+  { name: "Coop", address: "Viale Gallipoli 89, Lecce", lat: 40.3515, lng: 18.1750 },
+  
+  // Liguria
+  { name: "Esselunga", address: "Via Giotto 36, Genova", lat: 44.4283, lng: 8.9265 },
+  { name: "Coop", address: "Via Piacenza 4, Genova", lat: 44.4169, lng: 8.9326 },
+  { name: "Conad", address: "Via Aurelia 234, Sanremo", lat: 43.8177, lng: 7.7743 },
+  { name: "Lidl", address: "Via Nazionale 145, La Spezia", lat: 44.1024, lng: 9.8247 },
+  
+  // Sardegna
+  { name: "Conad", address: "Via Cagliari 156, Cagliari", lat: 39.2238, lng: 9.1217 },
+  { name: "Eurospin", address: "Viale Trieste 89, Sassari", lat: 40.7259, lng: 8.5599 },
+  { name: "Coop", address: "Via Italia 234, Olbia", lat: 40.9237, lng: 9.4967 },
+  
+  // Marche
+  { name: "Conad", address: "Via Flaminia 123, Ancona", lat: 43.6158, lng: 13.5189 },
+  { name: "Coop", address: "Viale Repubblica 67, Pesaro", lat: 43.9093, lng: 12.9133 },
+  { name: "Lidl", address: "Via Roma 234, Macerata", lat: 43.2983, lng: 13.4533 },
+  
+  // Umbria
+  { name: "Coop", address: "Via Cortonese 45, Perugia", lat: 43.1107, lng: 12.3908 },
+  { name: "Conad", address: "Viale Trento 89, Terni", lat: 42.5634, lng: 12.6475 },
+  
+  // Calabria
+  { name: "Conad", address: "Via Popilia 234, Cosenza", lat: 39.3098, lng: 16.2543 },
+  { name: "Eurospin", address: "Corso Mazzini 156, Catanzaro", lat: 38.9098, lng: 16.5877 },
+  { name: "Lidl", address: "Via Nazionale 189, Reggio Calabria", lat: 38.1080, lng: 15.6435 },
+  
+  // Friuli-Venezia Giulia
+  { name: "Coop", address: "Via Cividale 234, Udine", lat: 46.0621, lng: 13.2346 },
+  { name: "Lidl", address: "Corso Italia 156, Trieste", lat: 45.6495, lng: 13.7768 },
+  
+  // Trentino-Alto Adige
+  { name: "Coop", address: "Via Brennero 234, Trento", lat: 46.0664, lng: 11.1257 },
+  { name: "Conad", address: "Via Roma 89, Bolzano", lat: 46.4983, lng: 11.3548 },
 ];
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
