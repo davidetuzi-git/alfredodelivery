@@ -162,6 +162,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [route, setRoute] = useState<any>(null);
   const [routeDistance, setRouteDistance] = useState<string | null>(null);
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const [isLoadingStores, setIsLoadingStores] = useState(false);
   const routeLayerRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
@@ -175,6 +176,93 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     }
   }, []);
 
+  // Fetch real stores from OpenStreetMap Overpass API
+  const fetchNearbyStores = async (lat: number, lng: number) => {
+    setIsLoadingStores(true);
+    try {
+      // Search radius in meters (7km)
+      const radius = 7000;
+      
+      // Overpass query to find supermarkets, convenience stores, and grocery shops
+      const overpassQuery = `
+        [out:json][timeout:25];
+        (
+          node["shop"="supermarket"](around:${radius},${lat},${lng});
+          node["shop"="convenience"](around:${radius},${lat},${lng});
+          node["shop"="grocery"](around:${radius},${lat},${lng});
+          way["shop"="supermarket"](around:${radius},${lat},${lng});
+          way["shop"="convenience"](around:${radius},${lat},${lng});
+          way["shop"="grocery"](around:${radius},${lat},${lng});
+        );
+        out center;
+      `;
+
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: overpassQuery,
+      });
+
+      const data = await response.json();
+      
+      if (data.elements && data.elements.length > 0) {
+        const realStores: Store[] = data.elements.map((element: any) => {
+          const storeLat = element.lat || element.center?.lat;
+          const storeLng = element.lon || element.center?.lon;
+          const name = element.tags?.name || element.tags?.brand || 'Supermercato';
+          const street = element.tags?.['addr:street'] || '';
+          const houseNumber = element.tags?.['addr:housenumber'] || '';
+          const city = element.tags?.['addr:city'] || '';
+          
+          let address = '';
+          if (street) address += street;
+          if (houseNumber) address += ` ${houseNumber}`;
+          if (city) address += `, ${city}`;
+          if (!address) address = 'Indirizzo non disponibile';
+
+          return {
+            name,
+            address,
+            lat: storeLat,
+            lng: storeLng,
+          };
+        });
+
+        // Combine with hardcoded stores in the area as fallback
+        const hardcodedNearby = stores.filter(store => {
+          const distance = calculateDistance(lat, lng, store.lat, store.lng);
+          return distance <= 7;
+        });
+
+        // Merge and deduplicate (prefer real stores)
+        const allStores = [...realStores, ...hardcodedNearby];
+        const uniqueStores = allStores.filter((store, index, self) =>
+          index === self.findIndex((s) => 
+            Math.abs(s.lat - store.lat) < 0.001 && Math.abs(s.lng - store.lng) < 0.001
+          )
+        );
+
+        setFilteredStores(uniqueStores);
+      } else {
+        // Fallback to hardcoded stores if API fails
+        const nearby = stores.filter(store => {
+          const distance = calculateDistance(lat, lng, store.lat, store.lng);
+          return distance <= 7;
+        });
+        setFilteredStores(nearby);
+      }
+    } catch (error) {
+      console.error("Error fetching stores from Overpass API:", error);
+      // Fallback to hardcoded stores
+      const nearby = stores.filter(store => {
+        const distance = calculateDistance(lat, lng, store.lat, store.lng);
+        return distance <= 7;
+      });
+      setFilteredStores(nearby);
+    } finally {
+      setIsLoadingStores(false);
+    }
+  };
+
   useEffect(() => {
     const geocodeAddress = async () => {
       if (!deliveryAddress.trim()) {
@@ -185,7 +273,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
 
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(deliveryAddress)}`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(deliveryAddress)}&countrycodes=it&addressdetails=1&limit=10`
         );
         const data = await response.json();
         
@@ -194,11 +282,8 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
           const lng = parseFloat(data[0].lon);
           setAddressLocation([lat, lng]);
 
-          const nearby = stores.filter(store => {
-            const distance = calculateDistance(lat, lng, store.lat, store.lng);
-            return distance <= 7;
-          });
-          setFilteredStores(nearby);
+          // Fetch real stores from OpenStreetMap
+          await fetchNearbyStores(lat, lng);
         } else {
           setFilteredStores(stores);
           setAddressLocation(null);
@@ -368,8 +453,17 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       <div className="space-y-2">
         <div 
           ref={mapContainerRef} 
-          className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
-        />
+          className="h-[400px] w-full rounded-lg overflow-hidden border border-border relative"
+        >
+          {isLoadingStores && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[1000]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">Caricamento negozi...</p>
+              </div>
+            </div>
+          )}
+        </div>
         {routeDistance && routeDuration && (
           <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-3 text-sm">
             <p className="text-green-900 dark:text-green-100">
@@ -377,7 +471,12 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
             </p>
           </div>
         )}
-        {deliveryAddress && filteredStores.length === 0 && (
+        {deliveryAddress && filteredStores.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            📍 {filteredStores.length} negozi trovati entro 7km dall'indirizzo
+          </p>
+        )}
+        {deliveryAddress && filteredStores.length === 0 && !isLoadingStores && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato
           </p>
