@@ -193,8 +193,8 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
   const fetchNearbyStores = async (lat: number, lng: number) => {
     setIsLoadingStores(true);
     try {
-      // Reduced radius for faster loading (5km instead of 10km)
-      const radius = 5000;
+      // 10km radius for pricing zones (zone1: <7km, zone2: 7-10km)
+      const radius = 10000;
       
       // Simplified query - only supermarkets, no timeout extension
       const overpassQuery = `
@@ -247,10 +247,10 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
           .filter((store: Store) => store.lat && store.lng);
       }
 
-      // Include hardcoded stores in the area (5km radius)
+      // Include hardcoded stores in the area (10km radius for pricing zones)
       const hardcodedNearby = stores.filter(store => {
         const distance = calculateDistance(lat, lng, store.lat, store.lng);
-        return distance <= 5;
+        return distance <= 10;
       });
 
       // Merge and limit total stores
