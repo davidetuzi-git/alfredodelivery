@@ -119,6 +119,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const circlesRef = useRef<L.Circle[]>([]);
+  const routeRef = useRef<L.Polyline | null>(null);
   
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
@@ -128,6 +129,9 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [storeTypeFilter, setStoreTypeFilter] = useState<string>("all");
   const [chainFilter, setChainFilter] = useState<string>("all");
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -239,6 +243,57 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     setFilteredStores(filtered);
   }, [storeTypeFilter, chainFilter, allStores]);
 
+  // Fetch route from OSRM
+  const fetchRoute = async (storeLocation: [number, number]) => {
+    if (!addressLocation) return;
+
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${storeLocation[1]},${storeLocation[0]};${addressLocation[1]},${addressLocation[0]}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+
+      if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const coords = route.geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number]);
+        
+        // Remove old route
+        if (routeRef.current) {
+          routeRef.current.remove();
+        }
+
+        // Add new route
+        if (mapRef.current) {
+          routeRef.current = L.polyline(coords, {
+            color: '#ef4444',
+            weight: 4,
+            opacity: 0.7,
+          }).addTo(mapRef.current);
+
+          // Fit bounds to show entire route
+          mapRef.current.fitBounds(routeRef.current.getBounds(), { padding: [50, 50] });
+        }
+
+        // Set distance and duration
+        const distanceKm = route.distance / 1000;
+        const durationMin = route.duration / 60;
+        setRouteDistance(distanceKm);
+        setRouteDuration(durationMin);
+
+        // Calculate delivery fee based on distance
+        if (distanceKm <= 7) {
+          setDeliveryFee(3.99);
+        } else if (distanceKm <= 10) {
+          setDeliveryFee(5.99);
+        } else {
+          setDeliveryFee(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+    }
+  };
+
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -320,6 +375,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         button.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
+          fetchRoute([store.lat, store.lng]);
           setSelectedStore(store);
           setShowConfirmDialog(true);
         };
@@ -410,6 +466,48 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {routeDistance !== null && routeDuration !== null && (
+        <div className="bg-card p-4 rounded-lg border">
+          <h3 className="font-semibold mb-2">Informazioni percorso</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Distanza:</span>
+              <span className="ml-2 font-medium">{routeDistance.toFixed(2)} km</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Tempo stimato:</span>
+              <span className="ml-2 font-medium">{Math.round(routeDuration)} min</span>
+            </div>
+            {deliveryFee !== null && (
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Tariffa consegna:</span>
+                <span className="ml-2 font-medium text-primary">€{deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-card p-4 rounded-lg border">
+        <h3 className="font-semibold mb-3">Tariffe di consegna</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span>Zona 0-7 km</span>
+            </div>
+            <span className="font-semibold">€3.99</span>
+          </div>
+          <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span>Zona 7-10 km</span>
+            </div>
+            <span className="font-semibold">€5.99</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
