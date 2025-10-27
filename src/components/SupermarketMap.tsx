@@ -427,25 +427,36 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
 
     const center = addressLocation || userLocation;
     
-    if (mapRef.current) {
-      mapRef.current.setView(center, 14, { animate: true });
-      mapRef.current.eachLayer((layer) => {
-        if (layer instanceof L.Marker || layer instanceof L.Circle) {
-          mapRef.current?.removeLayer(layer);
-        }
-      });
-    } else {
+    // Initialize map only once
+    if (!mapRef.current) {
       const map = L.map(mapContainerRef.current, {
         scrollWheelZoom: true,
         dragging: true,
         tap: true,
-        touchZoom: true
+        touchZoom: true,
+        tapTolerance: 15, // Better touch handling for mobile
+        zoomControl: true,
+        preferCanvas: true, // Better performance on mobile
+        renderer: L.canvas() // Use canvas renderer for better iPad compatibility
       }).setView(center, 14);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
       }).addTo(map);
+    } else {
+      // Just update view if map already exists
+      mapRef.current.setView(center, 14, { animate: true });
+    }
+
+    // Clear existing markers and circles (except tile layer)
+    if (mapRef.current) {
+      mapRef.current.eachLayer((layer) => {
+        if (layer instanceof L.Marker || layer instanceof L.Circle || layer instanceof L.Polyline) {
+          mapRef.current?.removeLayer(layer);
+        }
+      });
     }
 
     if (addressLocation && mapRef.current) {
@@ -610,7 +621,8 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
       <div className="space-y-2">
         <div 
           ref={mapContainerRef} 
-          className="h-[400px] w-full rounded-lg overflow-hidden border border-border relative"
+          className="h-[400px] md:h-[500px] w-full rounded-lg overflow-hidden border border-border relative touch-none"
+          style={{ touchAction: 'pan-y pinch-zoom' }}
         >
           {isLoadingStores && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[1000]">
