@@ -130,7 +130,14 @@ const Order = () => {
     });
 
     setTimeout(() => {
-      navigate("/checkout");
+      navigate("/checkout", { 
+        state: { 
+          total, 
+          itemCount: validItems.length,
+          deliveryFee: 3.99,
+          discount: 4.99
+        } 
+      });
     }, 1500);
   };
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -10,7 +10,15 @@ import { toast } from "@/hooks/use-toast";
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [paymentMethod, setPaymentMethod] = useState("");
+  
+  const orderData = location.state || {};
+  const subtotal = orderData.total || 0;
+  const deliveryFee = orderData.deliveryFee || 3.99;
+  const discount = orderData.discount || 4.99;
+  const itemCount = orderData.itemCount || 0;
+  const finalTotal = subtotal + deliveryFee - discount;
 
   const handlePayment = () => {
     if (!paymentMethod) {
@@ -55,20 +63,20 @@ const Checkout = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Prodotti (12 articoli)</span>
-              <span className="font-semibold">€45.80</span>
+              <span className="text-muted-foreground">Prodotti ({itemCount} articoli)</span>
+              <span className="font-semibold">€{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Consegna</span>
-              <span className="font-semibold">€3.99</span>
+              <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sconto fedeltà</span>
-              <span className="font-semibold text-green-600">-€4.99</span>
+              <span className="font-semibold text-green-600">-€{discount.toFixed(2)}</span>
             </div>
             <div className="border-t pt-3 flex justify-between text-lg">
               <span className="font-bold">Totale</span>
-              <span className="font-bold">€44.80</span>
+              <span className="font-bold">€{finalTotal.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
@@ -107,7 +115,7 @@ const Checkout = () => {
         </Card>
 
         <Button onClick={handlePayment} className="w-full" size="lg">
-          Conferma e paga €44.80
+          Conferma e paga €{finalTotal.toFixed(2)}
         </Button>
       </div>
 
