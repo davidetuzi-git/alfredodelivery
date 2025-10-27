@@ -42,11 +42,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci informazioni realistiche sui prezzi dei prodotti nei principali supermercati italiani. Rispondi in modo conciso e informativo.'
+            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Devi fornire SOLO il prezzo medio più probabile in euro come numero. Rispondi SOLO con un numero decimale (es: 2.50 o 1.99). NON aggiungere simboli, testo o spiegazioni.'
           },
           {
             role: 'user',
-            content: `Qual è il prezzo medio di "${product}" al supermercato ${storeName}? Fornisci una stima realistica del prezzo e alcune varianti disponibili se applicabile. Rispondi in italiano in modo breve e chiaro.`
+            content: `Prezzo medio di "${product}" al supermercato ${storeName}? Rispondi SOLO con il numero in euro (es: 2.50)`
           }
         ],
       }),
@@ -76,12 +76,16 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const priceInfo = data.choices?.[0]?.message?.content || 'Informazioni non disponibili';
+    const priceText = data.choices?.[0]?.message?.content || '0';
+    
+    // Parse the price from the response
+    const priceMatch = priceText.match(/\d+[.,]?\d*/);
+    const price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
 
-    console.log('Price search successful');
+    console.log('Price search successful:', price);
 
     return new Response(
-      JSON.stringify({ priceInfo }),
+      JSON.stringify({ price, priceInfo: `€${price.toFixed(2)}` }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

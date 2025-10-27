@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
 import SupermarketMap from "@/components/SupermarketMap";
 import ProductPriceSearch from "@/components/ProductPriceSearch";
+import PriceComparison from "@/components/PriceComparison";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ShoppingItem {
+  name: string;
+  price: number | null;
+  loading: boolean;
+}
 
 const Order = () => {
   const navigate = useNavigate();
@@ -19,7 +27,7 @@ const Order = () => {
   const [address, setAddress] = useState("");
   const [store, setStore] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
-  const [items, setItems] = useState<string[]>([""]);
+  const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false }]);
 
   const stores = [
     "Esselunga - Via Roma 123",
@@ -39,23 +47,57 @@ const Order = () => {
   ];
 
   const addItem = () => {
-    setItems([...items, ""]);
+    setItems([...items, { name: "", price: null, loading: false }]);
   };
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, value: string) => {
+  const updateItemName = (index: number, name: string) => {
     const newItems = [...items];
-    newItems[index] = value;
+    newItems[index] = { ...newItems[index], name };
     setItems(newItems);
   };
+
+  const fetchPrice = async (index: number, productName: string) => {
+    if (!productName.trim() || !store) return;
+
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], loading: true };
+    setItems(newItems);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('search-product-price', {
+        body: { 
+          product: productName.trim(),
+          storeName: store 
+        }
+      });
+
+      if (!error && data?.price) {
+        const updatedItems = [...items];
+        updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false };
+        setItems(updatedItems);
+      } else {
+        const updatedItems = [...items];
+        updatedItems[index] = { ...updatedItems[index], loading: false };
+        setItems(updatedItems);
+      }
+    } catch (error) {
+      console.error('Error fetching price:', error);
+      const updatedItems = [...items];
+      updatedItems[index] = { ...updatedItems[index], loading: false };
+      setItems(updatedItems);
+    }
+  };
+
+  const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validItems = items.filter(item => item.trim() !== "");
+    const validItems = items.filter(item => item.name.trim() !== "");
     
     if (!name || !phone || !address || !store || !timeSlot || validItems.length === 0) {
       toast({
@@ -68,7 +110,7 @@ const Order = () => {
 
     toast({
       title: "Ordine inviato!",
-      description: "Procedi al pagamento per confermare",
+      description: `Totale: €${total.toFixed(2)}. Procedi al pagamento per confermare`,
     });
 
     setTimeout(() => {
@@ -189,13 +231,25 @@ const Order = () => {
                 </div>
                 
                 {items.map((item, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder="Es: 1kg di mele"
-                      value={item}
-                      onChange={(e) => updateItem(index, e.target.value)}
-                      required
-                    />
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Es: 1kg di mele"
+                        value={item.name}
+                        onChange={(e) => updateItemName(index, e.target.value)}
+                        onBlur={() => fetchPrice(index, item.name)}
+                        required
+                      />
+                    </div>
+                    <div className="w-24 text-right font-medium flex items-center justify-end gap-2">
+                      {item.loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : item.price !== null ? (
+                        <span>€{item.price.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
                     {items.length > 1 && (
                       <Button 
                         type="button" 
@@ -208,7 +262,16 @@ const Order = () => {
                     )}
                   </div>
                 ))}
+                
+                {total > 0 && (
+                  <div className="pt-3 border-t flex justify-between items-center">
+                    <span className="font-semibold text-lg">Totale stimato:</span>
+                    <span className="font-bold text-xl text-primary">€{total.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
+
+              <PriceComparison items={items} />
 
               <Button type="submit" className="w-full" size="lg">
                 Procedi al pagamento
