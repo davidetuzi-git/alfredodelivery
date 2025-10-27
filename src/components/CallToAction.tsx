@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Smartphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const CallToAction = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Gradient background */}
@@ -25,9 +28,14 @@ export const CallToAction = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 animate-slide-up">
-                <Button variant="hero" size="lg" className="group">
+                <Button 
+                  variant="hero" 
+                  size="lg" 
+                  className="group"
+                  onClick={() => navigate("/ordina")}
+                >
                   <MessageCircle className="group-hover:rotate-12 transition-transform" />
-                  Contattaci su WhatsApp
+                  Ordina Ora
                 </Button>
                 <Button variant="outline" size="lg" className="group">
                   <Smartphone className="group-hover:scale-110 transition-transform" />
