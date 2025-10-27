@@ -36,18 +36,35 @@ const Order = () => {
   const location = useLocation();
   const savedState = location.state?.orderFormData;
   
-  const [name, setName] = useState(savedState?.name || "");
-  const [phone, setPhone] = useState(savedState?.phone || "");
-  const [address, setAddress] = useState(savedState?.address || "");
-  const [streetNumber, setStreetNumber] = useState(savedState?.streetNumber || "");
-  const [addressNotes, setAddressNotes] = useState(savedState?.addressNotes || "");
-  const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(savedState?.addressCoords || null);
-  const [store, setStore] = useState(savedState?.store || "");
-  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(savedState?.deliveryDate ? new Date(savedState.deliveryDate) : undefined);
+  // Try to restore from sessionStorage if no state was passed
+  const getInitialState = () => {
+    if (savedState) return savedState;
+    
+    const stored = sessionStorage.getItem('orderFormData');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+  
+  const initialState = getInitialState();
+  
+  const [name, setName] = useState(initialState?.name || "");
+  const [phone, setPhone] = useState(initialState?.phone || "");
+  const [address, setAddress] = useState(initialState?.address || "");
+  const [streetNumber, setStreetNumber] = useState(initialState?.streetNumber || "");
+  const [addressNotes, setAddressNotes] = useState(initialState?.addressNotes || "");
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(initialState?.addressCoords || null);
+  const [store, setStore] = useState(initialState?.store || "");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(initialState?.deliveryDate ? new Date(initialState.deliveryDate) : undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [timeSlot, setTimeSlot] = useState(savedState?.timeSlot || "");
-  const [items, setItems] = useState<ShoppingItem[]>(savedState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
-  const [filteredStores, setFilteredStores] = useState<string[]>(savedState?.filteredStores || []);
+  const [timeSlot, setTimeSlot] = useState(initialState?.timeSlot || "");
+  const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+  const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
 
   const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
@@ -72,8 +89,8 @@ const Order = () => {
   useEffect(() => {
     const filterNearbyStores = async () => {
       // If we have saved filtered stores, use them
-      if (savedState?.filteredStores && savedState.filteredStores.length > 0) {
-        setFilteredStores(savedState.filteredStores);
+      if (initialState?.filteredStores && initialState.filteredStores.length > 0) {
+        setFilteredStores(initialState.filteredStores);
         return;
       }
 
@@ -92,6 +109,25 @@ const Order = () => {
 
     filterNearbyStores();
   }, [address, addressCoords]);
+
+  // Auto-save form data to sessionStorage whenever it changes
+  useEffect(() => {
+    const formData = {
+      name,
+      phone,
+      address,
+      streetNumber,
+      addressNotes,
+      addressCoords,
+      store,
+      deliveryDate: deliveryDate?.toISOString(),
+      timeSlot,
+      items,
+      filteredStores
+    };
+    
+    sessionStorage.setItem('orderFormData', JSON.stringify(formData));
+  }, [name, phone, address, streetNumber, addressNotes, addressCoords, store, deliveryDate, timeSlot, items, filteredStores]);
 
   const timeSlots = [
     "9:00 - 11:00",
