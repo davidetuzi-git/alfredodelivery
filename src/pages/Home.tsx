@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Star, TrendingUp, Gift } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
+import { Header } from "@/components/Header";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
@@ -22,6 +23,9 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <div className="hidden md:block">
+        <Header />
+      </div>
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between mb-6">

@@ -1,10 +1,25 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Users } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import heroImage from "@/assets/hero-delivery.jpg";
 
 export const Hero = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden">
@@ -34,10 +49,11 @@ export const Hero = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="hero" size="lg" className="group" onClick={() => navigate("/auth")}>
-                <Users className="group-hover:scale-110 transition-transform" />
-                Accedi
-              </Button>
+              {!user && (
+                <Button variant="hero" size="lg" className="group" onClick={() => navigate("/auth")}>
+                  Accedi
+                </Button>
+              )}
               <Button variant="secondary" size="lg" className="group" onClick={() => navigate("/ordina")}>
                 <ShoppingCart className="group-hover:rotate-12 transition-transform" />
                 Ordina subito
