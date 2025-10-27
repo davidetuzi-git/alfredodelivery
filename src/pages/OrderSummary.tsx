@@ -32,25 +32,56 @@ const OrderSummary = () => {
       return;
     }
 
-    // Generate images for each product
+    // Generate images for all products in parallel (much faster!)
     const generateImages = async () => {
-      for (const item of orderData.items as OrderItem[]) {
-        setLoadingImages(prev => ({ ...prev, [item.name]: true }));
-        
+      const items = orderData.items as OrderItem[];
+      
+      // Set all items as loading
+      const initialLoading = items.reduce((acc, item) => {
+        acc[item.name] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+      setLoadingImages(initialLoading);
+
+      // Generate all images in parallel
+      const imagePromises = items.map(async (item) => {
         try {
           const { data, error } = await supabase.functions.invoke('generate-product-image', {
             body: { productName: item.name }
           });
 
           if (!error && data?.imageUrl) {
-            setProductImages(prev => ({ ...prev, [item.name]: data.imageUrl }));
+            return { name: item.name, imageUrl: data.imageUrl };
           }
+          return null;
         } catch (error) {
           console.error(`Failed to generate image for ${item.name}:`, error);
-        } finally {
-          setLoadingImages(prev => ({ ...prev, [item.name]: false }));
+          return null;
         }
-      }
+      });
+
+      // Wait for all images to be generated
+      const results = await Promise.all(imagePromises);
+      
+      // Update state with all images at once
+      const newImages: Record<string, string> = {};
+      const newLoading: Record<string, boolean> = {};
+      
+      results.forEach((result) => {
+        if (result) {
+          newImages[result.name] = result.imageUrl;
+          newLoading[result.name] = false;
+        }
+      });
+      
+      items.forEach((item) => {
+        if (!newImages[item.name]) {
+          newLoading[item.name] = false;
+        }
+      });
+      
+      setProductImages(newImages);
+      setLoadingImages(newLoading);
     };
 
     generateImages();
