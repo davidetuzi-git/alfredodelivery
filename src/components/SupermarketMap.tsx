@@ -206,7 +206,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       }
     };
 
-    const timeoutId = setTimeout(geocodeAddress, 500);
+    const timeoutId = setTimeout(geocodeAddress, 1500);
     return () => clearTimeout(timeoutId);
   }, [deliveryAddress]);
 
@@ -231,14 +231,19 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     const center = addressLocation || userLocation;
     
     if (mapRef.current) {
-      mapRef.current.setView(center, 13);
+      mapRef.current.setView(center, 13, { animate: false });
       mapRef.current.eachLayer((layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Circle) {
           mapRef.current?.removeLayer(layer);
         }
       });
     } else {
-      const map = L.map(mapContainerRef.current).setView(center, 13);
+      const map = L.map(mapContainerRef.current, {
+        scrollWheelZoom: true,
+        dragging: true,
+        tap: true,
+        touchZoom: true
+      }).setView(center, 13);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
