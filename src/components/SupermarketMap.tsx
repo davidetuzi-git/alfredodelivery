@@ -1,22 +1,10 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
-// Fix default marker icons
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Store {
   name: string;
@@ -115,8 +103,22 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 }
 
+// Fix default marker icons
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, deliveryAddress, onStoresUpdate }) => {
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+  
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
@@ -236,10 +238,83 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     setFilteredStores(filtered);
   }, [storeTypeFilter, chainFilter, allStores]);
 
-  const handleStoreSelect = (store: Store) => {
-    setSelectedStore(store);
-    setShowConfirmDialog(true);
-  };
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const center: [number, number] = addressLocation || userLocation || [41.9028, 12.4964];
+
+    if (!mapRef.current) {
+      // Create map
+      const map = L.map(mapContainerRef.current, {
+        center,
+        zoom: 14,
+        scrollWheelZoom: false,
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+
+      mapRef.current = map;
+    } else {
+      // Update center
+      mapRef.current.setView(center, 14);
+    }
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Add delivery address marker
+    if (addressLocation && mapRef.current) {
+      const marker = L.marker(addressLocation).addTo(mapRef.current);
+      marker.bindPopup(`<strong>Indirizzo di consegna</strong><br/>${deliveryAddress}`);
+      markersRef.current.push(marker);
+    }
+
+    // Add store markers
+    if (mapRef.current) {
+      filteredStores.forEach((store) => {
+        const marker = L.marker([store.lat, store.lng]).addTo(mapRef.current!);
+        
+        const popupContent = `
+          <div class="text-sm">
+            <strong>${store.name}</strong><br/>
+            ${store.address}<br/>
+            <button 
+              onclick="window.selectStore('${store.name.replace(/'/g, "\\'")}', '${store.address.replace(/'/g, "\\'")}', ${store.lat}, ${store.lng})"
+              style="margin-top: 8px; padding: 4px 12px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: none; border-radius: 4px; cursor: pointer;"
+            >
+              Seleziona
+            </button>
+          </div>
+        `;
+        
+        marker.bindPopup(popupContent);
+        markersRef.current.push(marker);
+      });
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [addressLocation, userLocation, filteredStores, deliveryAddress]);
+
+  // Global function for store selection
+  useEffect(() => {
+    (window as any).selectStore = (name: string, address: string, lat: number, lng: number) => {
+      setSelectedStore({ name, address, lat, lng });
+      setShowConfirmDialog(true);
+    };
+
+    return () => {
+      delete (window as any).selectStore;
+    };
+  }, []);
 
   const handleConfirmStore = () => {
     if (selectedStore) {
@@ -247,8 +322,6 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
       setShowConfirmDialog(false);
     }
   };
-
-  const center: [number, number] = addressLocation || userLocation || [41.9028, 12.4964];
 
   return (
     <div className="space-y-4">
@@ -286,49 +359,10 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         </div>
       </div>
 
-      <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg">
-        <MapContainer 
-          key={`${center[0]}-${center[1]}`}
-          center={center} 
-          zoom={14} 
-          style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          />
-          
-          {addressLocation && (
-            <Marker position={addressLocation}>
-              <Popup>
-                <strong>Indirizzo di consegna</strong><br />
-                {deliveryAddress}
-              </Popup>
-            </Marker>
-          )}
-
-          {filteredStores.map((store, index) => (
-            <Marker 
-              key={`store-${store.lat}-${store.lng}-${index}`} 
-              position={[store.lat, store.lng]}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <strong>{store.name}</strong><br />
-                  {store.address}<br />
-                  <button
-                    onClick={() => handleStoreSelect(store)}
-                    className="mt-2 px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-                  >
-                    Seleziona
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-      </div>
+      <div 
+        ref={mapContainerRef}
+        className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg"
+      />
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
