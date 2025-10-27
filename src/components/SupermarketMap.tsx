@@ -159,9 +159,11 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>(stores);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
+  const [selectedStoreCoords, setSelectedStoreCoords] = useState<[number, number] | null>(null);
   const [route, setRoute] = useState<any>(null);
   const [routeDistance, setRouteDistance] = useState<string | null>(null);
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const [deliveryZone, setDeliveryZone] = useState<'zone1' | 'zone2' | null>(null);
   const [isLoadingStores, setIsLoadingStores] = useState(false);
   const routeLayerRef = useRef<L.Polyline | null>(null);
 
@@ -393,11 +395,22 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     }
 
     if (addressLocation && mapRef.current) {
+      // Zona 1: 0-7km (verde)
       L.circle(addressLocation, {
-        color: 'blue',
-        fillColor: 'blue',
+        color: '#22c55e',
+        fillColor: '#22c55e',
         fillOpacity: 0.1,
-        radius: 10000
+        radius: 7000,
+        weight: 2
+      }).addTo(mapRef.current);
+
+      // Zona 2: 7-10km (arancione)
+      L.circle(addressLocation, {
+        color: '#f59e0b',
+        fillColor: '#f59e0b',
+        fillOpacity: 0.1,
+        radius: 10000,
+        weight: 2
       }).addTo(mapRef.current);
 
       L.marker(addressLocation, { icon: DeliveryIcon })
@@ -435,12 +448,19 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
 
     // Add global function for store selection
     (window as any).selectStore = (storeName: string, lat: number, lng: number) => {
-      setSelectedStore(storeName);
+      setSelectedStoreCoords([lat, lng]);
       
-      // Fetch route when a store is selected
+      // Calculate distance and determine zone
       if (addressLocation) {
+        const distance = calculateDistance(addressLocation[0], addressLocation[1], lat, lng);
+        const zone = distance <= 7 ? 'zone1' : 'zone2';
+        setDeliveryZone(zone);
+        
+        // Fetch route
         fetchRoute(addressLocation, [lat, lng]);
       }
+      
+      setSelectedStore(storeName);
     };
 
     return () => {
@@ -453,7 +473,13 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
 
   return (
     <>
-      <AlertDialog open={selectedStore !== null} onOpenChange={(open) => !open && setSelectedStore(null)}>
+      <AlertDialog open={selectedStore !== null} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedStore(null);
+          setDeliveryZone(null);
+          setSelectedStoreCoords(null);
+        }
+      }}>
         <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle>Conferma selezione</AlertDialogTitle>
@@ -461,6 +487,21 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
               Vuoi utilizzare questo supermercato?
               <br /><br />
               <strong>{selectedStore}</strong>
+              <br /><br />
+              {deliveryZone && addressLocation && selectedStoreCoords && (
+                <div className={`p-3 rounded-md ${deliveryZone === 'zone1' ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800' : 'bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800'}`}>
+                  <p className={`text-sm font-semibold mb-2 ${deliveryZone === 'zone1' ? 'text-green-900 dark:text-green-100' : 'text-orange-900 dark:text-orange-100'}`}>
+                    {deliveryZone === 'zone1' ? '🟢 Zona 1 (0-7km)' : '🟠 Zona 2 (7-10km)'}
+                  </p>
+                  <p className={`text-xs ${deliveryZone === 'zone1' ? 'text-green-800 dark:text-green-200' : 'text-orange-800 dark:text-orange-200'}`}>
+                    <strong>Costi di servizio:</strong>
+                    <br />
+                    • {deliveryZone === 'zone1' ? '0,15€' : '0,17€'} per prodotto × quantità
+                    <br />
+                    • Fee consegna: {deliveryZone === 'zone1' ? '10€' : '15€'} (spesa &lt; 50€) o {deliveryZone === 'zone1' ? '8€' : '12€'} (spesa ≥ 50€)
+                  </p>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -469,6 +510,8 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
               if (selectedStore) {
                 onSelectStore(selectedStore);
                 setSelectedStore(null);
+                setDeliveryZone(null);
+                setSelectedStoreCoords(null);
               }
             }}>
               Conferma
@@ -499,9 +542,25 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
           </div>
         )}
         {deliveryAddress && filteredStores.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            📍 {filteredStores.length} negozi trovati entro 10km dall'indirizzo
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              📍 {filteredStores.length} negozi trovati entro 10km dall'indirizzo
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
+                <p className="font-semibold text-green-900 dark:text-green-100">🟢 Zona 1 (0-7km)</p>
+                <p className="text-green-800 dark:text-green-200 mt-1">
+                  0,15€/prodotto + 10€ fee (&lt;50€) o 8€ (≥50€)
+                </p>
+              </div>
+              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md p-2">
+                <p className="font-semibold text-orange-900 dark:text-orange-100">🟠 Zona 2 (7-10km)</p>
+                <p className="text-orange-800 dark:text-orange-200 mt-1">
+                  0,17€/prodotto + 15€ fee (&lt;50€) o 12€ (≥50€)
+                </p>
+              </div>
+            </div>
+          </div>
         )}
         {deliveryAddress && filteredStores.length === 0 && !isLoadingStores && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
