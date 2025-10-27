@@ -12,6 +12,7 @@ import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import PriceSearch from "./pages/PriceSearch";
 import CompareStores from "./pages/CompareStores";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
           <Route path="/home" element={<Home />} />
           <Route path="/ordina" element={<Order />} />

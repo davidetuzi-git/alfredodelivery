@@ -41,7 +41,7 @@ const Order = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [timeSlot, setTimeSlot] = useState(savedState?.timeSlot || "");
   const [items, setItems] = useState<ShoppingItem[]>(savedState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
-  const [filteredStores, setFilteredStores] = useState<string[]>([]);
+  const [filteredStores, setFilteredStores] = useState<string[]>(savedState?.filteredStores || []);
 
   const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
@@ -65,6 +65,12 @@ const Order = () => {
   // Filter stores when address changes
   useEffect(() => {
     const filterNearbyStores = async () => {
+      // If we have saved filtered stores, use them
+      if (savedState?.filteredStores && savedState.filteredStores.length > 0) {
+        setFilteredStores(savedState.filteredStores);
+        return;
+      }
+
       if (!address.trim() || !addressCoords) {
         setFilteredStores([]);
         return;
@@ -170,6 +176,17 @@ const Order = () => {
       return;
     }
 
+    // Validate that address contains a street number (civico)
+    const hasStreetNumber = /\d+/.test(address);
+    if (!hasStreetNumber) {
+      toast({
+        title: "Indirizzo non valido",
+        description: "L'indirizzo deve contenere il numero civico",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Calculate total from valid items (use 0 if price is null)
     const calculatedTotal = validItems.reduce((sum, item) => {
       const itemPrice = item.price || 0;
@@ -202,7 +219,8 @@ const Order = () => {
           store,
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
-          items
+          items,
+          filteredStores
         }
       } 
     });
