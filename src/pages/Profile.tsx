@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
+  const navigate = useNavigate();
+  
   const menuItems = [
-    { icon: User, label: "Dati personali", action: () => {} },
+    { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => {} },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => {} },
     { icon: Bell, label: "Notifiche", action: () => {} },

@@ -11,6 +11,7 @@ import Checkout from "./pages/Checkout";
 import OrderTracking from "./pages/OrderTracking";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import PersonalData from "./pages/PersonalData";
 import PriceSearch from "./pages/PriceSearch";
 import CompareStores from "./pages/CompareStores";
 import Auth from "./pages/Auth";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/tracking" element={<OrderTracking />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/profilo" element={<Profile />} />
+          <Route path="/dati-personali" element={<PersonalData />} />
           <Route path="/prezzi" element={<PriceSearch />} />
           <Route path="/confronta" element={<CompareStores />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
