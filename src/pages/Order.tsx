@@ -239,7 +239,12 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label>Data di consegna</Label>
-                <Popover>
+                <Popover open={deliveryDate === undefined} onOpenChange={(open) => {
+                  if (!open && deliveryDate === undefined) {
+                    // Non permettere di chiudere se non è stata selezionata una data
+                    return;
+                  }
+                }}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -256,7 +261,9 @@ const Order = () => {
                     <Calendar
                       mode="single"
                       selected={deliveryDate}
-                      onSelect={setDeliveryDate}
+                      onSelect={(date) => {
+                        setDeliveryDate(date);
+                      }}
                       disabled={(date) => date < new Date()}
                       initialFocus
                       className="pointer-events-auto"

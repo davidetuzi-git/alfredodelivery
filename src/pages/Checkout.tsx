@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Checkout = () => {
@@ -51,6 +51,15 @@ const Checkout = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate(-1)}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Modifica ordine
+          </Button>
           <h1 className="text-3xl font-bold mb-2">Pagamento</h1>
           <p className="text-muted-foreground">Scegli il metodo di pagamento preferito</p>
         </div>
