@@ -38,11 +38,26 @@ const Order = () => {
   const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
 
   const stores = [
-    "Esselunga - Via Roma 123",
-    "Carrefour - Piazza Duomo 45",
-    "Coop - Corso Italia 67",
-    "Conad - Via Milano 89",
-    "Pam - Viale Europa 12"
+    "Esselunga - Via Tuscolana 123, Roma",
+    "Carrefour Express - Via Appia Nuova 45, Roma",
+    "Coop - Via dei Castani 67, Roma",
+    "Conad - Viale Manzoni 89, Roma",
+    "Pam Panorama - Via Prenestina 112, Roma",
+    "Lidl - Via Casilina 234, Roma",
+    "MD Discount - Via di Torre Spaccata 56, Roma",
+    "Eurospin - Via Tiburtina 145, Roma",
+    "Carrefour Market - Piazza Bologna 78, Roma",
+    "Todis - Via Nomentana 234, Roma",
+    "Iper - Via Collatina 321, Roma",
+    "Tuodì - Via Tor Vergata 45, Roma",
+    "Unes - Via Laurentina 167, Roma",
+    "Simply - Via Ostiense 289, Roma",
+    "Penny Market - Via Cristoforo Colombo 234, Roma",
+    "Conad City - Via Gregorio VII 89, Roma",
+    "Carrefour - Via Aurelia 456, Roma",
+    "Coop Centro Italia - Via della Pisana 234, Roma",
+    "Esselunga - Via del Mare 123, Roma",
+    "Iper La Grande I - Via Laurentina 865, Roma"
   ];
 
   const timeSlots = [
@@ -284,13 +299,14 @@ const Order = () => {
                 {items.map((item, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex gap-2 items-start">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <Input
                           placeholder="Es: Latte Conad 1L"
                           value={item.name}
                           onChange={(e) => updateItemName(index, e.target.value)}
                           onBlur={() => fetchPrice(index, item.name)}
                           required
+                          className="w-full"
                         />
                       </div>
                       <div className="w-20">

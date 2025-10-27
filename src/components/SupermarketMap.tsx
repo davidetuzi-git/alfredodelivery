@@ -17,11 +17,28 @@ interface SupermarketMapProps {
 }
 
 const stores: Store[] = [
-  { name: "Esselunga", address: "Via Roma 123", lat: 41.9028, lng: 12.4964 },
-  { name: "Carrefour", address: "Piazza Duomo 45", lat: 41.9055, lng: 12.4823 },
-  { name: "Coop", address: "Corso Italia 67", lat: 41.8989, lng: 12.5013 },
-  { name: "Conad", address: "Via Milano 89", lat: 41.9102, lng: 12.4891 },
-  { name: "Pam", address: "Viale Europa 12", lat: 41.8956, lng: 12.5075 },
+  // Roma Centro
+  { name: "Esselunga", address: "Via Tuscolana 123, Roma", lat: 41.8719, lng: 12.5144 },
+  { name: "Carrefour Express", address: "Via Appia Nuova 45, Roma", lat: 41.8769, lng: 12.5186 },
+  { name: "Coop", address: "Via dei Castani 67, Roma", lat: 41.8689, lng: 12.5204 },
+  { name: "Conad", address: "Viale Manzoni 89, Roma", lat: 41.8929, lng: 12.5014 },
+  { name: "Pam Panorama", address: "Via Prenestina 112, Roma", lat: 41.8859, lng: 12.5275 },
+  { name: "Lidl", address: "Via Casilina 234, Roma", lat: 41.8799, lng: 12.5456 },
+  { name: "MD Discount", address: "Via di Torre Spaccata 56, Roma", lat: 41.8669, lng: 12.5789 },
+  { name: "Eurospin", address: "Via Tiburtina 145, Roma", lat: 41.9019, lng: 12.5234 },
+  { name: "Carrefour Market", address: "Piazza Bologna 78, Roma", lat: 41.9119, lng: 12.5144 },
+  { name: "Todis", address: "Via Nomentana 234, Roma", lat: 41.9189, lng: 12.5304 },
+  { name: "Iper", address: "Via Collatina 321, Roma", lat: 41.8929, lng: 12.5789 },
+  { name: "Tuodì", address: "Via Tor Vergata 45, Roma", lat: 41.8419, lng: 12.6234 },
+  { name: "Unes", address: "Via Laurentina 167, Roma", lat: 41.8329, lng: 12.4789 },
+  { name: "Simply", address: "Via Ostiense 289, Roma", lat: 41.8579, lng: 12.4789 },
+  { name: "Penny Market", address: "Via Cristoforo Colombo 234, Roma", lat: 41.8459, lng: 12.4834 },
+  // Aggiungi più supermercati per coprire diverse zone
+  { name: "Conad City", address: "Via Gregorio VII 89, Roma", lat: 41.9029, lng: 12.4534 },
+  { name: "Carrefour", address: "Via Aurelia 456, Roma", lat: 41.9119, lng: 12.4289 },
+  { name: "Coop Centro Italia", address: "Via della Pisana 234, Roma", lat: 41.8709, lng: 12.4189 },
+  { name: "Esselunga", address: "Via del Mare 123, Roma", lat: 41.8329, lng: 12.5344 },
+  { name: "Iper La Grande I", address: "Via Laurentina 865, Roma", lat: 41.8019, lng: 12.4689 },
 ];
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -94,7 +111,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   }, [deliveryAddress]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current) return;
 
     const DefaultIcon = L.icon({
       iconUrl: icon,
@@ -104,28 +121,39 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     });
 
     const center = addressLocation || userLocation;
-    const map = L.map(mapContainerRef.current).setView(center, 13);
-    mapRef.current = map;
+    
+    if (mapRef.current) {
+      mapRef.current.setView(center, 13);
+      mapRef.current.eachLayer((layer) => {
+        if (layer instanceof L.Marker || layer instanceof L.Circle) {
+          mapRef.current?.removeLayer(layer);
+        }
+      });
+    } else {
+      const map = L.map(mapContainerRef.current).setView(center, 13);
+      mapRef.current = map;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+    }
 
-    if (addressLocation) {
+    if (addressLocation && mapRef.current) {
       L.circle(addressLocation, {
         color: 'blue',
         fillColor: 'blue',
         fillOpacity: 0.1,
         radius: 7000
-      }).addTo(map);
+      }).addTo(mapRef.current);
 
       L.marker(addressLocation, { icon: DefaultIcon })
-        .addTo(map)
+        .addTo(mapRef.current)
         .bindPopup('📍 Indirizzo di consegna');
     }
 
     filteredStores.forEach((store) => {
-      const marker = L.marker([store.lat, store.lng], { icon: DefaultIcon }).addTo(map);
+      if (!mapRef.current) return;
+      const marker = L.marker([store.lat, store.lng], { icon: DefaultIcon }).addTo(mapRef.current);
       
       let popupContent = `<div class="text-center">
         <strong>${store.name}</strong><br/>
@@ -142,8 +170,10 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     });
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [userLocation, addressLocation, filteredStores, onSelectStore]);
 
