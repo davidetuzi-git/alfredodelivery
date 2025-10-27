@@ -250,12 +250,8 @@ const Order = () => {
       return sum + (itemPrice * item.quantity);
     }, 0);
 
-    navigate("/checkout", { 
+    navigate("/riepilogo-ordine", { 
       state: { 
-        total: calculatedTotal, 
-        itemCount: finalItems.length,
-        deliveryFee: 3.99,
-        discount: 4.99,
         orderData: {
           name,
           phone,

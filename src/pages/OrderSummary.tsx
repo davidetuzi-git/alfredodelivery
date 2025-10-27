@@ -1,0 +1,272 @@
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Navigation } from "@/components/Navigation";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, Store, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+interface OrderItem {
+  name: string;
+  price: number;
+  quantity: number;
+  isEstimated?: boolean;
+  originalName?: string;
+}
+
+const OrderSummary = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const orderData = location.state?.orderData;
+  const orderFormData = location.state?.orderFormData;
+  
+  const [productImages, setProductImages] = useState<Record<string, string>>({});
+  const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!orderData) {
+      navigate("/ordina");
+      return;
+    }
+
+    // Generate images for each product
+    const generateImages = async () => {
+      for (const item of orderData.items as OrderItem[]) {
+        setLoadingImages(prev => ({ ...prev, [item.name]: true }));
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('generate-product-image', {
+            body: { productName: item.name }
+          });
+
+          if (!error && data?.imageUrl) {
+            setProductImages(prev => ({ ...prev, [item.name]: data.imageUrl }));
+          }
+        } catch (error) {
+          console.error(`Failed to generate image for ${item.name}:`, error);
+        } finally {
+          setLoadingImages(prev => ({ ...prev, [item.name]: false }));
+        }
+      }
+    };
+
+    generateImages();
+  }, [orderData, navigate]);
+
+  if (!orderData) {
+    return null;
+  }
+
+  const items = orderData.items as OrderItem[];
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const deliveryFee = 3.99;
+  const discount = 4.99;
+  const total = subtotal + deliveryFee - discount;
+
+  const handleProceedToCheckout = () => {
+    navigate("/checkout", {
+      state: {
+        total,
+        itemCount: items.length,
+        deliveryFee,
+        discount,
+        orderData,
+        orderFormData
+      }
+    });
+  };
+
+  const handleGoBack = () => {
+    navigate("/ordina", {
+      state: { orderFormData }
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
+        <div className="max-w-4xl mx-auto">
+          <Button 
+            variant="ghost" 
+            onClick={handleGoBack}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Torna all'ordine
+          </Button>
+          <h1 className="text-3xl font-bold mb-2">Riepilogo Ordine</h1>
+          <p className="text-muted-foreground">Verifica i dettagli prima di procedere al pagamento</p>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Delivery Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Dettagli Consegna
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Nome</p>
+                <p className="font-semibold">{orderData.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Telefono</p>
+                <p className="font-semibold">{orderData.phone}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-sm text-muted-foreground">Indirizzo</p>
+                <p className="font-semibold">{orderData.address}</p>
+              </div>
+            </div>
+            
+            <div className="border-t pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Supermercato</p>
+                  <p className="font-semibold text-sm">{orderData.store}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Data</p>
+                  <p className="font-semibold text-sm">
+                    {format(new Date(orderData.deliveryDate), "PPP", { locale: it })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Orario</p>
+                  <p className="font-semibold text-sm">{orderData.timeSlot}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Products */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Prodotti ({items.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {items.map((item, index) => (
+              <div 
+                key={index} 
+                className="flex gap-4 p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+              >
+                {/* Product Image */}
+                <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                  {loadingImages[item.name] ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  ) : productImages[item.name] ? (
+                    <img 
+                      src={productImages[item.name]} 
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-4xl">📦</div>
+                  )}
+                </div>
+
+                {/* Product Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-semibold text-lg leading-tight">
+                      {item.name}
+                    </h3>
+                    {item.originalName && item.originalName !== item.name && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        Originale: {item.originalName}
+                      </p>
+                    )}
+                    {item.isEstimated && (
+                      <span className="text-xs text-orange-600 dark:text-orange-400 inline-flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 rounded-full bg-orange-500"></span>
+                        Prezzo stimato
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="text-sm text-muted-foreground">
+                      Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">
+                        €{item.price.toFixed(2)} cad.
+                      </div>
+                      <div className="text-lg font-bold text-primary">
+                        €{(item.price * item.quantity).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Price Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Riepilogo Costi</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotale</span>
+              <span className="font-semibold">€{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Spese di consegna</span>
+              <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+              <span>Sconto primo ordine</span>
+              <span className="font-semibold">-€{discount.toFixed(2)}</span>
+            </div>
+            <div className="border-t pt-3 flex justify-between text-lg font-bold">
+              <span>Totale</span>
+              <span className="text-primary">€{total.toFixed(2)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            onClick={handleGoBack}
+            className="flex-1"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Modifica ordine
+          </Button>
+          <Button 
+            onClick={handleProceedToCheckout}
+            className="flex-1"
+          >
+            Procedi al pagamento
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <Navigation />
+    </div>
+  );
+};
+
+export default OrderSummary;
