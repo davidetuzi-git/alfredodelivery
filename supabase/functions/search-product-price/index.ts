@@ -20,6 +20,9 @@ serve(async (req) => {
       );
     }
 
+    // Estrae solo il nome della catena (prima del trattino)
+    const chainName = storeName.split(' - ')[0].trim();
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY not configured');
@@ -29,7 +32,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Searching price for product: ${product} at ${storeName}`);
+    console.log(`Searching price for product: ${product} at ${chainName}`);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -46,7 +49,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Prodotto: "${product}" al supermercato ${storeName}. Se mancano dettagli (marca, formato, peso), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
+            content: `Prodotto: "${product}" al supermercato ${chainName}. Se mancano dettagli (marca, formato, peso), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
           }
         ],
       }),

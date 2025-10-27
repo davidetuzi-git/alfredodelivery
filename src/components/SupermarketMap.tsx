@@ -262,10 +262,22 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         popupContent += `<br/><small>${dist.toFixed(1)} km di distanza</small>`;
       }
       
-      popupContent += `</div>`;
+      popupContent += `<br/><button 
+        onclick="window.selectStore('${store.name} - ${store.address}')" 
+        style="margin-top: 8px; padding: 6px 12px; background: hsl(var(--primary)); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;"
+      >
+        Seleziona questo supermercato
+      </button></div>`;
+      
       marker.bindPopup(popupContent);
-      marker.on('click', () => onSelectStore(`${store.name} - ${store.address}`));
     });
+
+    // Aggiungi funzione globale per gestire la selezione
+    (window as any).selectStore = (storeName: string) => {
+      if (confirm(`Vuoi utilizzare questo supermercato?\n\n${storeName}`)) {
+        onSelectStore(storeName);
+      }
+    };
 
     return () => {
       if (mapRef.current) {
