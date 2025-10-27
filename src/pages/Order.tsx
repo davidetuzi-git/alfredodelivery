@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { Plus, X } from "lucide-react";
+import SupermarketMap from "@/components/SupermarketMap";
+import ProductPriceSearch from "@/components/ProductPriceSearch";
 
 const Order = () => {
   const navigate = useNavigate();
@@ -125,18 +128,39 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="store">Supermercato</Label>
-                <Select value={store} onValueChange={setStore}>
-                  <SelectTrigger id="store">
-                    <SelectValue placeholder="Seleziona un supermercato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stores.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Tabs defaultValue="list" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="list">Lista</TabsTrigger>
+                    <TabsTrigger value="map">Mappa</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="list" className="mt-4">
+                    <Select value={store} onValueChange={setStore}>
+                      <SelectTrigger id="store">
+                        <SelectValue placeholder="Seleziona un supermercato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TabsContent>
+                  <TabsContent value="map" className="mt-4">
+                    <SupermarketMap onSelectStore={setStore} />
+                    {store && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Selezionato: <strong>{store}</strong>
+                      </p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cerca prezzi prodotti</Label>
+                <ProductPriceSearch storeName={store} />
               </div>
 
               <div className="space-y-2">
