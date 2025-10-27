@@ -193,11 +193,14 @@ const Order = () => {
     }
 
     // CRITICAL: Validate that address contains a street number (civico)
-    const streetNumberRegex = /\d+/;
-    if (!streetNumberRegex.test(address)) {
+    // The regex checks for a number that appears after street name (e.g., "Via Roma 123")
+    const streetNumberPattern = /[,\s]\d+($|[,\s])/;
+    const hasStreetNumber = streetNumberPattern.test(address) || /\d+[,\s]/.test(address);
+    
+    if (!hasStreetNumber) {
       toast({
-        title: "Numero civico obbligatorio",
-        description: "Devi inserire il numero civico nell'indirizzo",
+        title: "Numero civico mancante",
+        description: "L'indirizzo deve contenere il numero civico (es. Via Roma 123, Milano)",
         variant: "destructive",
       });
       return;

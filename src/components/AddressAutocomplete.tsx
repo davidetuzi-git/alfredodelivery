@@ -46,7 +46,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?` +
           `format=json&q=${encodeURIComponent(inputValue)}&` +
-          `countrycodes=it&addressdetails=1&limit=5`,
+          `countrycodes=it&addressdetails=1&limit=10`,
           {
             headers: {
               'Accept-Language': 'it'
@@ -54,8 +54,18 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
           }
         );
         const data = await response.json();
-        setSuggestions(data || []);
-        setOpen(data && data.length > 0);
+        
+        // CRITICAL: Filter to only show addresses with house numbers
+        const addressesWithNumbers = data.filter((item: any) => {
+          // Check if the address contains a number (civico)
+          const hasNumber = /\b\d+\b/.test(item.display_name);
+          // Also check if it has house_number in address details
+          const hasHouseNumber = item.address?.house_number;
+          return hasNumber || hasHouseNumber;
+        });
+        
+        setSuggestions(addressesWithNumbers || []);
+        setOpen(addressesWithNumbers && addressesWithNumbers.length > 0);
         // Mantieni il focus sull'input
         setTimeout(() => {
           inputRef.current?.focus();
@@ -94,7 +104,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
             onChange={(e) => {
               setInputValue(e.target.value);
             }}
-            placeholder={placeholder || "Inizia a digitare un indirizzo..."}
+            placeholder={placeholder || "Inserisci indirizzo COMPLETO con numero civico..."}
             required={required}
             className="w-full"
             onFocus={() => {
@@ -114,7 +124,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
         <Command>
           <CommandList>
             <CommandEmpty>
-              {loading ? "Ricerca in corso..." : "Nessun indirizzo trovato"}
+              {loading ? "Ricerca in corso..." : "Nessun indirizzo trovato con numero civico. Scrivi l'indirizzo completo (es: Via Roma 123, Milano)"}
             </CommandEmpty>
             <CommandGroup>
               {suggestions.map((suggestion) => (
