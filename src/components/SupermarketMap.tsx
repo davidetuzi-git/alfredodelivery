@@ -432,9 +432,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
       const map = L.map(mapContainerRef.current, {
         scrollWheelZoom: true,
         dragging: true,
-        tap: true,
         touchZoom: true,
-        tapTolerance: 15, // Better touch handling for mobile
         zoomControl: true,
         preferCanvas: true, // Better performance on mobile
         renderer: L.canvas() // Use canvas renderer for better iPad compatibility
