@@ -170,9 +170,15 @@ const Order = () => {
       return;
     }
 
+    // Calculate total from valid items (use 0 if price is null)
+    const calculatedTotal = validItems.reduce((sum, item) => {
+      const itemPrice = item.price || 0;
+      return sum + (itemPrice * item.quantity);
+    }, 0);
+
     navigate("/checkout", { 
       state: { 
-        total, 
+        total: calculatedTotal, 
         itemCount: validItems.length,
         deliveryFee: 3.99,
         discount: 4.99,
@@ -183,7 +189,10 @@ const Order = () => {
           store,
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
-          items: validItems
+          items: validItems.map(item => ({
+            ...item,
+            price: item.price || 0
+          }))
         },
         orderFormData: {
           name,

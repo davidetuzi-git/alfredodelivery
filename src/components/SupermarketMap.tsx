@@ -272,7 +272,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     const center = addressLocation || userLocation;
     
     if (mapRef.current) {
-      mapRef.current.setView(center, 13, { animate: false });
+      mapRef.current.setView(center, 14, { animate: true });
       mapRef.current.eachLayer((layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Circle) {
           mapRef.current?.removeLayer(layer);
@@ -284,7 +284,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         dragging: true,
         tap: true,
         touchZoom: true
-      }).setView(center, 13);
+      }).setView(center, 14);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
