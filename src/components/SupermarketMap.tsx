@@ -118,6 +118,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const circlesRef = useRef<L.Circle[]>([]);
   
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
@@ -262,9 +263,36 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
       mapRef.current.setView(center, 14);
     }
 
-    // Clear existing markers
+    // Clear existing markers and circles
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
+    circlesRef.current.forEach(circle => circle.remove());
+    circlesRef.current = [];
+
+    // Add delivery zones (7km and 10km circles)
+    if (addressLocation && mapRef.current) {
+      // 7km zone - green
+      const circle7km = L.circle(addressLocation, {
+        color: '#22c55e',
+        fillColor: '#22c55e',
+        fillOpacity: 0.1,
+        radius: 7000,
+        weight: 2,
+      }).addTo(mapRef.current);
+      circle7km.bindPopup('Zona di consegna 7 km');
+      circlesRef.current.push(circle7km);
+
+      // 10km zone - blue
+      const circle10km = L.circle(addressLocation, {
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.05,
+        radius: 10000,
+        weight: 2,
+      }).addTo(mapRef.current);
+      circle10km.bindPopup('Zona di consegna 10 km');
+      circlesRef.current.push(circle10km);
+    }
 
     // Add delivery address marker
     if (addressLocation && mapRef.current) {
