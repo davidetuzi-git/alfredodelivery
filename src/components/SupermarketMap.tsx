@@ -442,7 +442,16 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
+        crossOrigin: true,
+        className: 'map-tiles',
+        keepBuffer: 2,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        updateInterval: 200,
       }).addTo(map);
+      
+      // Force tile reload for mobile
+      setTimeout(() => map.invalidateSize(), 100);
     } else {
       // Just update view if map already exists
       mapRef.current.setView(center, 14, { animate: true });
