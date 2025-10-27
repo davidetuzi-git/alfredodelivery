@@ -189,108 +189,103 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
     }
   }, []);
 
-  // Fetch real stores from OpenStreetMap Overpass API
+  // Fetch real stores from OpenStreetMap Overpass API with optimizations
   const fetchNearbyStores = async (lat: number, lng: number) => {
     setIsLoadingStores(true);
     try {
-      // Search radius in meters (10km for better coverage)
-      const radius = 10000;
+      // Reduced radius for faster loading (5km instead of 10km)
+      const radius = 5000;
       
-      // Overpass query to find all types of food retail stores
+      // Simplified query - only supermarkets, no timeout extension
       const overpassQuery = `
-        [out:json][timeout:25];
+        [out:json][timeout:15];
         (
           node["shop"="supermarket"](around:${radius},${lat},${lng});
           way["shop"="supermarket"](around:${radius},${lat},${lng});
-          relation["shop"="supermarket"](around:${radius},${lat},${lng});
-          
-          node["shop"="convenience"](around:${radius},${lat},${lng});
-          way["shop"="convenience"](around:${radius},${lat},${lng});
-          
-          node["shop"="grocery"](around:${radius},${lat},${lng});
-          way["shop"="grocery"](around:${radius},${lat},${lng});
-          
-          node["shop"="greengrocer"](around:${radius},${lat},${lng});
-          way["shop"="greengrocer"](around:${radius},${lat},${lng});
-          
-          node["shop"="general"](around:${radius},${lat},${lng});
-          way["shop"="general"](around:${radius},${lat},${lng});
-          
-          node["shop"="department_store"]["name"~"Esselunga|Coop|Conad|Carrefour|Lidl|Eurospin|MD|Todis|Pam|Tigre|Iper|Simply|Unes|Il Gigante|Penny|Aldi"](around:${radius},${lat},${lng});
-          way["shop"="department_store"]["name"~"Esselunga|Coop|Conad|Carrefour|Lidl|Eurospin|MD|Todis|Pam|Tigre|Iper|Simply|Unes|Il Gigante|Penny|Aldi"](around:${radius},${lat},${lng});
         );
-        out center;
+        out center 50;
       `;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: overpassQuery,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json();
       
       let realStores: Store[] = [];
       
       if (data.elements && data.elements.length > 0) {
-        realStores = data.elements.map((element: any) => {
-          const storeLat = element.lat || element.center?.lat;
-          const storeLng = element.lon || element.center?.lon;
-          const name = element.tags?.name || element.tags?.brand || element.tags?.operator || 'Supermercato';
-          const street = element.tags?.['addr:street'] || '';
-          const houseNumber = element.tags?.['addr:housenumber'] || '';
-          const city = element.tags?.['addr:city'] || '';
-          
-          let address = '';
-          if (street) address += street;
-          if (houseNumber) address += ` ${houseNumber}`;
-          if (city) address += `, ${city}`;
-          if (!address) address = 'Indirizzo non disponibile';
+        realStores = data.elements
+          .slice(0, 30) // Limit to 30 stores max from API
+          .map((element: any) => {
+            const storeLat = element.lat || element.center?.lat;
+            const storeLng = element.lon || element.center?.lon;
+            const name = element.tags?.name || element.tags?.brand || 'Supermercato';
+            const street = element.tags?.['addr:street'] || '';
+            const houseNumber = element.tags?.['addr:housenumber'] || '';
+            const city = element.tags?.['addr:city'] || '';
+            
+            let address = '';
+            if (street) address += street;
+            if (houseNumber) address += ` ${houseNumber}`;
+            if (city) address += `, ${city}`;
+            if (!address) address = 'Indirizzo non disponibile';
 
-          return {
-            name,
-            address,
-            lat: storeLat,
-            lng: storeLng,
-          };
-        }).filter((store: Store) => store.lat && store.lng);
+            return {
+              name,
+              address,
+              lat: storeLat,
+              lng: storeLng,
+            };
+          })
+          .filter((store: Store) => store.lat && store.lng);
       }
 
-      // Always include hardcoded stores in the area
+      // Include hardcoded stores in the area (5km radius)
       const hardcodedNearby = stores.filter(store => {
         const distance = calculateDistance(lat, lng, store.lat, store.lng);
-        return distance <= 10;
+        return distance <= 5;
       });
 
-      // Merge real and hardcoded stores
-      const allStores = [...realStores, ...hardcodedNearby];
+      // Merge and limit total stores
+      const allStoresTemp = [...realStores, ...hardcodedNearby];
       
-      // Deduplicate based on proximity (stores within 50m are considered the same)
-      const uniqueStores = allStores.reduce((acc: Store[], store) => {
-        const isDuplicate = acc.some(s => 
-          calculateDistance(s.lat, s.lng, store.lat, store.lng) < 0.05 // ~50 meters
-        );
-        if (!isDuplicate) {
-          acc.push(store);
-        }
-        return acc;
-      }, []);
+      // Deduplicate and limit to 50 total stores
+      const uniqueStores = allStoresTemp
+        .reduce((acc: Store[], store) => {
+          const isDuplicate = acc.some(s => 
+            calculateDistance(s.lat, s.lng, store.lat, store.lng) < 0.05
+          );
+          if (!isDuplicate) {
+            acc.push(store);
+          }
+          return acc;
+        }, [])
+        .slice(0, 50); // Max 50 stores total
 
-      console.log(`Found ${realStores.length} real stores from API and ${hardcodedNearby.length} hardcoded stores. Total unique: ${uniqueStores.length}`);
+      console.log(`Found ${uniqueStores.length} stores (${realStores.length} from API, ${hardcodedNearby.length} hardcoded)`);
       
       setAllStores(uniqueStores);
       setFilteredStores(uniqueStores);
       
-      // Notify parent component
       if (onStoresUpdate) {
         onStoresUpdate(uniqueStores);
       }
     } catch (error) {
-      console.error("Error fetching stores from Overpass API:", error);
-      // Fallback to hardcoded stores
-      const nearby = stores.filter(store => {
-        const distance = calculateDistance(lat, lng, store.lat, store.lng);
-        return distance <= 10;
-      });
+      console.error("Error fetching stores:", error);
+      // Quick fallback to hardcoded stores
+      const nearby = stores
+        .filter(store => {
+          const distance = calculateDistance(lat, lng, store.lat, store.lng);
+          return distance <= 5;
+        })
+        .slice(0, 30);
       setAllStores(nearby);
       setFilteredStores(nearby);
     } finally {
@@ -301,38 +296,46 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
   useEffect(() => {
     const geocodeAddress = async () => {
       if (!deliveryAddress.trim()) {
-        setFilteredStores(stores);
+        const defaultStores = stores.slice(0, 30);
+        setAllStores(defaultStores);
+        setFilteredStores(defaultStores);
         setAddressLocation(null);
         return;
       }
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(deliveryAddress)}&countrycodes=it&addressdetails=1&limit=10`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(deliveryAddress)}&countrycodes=it&limit=1`,
+          { signal: controller.signal }
         );
+        
+        clearTimeout(timeoutId);
         const data = await response.json();
         
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
           setAddressLocation([lat, lng]);
-
-          // Fetch real stores from OpenStreetMap
           await fetchNearbyStores(lat, lng);
         } else {
-          setAllStores(stores);
-          setFilteredStores(stores);
+          const defaultStores = stores.slice(0, 30);
+          setAllStores(defaultStores);
+          setFilteredStores(defaultStores);
           setAddressLocation(null);
         }
       } catch (error) {
         console.error("Geocoding error:", error);
-        setAllStores(stores);
-        setFilteredStores(stores);
+        const defaultStores = stores.slice(0, 30);
+        setAllStores(defaultStores);
+        setFilteredStores(defaultStores);
         setAddressLocation(null);
       }
     };
 
-    const timeoutId = setTimeout(geocodeAddress, 1500);
+    const timeoutId = setTimeout(geocodeAddress, 800); // Faster debounce
     return () => clearTimeout(timeoutId);
   }, [deliveryAddress]);
 
