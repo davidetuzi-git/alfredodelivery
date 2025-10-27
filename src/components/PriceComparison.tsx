@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface PriceComparisonProps {
-  items: Array<{ name: string; price: number | null }>;
+  items: Array<{ name: string; price: number | null; quantity: number }>;
 }
 
 const PriceComparison = ({ items }: PriceComparisonProps) => {
@@ -49,8 +49,8 @@ const PriceComparison = ({ items }: PriceComparisonProps) => {
             }
           });
 
-          if (!error && data?.price) {
-            storeTotal += data.price;
+          if (!error && data?.price && !data?.needsDetails) {
+            storeTotal += data.price * item.quantity;
           }
         }
         

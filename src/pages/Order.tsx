@@ -18,6 +18,8 @@ interface ShoppingItem {
   name: string;
   price: number | null;
   loading: boolean;
+  quantity: number;
+  suggestion: string | null;
 }
 
 const Order = () => {
@@ -27,7 +29,7 @@ const Order = () => {
   const [address, setAddress] = useState("");
   const [store, setStore] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
-  const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false }]);
+  const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
 
   const stores = [
     "Esselunga - Via Roma 123",
@@ -47,7 +49,7 @@ const Order = () => {
   ];
 
   const addItem = () => {
-    setItems([...items, { name: "", price: null, loading: false }]);
+    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   };
 
   const removeItem = (index: number) => {
@@ -56,7 +58,13 @@ const Order = () => {
 
   const updateItemName = (index: number, name: string) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], name };
+    newItems[index] = { ...newItems[index], name, suggestion: null };
+    setItems(newItems);
+  };
+
+  const updateItemQuantity = (index: number, quantity: number) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], quantity: Math.max(1, quantity) };
     setItems(newItems);
   };
 
@@ -75,9 +83,13 @@ const Order = () => {
         }
       });
 
-      if (!error && data?.price) {
+      if (!error && data?.needsDetails) {
         const updatedItems = [...items];
-        updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false };
+        updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: data.suggestion, price: null };
+        setItems(updatedItems);
+      } else if (!error && data?.price) {
+        const updatedItems = [...items];
+        updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false, suggestion: null };
         setItems(updatedItems);
       } else {
         const updatedItems = [...items];
@@ -92,7 +104,7 @@ const Order = () => {
     }
   };
 
-  const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
+  const total = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,34 +243,53 @@ const Order = () => {
                 </div>
                 
                 {items.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Es: 1kg di mele"
-                        value={item.name}
-                        onChange={(e) => updateItemName(index, e.target.value)}
-                        onBlur={() => fetchPrice(index, item.name)}
-                        required
-                      />
-                    </div>
-                    <div className="w-24 text-right font-medium flex items-center justify-end gap-2">
-                      {item.loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : item.price !== null ? (
-                        <span>€{item.price.toFixed(2)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
+                  <div key={index} className="space-y-2">
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Es: Latte Conad 1L"
+                          value={item.name}
+                          onChange={(e) => updateItemName(index, e.target.value)}
+                          onBlur={() => fetchPrice(index, item.name)}
+                          required
+                        />
+                      </div>
+                      <div className="w-20">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                          className="text-center"
+                          placeholder="Qtà"
+                        />
+                      </div>
+                      <div className="w-28 text-right font-medium flex items-center justify-end gap-2">
+                        {item.loading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : item.price !== null ? (
+                          <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                      {items.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeItem(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                    {items.length > 1 && (
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                    {item.suggestion && (
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-sm">
+                        <p className="text-amber-900 dark:text-amber-100">
+                          💡 <strong>Suggerimento:</strong> {item.suggestion}
+                        </p>
+                      </div>
                     )}
                   </div>
                 ))}

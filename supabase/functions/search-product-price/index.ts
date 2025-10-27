@@ -42,11 +42,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Devi fornire SOLO il prezzo medio più probabile in euro come numero. Rispondi SOLO con un numero decimale (es: 2.50 o 1.99). NON aggiungere simboli, testo o spiegazioni.'
+            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Se il prodotto è descritto in modo generico (senza marca, formato o quantità specifica), suggerisci cosa specificare iniziando con "SPECIFICA:" seguito dal suggerimento. Altrimenti, fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
           },
           {
             role: 'user',
-            content: `Prezzo medio di "${product}" al supermercato ${storeName}? Rispondi SOLO con il numero in euro (es: 2.50)`
+            content: `Prodotto: "${product}" al supermercato ${storeName}. Se mancano dettagli (marca, formato, peso), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
           }
         ],
       }),
@@ -78,6 +78,16 @@ serve(async (req) => {
     const data = await response.json();
     const priceText = data.choices?.[0]?.message?.content || '0';
     
+    // Check if AI is asking for more details
+    if (priceText.startsWith('SPECIFICA:')) {
+      const suggestion = priceText.replace('SPECIFICA:', '').trim();
+      console.log('Suggestion requested:', suggestion);
+      return new Response(
+        JSON.stringify({ suggestion, needsDetails: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Parse the price from the response
     const priceMatch = priceText.match(/\d+[.,]?\d*/);
     const price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
@@ -85,7 +95,7 @@ serve(async (req) => {
     console.log('Price search successful:', price);
 
     return new Response(
-      JSON.stringify({ price, priceInfo: `€${price.toFixed(2)}` }),
+      JSON.stringify({ price, priceInfo: `€${price.toFixed(2)}`, needsDetails: false }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
