@@ -439,19 +439,19 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress, onStoresUpdate }: Supe
       }).setView(center, 14);
       mapRef.current = map;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
-        crossOrigin: true,
-        className: 'map-tiles',
-        keepBuffer: 2,
-        updateWhenIdle: false,
-        updateWhenZooming: false,
-        updateInterval: 200,
+      // Use CartoDB tiles - better mobile performance
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20,
+        minZoom: 0,
       }).addTo(map);
       
-      // Force tile reload for mobile
-      setTimeout(() => map.invalidateSize(), 100);
+      // Ensure map renders correctly on mobile
+      setTimeout(() => {
+        map.invalidateSize();
+        map.setView(center, 14);
+      }, 250);
     } else {
       // Just update view if map already exists
       mapRef.current.setView(center, 14, { animate: true });
