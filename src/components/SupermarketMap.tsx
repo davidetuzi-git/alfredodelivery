@@ -17,28 +17,68 @@ interface SupermarketMapProps {
 }
 
 const stores: Store[] = [
-  // Roma Centro
+  // Roma
   { name: "Esselunga", address: "Via Tuscolana 123, Roma", lat: 41.8719, lng: 12.5144 },
   { name: "Carrefour Express", address: "Via Appia Nuova 45, Roma", lat: 41.8769, lng: 12.5186 },
   { name: "Coop", address: "Via dei Castani 67, Roma", lat: 41.8689, lng: 12.5204 },
   { name: "Conad", address: "Viale Manzoni 89, Roma", lat: 41.8929, lng: 12.5014 },
-  { name: "Pam Panorama", address: "Via Prenestina 112, Roma", lat: 41.8859, lng: 12.5275 },
   { name: "Lidl", address: "Via Casilina 234, Roma", lat: 41.8799, lng: 12.5456 },
-  { name: "MD Discount", address: "Via di Torre Spaccata 56, Roma", lat: 41.8669, lng: 12.5789 },
-  { name: "Eurospin", address: "Via Tiburtina 145, Roma", lat: 41.9019, lng: 12.5234 },
-  { name: "Carrefour Market", address: "Piazza Bologna 78, Roma", lat: 41.9119, lng: 12.5144 },
-  { name: "Todis", address: "Via Nomentana 234, Roma", lat: 41.9189, lng: 12.5304 },
-  { name: "Iper", address: "Via Collatina 321, Roma", lat: 41.8929, lng: 12.5789 },
-  { name: "Tuodì", address: "Via Tor Vergata 45, Roma", lat: 41.8419, lng: 12.6234 },
-  { name: "Unes", address: "Via Laurentina 167, Roma", lat: 41.8329, lng: 12.4789 },
-  { name: "Simply", address: "Via Ostiense 289, Roma", lat: 41.8579, lng: 12.4789 },
-  { name: "Penny Market", address: "Via Cristoforo Colombo 234, Roma", lat: 41.8459, lng: 12.4834 },
-  // Aggiungi più supermercati per coprire diverse zone
-  { name: "Conad City", address: "Via Gregorio VII 89, Roma", lat: 41.9029, lng: 12.4534 },
-  { name: "Carrefour", address: "Via Aurelia 456, Roma", lat: 41.9119, lng: 12.4289 },
-  { name: "Coop Centro Italia", address: "Via della Pisana 234, Roma", lat: 41.8709, lng: 12.4189 },
-  { name: "Esselunga", address: "Via del Mare 123, Roma", lat: 41.8329, lng: 12.5344 },
-  { name: "Iper La Grande I", address: "Via Laurentina 865, Roma", lat: 41.8019, lng: 12.4689 },
+  
+  // Milano
+  { name: "Esselunga", address: "Viale Piave 10, Milano", lat: 45.4773, lng: 9.2058 },
+  { name: "Carrefour", address: "Via Lorenteggio 251, Milano", lat: 45.4515, lng: 9.1371 },
+  { name: "Coop", address: "Via Famagosta 75, Milano", lat: 45.4484, lng: 9.1595 },
+  { name: "Pam", address: "Corso Buenos Aires 33, Milano", lat: 45.4781, lng: 9.2060 },
+  { name: "Iper", address: "Via Rubattino 84, Milano", lat: 45.5041, lng: 9.2417 },
+  
+  // Torino
+  { name: "Carrefour", address: "Via Livorno 60, Torino", lat: 45.0703, lng: 7.6869 },
+  { name: "Esselunga", address: "Corso Sebastopoli 150, Torino", lat: 45.0351, lng: 7.6533 },
+  { name: "Coop", address: "Via Nizza 262, Torino", lat: 45.0415, lng: 7.6696 },
+  { name: "Iper", address: "Corso Romania 460, Torino", lat: 45.0838, lng: 7.6916 },
+  
+  // Napoli
+  { name: "Carrefour", address: "Via Argine 380, Napoli", lat: 40.8646, lng: 14.3054 },
+  { name: "Coop", address: "Via Galileo Ferraris 148, Napoli", lat: 40.8551, lng: 14.2820 },
+  { name: "Lidl", address: "Via Ferrante Imparato 200, Napoli", lat: 40.8734, lng: 14.2463 },
+  { name: "MD", address: "Via Nazionale 1000, Napoli", lat: 40.9086, lng: 14.3414 },
+  
+  // Firenze
+  { name: "Esselunga", address: "Via Pisana 130, Firenze", lat: 43.7696, lng: 11.2268 },
+  { name: "Coop", address: "Via Faentina 210, Firenze", lat: 43.8014, lng: 11.3086 },
+  { name: "Carrefour", address: "Viale Europa 175, Firenze", lat: 43.7583, lng: 11.2086 },
+  
+  // Bologna
+  { name: "Conad", address: "Via Emilia Ponente 74, Bologna", lat: 44.4899, lng: 11.2954 },
+  { name: "Coop", address: "Via Marconi 25, Bologna", lat: 44.4899, lng: 11.3426 },
+  { name: "Esselunga", address: "Via Marco Polo 1, Bologna", lat: 44.5067, lng: 11.3449 },
+  
+  // Palermo
+  { name: "Carrefour", address: "Via Empedocle Restivo 408, Palermo", lat: 38.1418, lng: 13.3405 },
+  { name: "Lidl", address: "Via Ugo La Malfa 103, Palermo", lat: 38.1656, lng: 13.3464 },
+  { name: "Coop", address: "Via Montepellegrino 1, Palermo", lat: 38.1553, lng: 13.3608 },
+  
+  // Genova
+  { name: "Esselunga", address: "Via Giotto 36, Genova", lat: 44.4283, lng: 8.9265 },
+  { name: "Coop", address: "Via Piacenza 4, Genova", lat: 44.4169, lng: 8.9326 },
+  { name: "Carrefour", address: "Via Greto di Cornigliano 11, Genova", lat: 44.4171, lng: 8.8788 },
+  
+  // Venezia
+  { name: "Conad", address: "Via Triestina 172, Mestre", lat: 45.4894, lng: 12.2784 },
+  { name: "Lidl", address: "Via Torino 147, Mestre", lat: 45.4867, lng: 12.2437 },
+  { name: "Coop", address: "Piazzale Candiani 18, Mestre", lat: 45.4840, lng: 12.2314 },
+  
+  // Verona
+  { name: "Esselunga", address: "Viale del Lavoro 12, Verona", lat: 45.4114, lng: 10.9787 },
+  { name: "Pam", address: "Via Sommacampagna 63, Verona", lat: 45.4542, lng: 10.9392 },
+  
+  // Bari
+  { name: "Carrefour", address: "Via Melo 222, Bari", lat: 41.1177, lng: 16.8718 },
+  { name: "Lidl", address: "Via Giulio Petroni 85, Bari", lat: 41.1179, lng: 16.8825 },
+  
+  // Catania
+  { name: "Lidl", address: "Via Passo Gravina 197, Catania", lat: 37.5135, lng: 15.0867 },
+  { name: "Carrefour", address: "Via Vincenzo Giuffrida 23, Catania", lat: 37.5165, lng: 15.0840 },
 ];
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

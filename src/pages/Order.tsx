@@ -14,6 +14,7 @@ import { Plus, X, Loader2, CalendarIcon } from "lucide-react";
 import SupermarketMap from "@/components/SupermarketMap";
 import ProductPriceSearch from "@/components/ProductPriceSearch";
 import PriceComparison from "@/components/PriceComparison";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +33,7 @@ const Order = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [store, setStore] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [timeSlot, setTimeSlot] = useState("");
@@ -42,22 +44,18 @@ const Order = () => {
     "Carrefour Express - Via Appia Nuova 45, Roma",
     "Coop - Via dei Castani 67, Roma",
     "Conad - Viale Manzoni 89, Roma",
-    "Pam Panorama - Via Prenestina 112, Roma",
     "Lidl - Via Casilina 234, Roma",
-    "MD Discount - Via di Torre Spaccata 56, Roma",
-    "Eurospin - Via Tiburtina 145, Roma",
-    "Carrefour Market - Piazza Bologna 78, Roma",
-    "Todis - Via Nomentana 234, Roma",
-    "Iper - Via Collatina 321, Roma",
-    "Tuodì - Via Tor Vergata 45, Roma",
-    "Unes - Via Laurentina 167, Roma",
-    "Simply - Via Ostiense 289, Roma",
-    "Penny Market - Via Cristoforo Colombo 234, Roma",
-    "Conad City - Via Gregorio VII 89, Roma",
-    "Carrefour - Via Aurelia 456, Roma",
-    "Coop Centro Italia - Via della Pisana 234, Roma",
-    "Esselunga - Via del Mare 123, Roma",
-    "Iper La Grande I - Via Laurentina 865, Roma"
+    "Esselunga - Viale Piave 10, Milano",
+    "Carrefour - Via Lorenteggio 251, Milano",
+    "Coop - Via Famagosta 75, Milano",
+    "Pam - Corso Buenos Aires 33, Milano",
+    "Iper - Via Rubattino 84, Milano",
+    "Carrefour - Via Livorno 60, Torino",
+    "Esselunga - Corso Sebastopoli 150, Torino",
+    "Coop - Via Nizza 262, Torino",
+    "Carrefour - Via Argine 380, Napoli",
+    "Esselunga - Via Pisana 130, Firenze",
+    "Conad - Via Emilia Ponente 74, Bologna",
   ];
 
   const timeSlots = [
@@ -197,11 +195,13 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="address">Indirizzo di consegna</Label>
-                <Input
-                  id="address"
-                  placeholder="Via Roma 123, Roma"
+                <AddressAutocomplete
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onSelect={(addr, lat, lon) => {
+                    setAddress(addr);
+                    setAddressCoords({ lat, lon });
+                  }}
+                  placeholder="Inizia a digitare un indirizzo in Italia..."
                   required
                 />
               </div>
