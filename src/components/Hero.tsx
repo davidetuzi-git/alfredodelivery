@@ -34,13 +34,13 @@ export const Hero = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="hero" size="lg" className="group">
+              <Button variant="hero" size="lg" className="group" onClick={() => navigate("/home")}>
                 <ShoppingCart className="group-hover:rotate-12 transition-transform" />
-                Ordina ora
+                Inizia ora
               </Button>
-              <Button variant="secondary" size="lg" className="group">
-                <Users className="group-hover:scale-110 transition-transform" />
-                Diventa Alfredo
+              <Button variant="secondary" size="lg" className="group" onClick={() => navigate("/ordina")}>
+                <ShoppingCart className="group-hover:rotate-12 transition-transform" />
+                Ordina subito
               </Button>
             </div>
 
