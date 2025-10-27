@@ -1,35 +1,101 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-interface Supermarket {
-  id: string;
+interface Store {
   name: string;
-  position: [number, number];
+  address: string;
+  lat: number;
+  lng: number;
 }
 
 interface SupermarketMapProps {
-  onSelectStore: (store: string) => void;
+  onSelectStore: (storeName: string) => void;
+  deliveryAddress: string;
 }
 
-const SupermarketMap = ({ onSelectStore }: SupermarketMapProps) => {
+const stores: Store[] = [
+  { name: "Esselunga", address: "Via Roma 123", lat: 41.9028, lng: 12.4964 },
+  { name: "Carrefour", address: "Piazza Duomo 45", lat: 41.9055, lng: 12.4823 },
+  { name: "Coop", address: "Corso Italia 67", lat: 41.8989, lng: 12.5013 },
+  { name: "Conad", address: "Via Milano 89", lat: 41.9102, lng: 12.4891 },
+  { name: "Pam", address: "Viale Europa 12", lat: 41.8956, lng: 12.5075 },
+];
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [userLocation, setUserLocation] = useState<[number, number]>([41.9028, 12.4964]);
+  const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
+  const [filteredStores, setFilteredStores] = useState<Store[]>(stores);
 
-  const supermarkets: Supermarket[] = [
-    { id: '1', name: 'Esselunga - Via Roma 123', position: [41.9028, 12.4964] },
-    { id: '2', name: 'Carrefour - Piazza Duomo 45', position: [41.9000, 12.5000] },
-    { id: '3', name: 'Coop - Corso Italia 67', position: [41.9050, 12.4900] },
-    { id: '4', name: 'Conad - Via Milano 89', position: [41.8980, 12.5050] },
-    { id: '5', name: 'Pam - Viale Europa 12', position: [41.9100, 12.4850] },
-  ];
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        (error) => console.error("Geolocation error:", error)
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    const geocodeAddress = async () => {
+      if (!deliveryAddress.trim()) {
+        setFilteredStores(stores);
+        setAddressLocation(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(deliveryAddress)}`
+        );
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          setAddressLocation([lat, lng]);
+
+          const nearby = stores.filter(store => {
+            const distance = calculateDistance(lat, lng, store.lat, store.lng);
+            return distance <= 7;
+          });
+          setFilteredStores(nearby);
+        } else {
+          setFilteredStores(stores);
+          setAddressLocation(null);
+        }
+      } catch (error) {
+        console.error("Geocoding error:", error);
+        setFilteredStores(stores);
+        setAddressLocation(null);
+      }
+    };
+
+    const timeoutId = setTimeout(geocodeAddress, 500);
+    return () => clearTimeout(timeoutId);
+  }, [deliveryAddress]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Fix default icon
     const DefaultIcon = L.icon({
       iconUrl: icon,
       shadowUrl: iconShadow,
@@ -37,55 +103,62 @@ const SupermarketMap = ({ onSelectStore }: SupermarketMapProps) => {
       iconAnchor: [12, 41],
     });
 
-    // Initialize map
-    const map = L.map(mapContainerRef.current).setView([41.9028, 12.4964], 13);
+    const center = addressLocation || userLocation;
+    const map = L.map(mapContainerRef.current).setView(center, 13);
     mapRef.current = map;
 
-    // Add tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    // Add markers
-    supermarkets.forEach((store) => {
-      const marker = L.marker(store.position, { icon: DefaultIcon }).addTo(map);
-      marker.bindPopup(`
-        <div class="text-center">
-          <strong>${store.name}</strong>
-          <br />
-          <button 
-            class="text-primary hover:underline mt-1 cursor-pointer"
-            onclick="window.selectStore('${store.name}')"
-          >
-            Seleziona
-          </button>
-        </div>
-      `);
-      marker.on('click', () => onSelectStore(store.name));
+    if (addressLocation) {
+      L.circle(addressLocation, {
+        color: 'blue',
+        fillColor: 'blue',
+        fillOpacity: 0.1,
+        radius: 7000
+      }).addTo(map);
+
+      L.marker(addressLocation, { icon: DefaultIcon })
+        .addTo(map)
+        .bindPopup('📍 Indirizzo di consegna');
+    }
+
+    filteredStores.forEach((store) => {
+      const marker = L.marker([store.lat, store.lng], { icon: DefaultIcon }).addTo(map);
+      
+      let popupContent = `<div class="text-center">
+        <strong>${store.name}</strong><br/>
+        ${store.address}`;
+      
+      if (addressLocation) {
+        const dist = calculateDistance(addressLocation[0], addressLocation[1], store.lat, store.lng);
+        popupContent += `<br/><small>${dist.toFixed(1)} km di distanza</small>`;
+      }
+      
+      popupContent += `</div>`;
+      marker.bindPopup(popupContent);
+      marker.on('click', () => onSelectStore(`${store.name} - ${store.address}`));
     });
 
-    // Cleanup
     return () => {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
-
-  // Global handler for popup button clicks
-  useEffect(() => {
-    (window as any).selectStore = (storeName: string) => {
-      onSelectStore(storeName);
-    };
-    return () => {
-      delete (window as any).selectStore;
-    };
-  }, [onSelectStore]);
+  }, [userLocation, addressLocation, filteredStores, onSelectStore]);
 
   return (
-    <div 
-      ref={mapContainerRef} 
-      className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
-    />
+    <div className="space-y-2">
+      <div 
+        ref={mapContainerRef} 
+        className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
+      />
+      {deliveryAddress && filteredStores.length === 0 && (
+        <p className="text-sm text-amber-600 dark:text-amber-400">
+          ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato
+        </p>
+      )}
+    </div>
   );
 };
 

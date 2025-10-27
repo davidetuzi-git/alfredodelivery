@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon } from "lucide-react";
 import SupermarketMap from "@/components/SupermarketMap";
 import ProductPriceSearch from "@/components/ProductPriceSearch";
 import PriceComparison from "@/components/PriceComparison";
 import { supabase } from "@/integrations/supabase/client";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface ShoppingItem {
   name: string;
@@ -28,6 +33,7 @@ const Order = () => {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [store, setStore] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [timeSlot, setTimeSlot] = useState("");
   const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
 
@@ -40,12 +46,10 @@ const Order = () => {
   ];
 
   const timeSlots = [
-    "Oggi 9:00 - 11:00",
-    "Oggi 11:00 - 13:00",
-    "Oggi 15:00 - 17:00",
-    "Oggi 17:00 - 19:00",
-    "Domani 9:00 - 11:00",
-    "Domani 15:00 - 17:00"
+    "9:00 - 11:00",
+    "11:00 - 13:00",
+    "15:00 - 17:00",
+    "17:00 - 19:00"
   ];
 
   const addItem = () => {
@@ -111,7 +115,7 @@ const Order = () => {
     
     const validItems = items.filter(item => item.name.trim() !== "");
     
-    if (!name || !phone || !address || !store || !timeSlot || validItems.length === 0) {
+    if (!name || !phone || !address || !store || !deliveryDate || !timeSlot || validItems.length === 0) {
       toast({
         title: "Errore",
         description: "Compila tutti i campi obbligatori e aggiungi almeno un prodotto",
@@ -202,7 +206,7 @@ const Order = () => {
                     </Select>
                   </TabsContent>
                   <TabsContent value="map" className="mt-4">
-                    <SupermarketMap onSelectStore={setStore} />
+                    <SupermarketMap onSelectStore={setStore} deliveryAddress={address} />
                     {store && (
                       <p className="text-sm text-muted-foreground mt-2">
                         Selezionato: <strong>{store}</strong>
@@ -210,6 +214,34 @@ const Order = () => {
                     )}
                   </TabsContent>
                 </Tabs>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data di consegna</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !deliveryDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {deliveryDate ? format(deliveryDate, "PPP", { locale: it }) : "Seleziona una data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={deliveryDate}
+                      onSelect={setDeliveryDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
