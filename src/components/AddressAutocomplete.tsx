@@ -24,6 +24,7 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setInputValue(value);
@@ -55,6 +56,10 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
         const data = await response.json();
         setSuggestions(data || []);
         setOpen(data && data.length > 0);
+        // Mantieni il focus sull'input
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 0);
       } catch (error) {
         console.error('Error fetching address suggestions:', error);
         setSuggestions([]);
@@ -80,10 +85,11 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <div className="relative">
           <Input
+            ref={inputRef}
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
@@ -91,6 +97,11 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
             placeholder={placeholder || "Inizia a digitare un indirizzo..."}
             required={required}
             className="w-full"
+            onFocus={() => {
+              if (suggestions.length > 0) {
+                setOpen(true);
+              }
+            }}
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
