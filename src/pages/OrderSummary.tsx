@@ -276,20 +276,20 @@ const OrderSummary = () => {
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex gap-4">
+        <div className="grid grid-cols-2 gap-3 sticky bottom-20 md:static bg-background pt-2 pb-2 md:pb-0">
           <Button 
             variant="outline" 
             onClick={handleGoBack}
-            className="flex-1"
+            className="w-full"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Modifica ordine
+            Modifica
           </Button>
           <Button 
             onClick={handleProceedToCheckout}
-            className="flex-1"
+            className="w-full"
           >
-            Procedi al pagamento
+            Procedi
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

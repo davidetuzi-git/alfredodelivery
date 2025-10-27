@@ -4,6 +4,8 @@ import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface Store {
   name: string;
@@ -158,6 +160,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [userLocation, setUserLocation] = useState<[number, number]>([41.9028, 12.4964]);
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>(stores);
+  const [allStores, setAllStores] = useState<Store[]>(stores);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [selectedStoreCoords, setSelectedStoreCoords] = useState<[number, number] | null>(null);
   const [route, setRoute] = useState<any>(null);
@@ -165,7 +168,14 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const [deliveryZone, setDeliveryZone] = useState<'zone1' | 'zone2' | null>(null);
   const [isLoadingStores, setIsLoadingStores] = useState(false);
+  const [storeTypeFilter, setStoreTypeFilter] = useState<string>('all');
+  const [chainFilter, setChainFilter] = useState<string>('all');
   const routeLayerRef = useRef<L.Polyline | null>(null);
+
+  const discountChains = ['Lidl', 'Eurospin', 'MD', 'Penny', 'Aldi', 'Todis', 'IN\'s'];
+  const supermarketChains = ['Esselunga', 'Carrefour', 'Coop', 'Conad', 'Pam', 'Tigre', 'Iper', 'Simply', 'Unes', 'Il Gigante'];
+  
+  const allChains = [...new Set([...discountChains, ...supermarketChains])].sort();
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -266,6 +276,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
 
       console.log(`Found ${realStores.length} real stores from API and ${hardcodedNearby.length} hardcoded stores. Total unique: ${uniqueStores.length}`);
       
+      setAllStores(uniqueStores);
       setFilteredStores(uniqueStores);
     } catch (error) {
       console.error("Error fetching stores from Overpass API:", error);
@@ -274,6 +285,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         const distance = calculateDistance(lat, lng, store.lat, store.lng);
         return distance <= 10;
       });
+      setAllStores(nearby);
       setFilteredStores(nearby);
     } finally {
       setIsLoadingStores(false);
@@ -302,11 +314,13 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
           // Fetch real stores from OpenStreetMap
           await fetchNearbyStores(lat, lng);
         } else {
+          setAllStores(stores);
           setFilteredStores(stores);
           setAddressLocation(null);
         }
       } catch (error) {
         console.error("Geocoding error:", error);
+        setAllStores(stores);
         setFilteredStores(stores);
         setAddressLocation(null);
       }
@@ -315,6 +329,32 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     const timeoutId = setTimeout(geocodeAddress, 1500);
     return () => clearTimeout(timeoutId);
   }, [deliveryAddress]);
+
+  // Apply filters
+  useEffect(() => {
+    let filtered = [...allStores];
+
+    // Filter by type
+    if (storeTypeFilter === 'discount') {
+      filtered = filtered.filter(store => 
+        discountChains.some(chain => store.name.toLowerCase().includes(chain.toLowerCase()))
+      );
+    } else if (storeTypeFilter === 'supermarket') {
+      filtered = filtered.filter(store => 
+        supermarketChains.some(chain => store.name.toLowerCase().includes(chain.toLowerCase())) ||
+        !discountChains.some(chain => store.name.toLowerCase().includes(chain.toLowerCase()))
+      );
+    }
+
+    // Filter by chain
+    if (chainFilter !== 'all') {
+      filtered = filtered.filter(store => 
+        store.name.toLowerCase().includes(chainFilter.toLowerCase())
+      );
+    }
+
+    setFilteredStores(filtered);
+  }, [storeTypeFilter, chainFilter, allStores]);
 
   const fetchRoute = async (from: [number, number], to: [number, number]) => {
     try {
@@ -519,6 +559,39 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <div className="space-y-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="store-type" className="text-sm font-medium">Tipo di negozio</Label>
+            <Select value={storeTypeFilter} onValueChange={setStoreTypeFilter}>
+              <SelectTrigger id="store-type">
+                <SelectValue placeholder="Tutti i negozi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i negozi</SelectItem>
+                <SelectItem value="supermarket">Supermercati</SelectItem>
+                <SelectItem value="discount">Discount</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="chain-filter" className="text-sm font-medium">Catena</Label>
+            <Select value={chainFilter} onValueChange={setChainFilter}>
+              <SelectTrigger id="chain-filter">
+                <SelectValue placeholder="Tutte le catene" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutte le catene</SelectItem>
+                {allChains.map(chain => (
+                  <SelectItem key={chain} value={chain}>{chain}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-2">
         <div 
