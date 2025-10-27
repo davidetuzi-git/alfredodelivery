@@ -180,19 +180,31 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const fetchNearbyStores = async (lat: number, lng: number) => {
     setIsLoadingStores(true);
     try {
-      // Search radius in meters (7km)
-      const radius = 7000;
+      // Search radius in meters (10km for better coverage)
+      const radius = 10000;
       
-      // Overpass query to find supermarkets, convenience stores, and grocery shops
+      // Overpass query to find all types of food retail stores
       const overpassQuery = `
         [out:json][timeout:25];
         (
           node["shop"="supermarket"](around:${radius},${lat},${lng});
-          node["shop"="convenience"](around:${radius},${lat},${lng});
-          node["shop"="grocery"](around:${radius},${lat},${lng});
           way["shop"="supermarket"](around:${radius},${lat},${lng});
+          relation["shop"="supermarket"](around:${radius},${lat},${lng});
+          
+          node["shop"="convenience"](around:${radius},${lat},${lng});
           way["shop"="convenience"](around:${radius},${lat},${lng});
+          
+          node["shop"="grocery"](around:${radius},${lat},${lng});
           way["shop"="grocery"](around:${radius},${lat},${lng});
+          
+          node["shop"="greengrocer"](around:${radius},${lat},${lng});
+          way["shop"="greengrocer"](around:${radius},${lat},${lng});
+          
+          node["shop"="general"](around:${radius},${lat},${lng});
+          way["shop"="general"](around:${radius},${lat},${lng});
+          
+          node["shop"="department_store"]["name"~"Esselunga|Coop|Conad|Carrefour|Lidl|Eurospin|MD|Todis|Pam|Tigre|Iper|Simply|Unes|Il Gigante|Penny|Aldi"](around:${radius},${lat},${lng});
+          way["shop"="department_store"]["name"~"Esselunga|Coop|Conad|Carrefour|Lidl|Eurospin|MD|Todis|Pam|Tigre|Iper|Simply|Unes|Il Gigante|Penny|Aldi"](around:${radius},${lat},${lng});
         );
         out center;
       `;
@@ -204,11 +216,13 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
 
       const data = await response.json();
       
+      let realStores: Store[] = [];
+      
       if (data.elements && data.elements.length > 0) {
-        const realStores: Store[] = data.elements.map((element: any) => {
+        realStores = data.elements.map((element: any) => {
           const storeLat = element.lat || element.center?.lat;
           const storeLng = element.lon || element.center?.lon;
-          const name = element.tags?.name || element.tags?.brand || 'Supermercato';
+          const name = element.tags?.name || element.tags?.brand || element.tags?.operator || 'Supermercato';
           const street = element.tags?.['addr:street'] || '';
           const houseNumber = element.tags?.['addr:housenumber'] || '';
           const city = element.tags?.['addr:city'] || '';
@@ -225,37 +239,38 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
             lat: storeLat,
             lng: storeLng,
           };
-        });
-
-        // Combine with hardcoded stores in the area as fallback
-        const hardcodedNearby = stores.filter(store => {
-          const distance = calculateDistance(lat, lng, store.lat, store.lng);
-          return distance <= 7;
-        });
-
-        // Merge and deduplicate (prefer real stores)
-        const allStores = [...realStores, ...hardcodedNearby];
-        const uniqueStores = allStores.filter((store, index, self) =>
-          index === self.findIndex((s) => 
-            Math.abs(s.lat - store.lat) < 0.001 && Math.abs(s.lng - store.lng) < 0.001
-          )
-        );
-
-        setFilteredStores(uniqueStores);
-      } else {
-        // Fallback to hardcoded stores if API fails
-        const nearby = stores.filter(store => {
-          const distance = calculateDistance(lat, lng, store.lat, store.lng);
-          return distance <= 7;
-        });
-        setFilteredStores(nearby);
+        }).filter((store: Store) => store.lat && store.lng);
       }
+
+      // Always include hardcoded stores in the area
+      const hardcodedNearby = stores.filter(store => {
+        const distance = calculateDistance(lat, lng, store.lat, store.lng);
+        return distance <= 10;
+      });
+
+      // Merge real and hardcoded stores
+      const allStores = [...realStores, ...hardcodedNearby];
+      
+      // Deduplicate based on proximity (stores within 50m are considered the same)
+      const uniqueStores = allStores.reduce((acc: Store[], store) => {
+        const isDuplicate = acc.some(s => 
+          calculateDistance(s.lat, s.lng, store.lat, store.lng) < 0.05 // ~50 meters
+        );
+        if (!isDuplicate) {
+          acc.push(store);
+        }
+        return acc;
+      }, []);
+
+      console.log(`Found ${realStores.length} real stores from API and ${hardcodedNearby.length} hardcoded stores. Total unique: ${uniqueStores.length}`);
+      
+      setFilteredStores(uniqueStores);
     } catch (error) {
       console.error("Error fetching stores from Overpass API:", error);
       // Fallback to hardcoded stores
       const nearby = stores.filter(store => {
         const distance = calculateDistance(lat, lng, store.lat, store.lng);
-        return distance <= 7;
+        return distance <= 10;
       });
       setFilteredStores(nearby);
     } finally {
@@ -382,7 +397,7 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         color: 'blue',
         fillColor: 'blue',
         fillOpacity: 0.1,
-        radius: 7000
+        radius: 10000
       }).addTo(mapRef.current);
 
       L.marker(addressLocation, { icon: DeliveryIcon })
@@ -485,12 +500,12 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
         )}
         {deliveryAddress && filteredStores.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            📍 {filteredStores.length} negozi trovati entro 7km dall'indirizzo
+            📍 {filteredStores.length} negozi trovati entro 10km dall'indirizzo
           </p>
         )}
         {deliveryAddress && filteredStores.length === 0 && !isLoadingStores && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato
+            ⚠️ Nessun supermercato trovato entro 10km dall'indirizzo specificato
           </p>
         )}
       </div>
