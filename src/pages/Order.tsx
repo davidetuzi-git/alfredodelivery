@@ -88,9 +88,11 @@ const Order = () => {
   const fetchPrice = async (index: number, productName: string) => {
     if (!productName.trim() || !store) return;
 
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], loading: true };
-    setItems(newItems);
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      newItems[index] = { ...newItems[index], loading: true };
+      return newItems;
+    });
 
     try {
       const { data, error } = await supabase.functions.invoke('search-product-price', {
@@ -101,29 +103,37 @@ const Order = () => {
       });
 
       if (!error && data?.needsDetails) {
-        const updatedItems = [...items];
-        updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: data.suggestion, price: null };
-        setItems(updatedItems);
+        setItems(prevItems => {
+          const updatedItems = [...prevItems];
+          updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: data.suggestion, price: null };
+          return updatedItems;
+        });
       } else if (!error && data?.price) {
-        const updatedItems = [...items];
-        updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false, suggestion: null };
-        setItems(updatedItems);
+        setItems(prevItems => {
+          const updatedItems = [...prevItems];
+          updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false, suggestion: null };
+          return updatedItems;
+        });
       } else {
-        const updatedItems = [...items];
-        updatedItems[index] = { ...updatedItems[index], loading: false };
-        setItems(updatedItems);
+        setItems(prevItems => {
+          const updatedItems = [...prevItems];
+          updatedItems[index] = { ...updatedItems[index], loading: false };
+          return updatedItems;
+        });
       }
     } catch (error) {
       console.error('Error fetching price:', error);
-      const updatedItems = [...items];
-      updatedItems[index] = { ...updatedItems[index], loading: false };
-      setItems(updatedItems);
+      setItems(prevItems => {
+        const updatedItems = [...prevItems];
+        updatedItems[index] = { ...updatedItems[index], loading: false };
+        return updatedItems;
+      });
     }
   };
 
   const total = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const validItems = items.filter(item => item.name.trim() !== "");
@@ -137,21 +147,23 @@ const Order = () => {
       return;
     }
 
-    toast({
-      title: "Ordine inviato!",
-      description: `Totale: €${total.toFixed(2)}. Procedi al pagamento per confermare`,
+    navigate("/checkout", { 
+      state: { 
+        total, 
+        itemCount: validItems.length,
+        deliveryFee: 3.99,
+        discount: 4.99,
+        orderData: {
+          name,
+          phone,
+          address,
+          store,
+          deliveryDate: deliveryDate.toISOString(),
+          timeSlot,
+          items: validItems
+        }
+      } 
     });
-
-    setTimeout(() => {
-      navigate("/checkout", { 
-        state: { 
-          total, 
-          itemCount: validItems.length,
-          deliveryFee: 3.99,
-          discount: 4.99
-        } 
-      });
-    }, 1500);
   };
 
   return (

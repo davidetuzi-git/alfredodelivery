@@ -159,6 +159,10 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
   const [addressLocation, setAddressLocation] = useState<[number, number] | null>(null);
   const [filteredStores, setFilteredStores] = useState<Store[]>(stores);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
+  const [route, setRoute] = useState<any>(null);
+  const [routeDistance, setRouteDistance] = useState<string | null>(null);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -209,6 +213,43 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
     const timeoutId = setTimeout(geocodeAddress, 1500);
     return () => clearTimeout(timeoutId);
   }, [deliveryAddress]);
+
+  const fetchRoute = async (from: [number, number], to: [number, number]) => {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        setRoute(route.geometry);
+        setRouteDistance((route.distance / 1000).toFixed(1)); // Convert to km
+        setRouteDuration(Math.ceil(route.duration / 60)); // Convert to minutes
+        
+        // Draw route on map
+        if (mapRef.current && routeLayerRef.current) {
+          mapRef.current.removeLayer(routeLayerRef.current);
+        }
+        
+        if (mapRef.current) {
+          const routeCoords = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+          const polyline = L.polyline(routeCoords, {
+            color: '#22c55e',
+            weight: 4,
+            opacity: 0.7
+          }).addTo(mapRef.current);
+          
+          routeLayerRef.current = polyline;
+          
+          // Fit map to route
+          mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+    }
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -282,6 +323,11 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
       marker.bindPopup(popupContent);
       marker.on('click', () => {
         setSelectedStore(`${store.name} - ${store.address}`);
+        
+        // Fetch route when a store is selected
+        if (addressLocation) {
+          fetchRoute(addressLocation, [store.lat, store.lng]);
+        }
       });
     });
 
@@ -324,6 +370,13 @@ const SupermarketMap = ({ onSelectStore, deliveryAddress }: SupermarketMapProps)
           ref={mapContainerRef} 
           className="h-[400px] w-full rounded-lg overflow-hidden border border-border"
         />
+        {routeDistance && routeDuration && (
+          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-3 text-sm">
+            <p className="text-green-900 dark:text-green-100">
+              <strong>Percorso calcolato:</strong> {routeDistance} km - Tempo stimato consegna: ~{routeDuration} minuti
+            </p>
+          </div>
+        )}
         {deliveryAddress && filteredStores.length === 0 && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             ⚠️ Nessun supermercato trovato entro 7km dall'indirizzo specificato

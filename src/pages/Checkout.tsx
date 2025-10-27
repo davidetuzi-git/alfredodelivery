@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
 import { CreditCard, Wallet, Receipt, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [processing, setProcessing] = useState(false);
   
   const orderData = location.state || {};
   const subtotal = orderData.total || 0;
@@ -20,7 +22,7 @@ const Checkout = () => {
   const itemCount = orderData.itemCount || 0;
   const finalTotal = subtotal + deliveryFee - discount;
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!paymentMethod) {
       toast({
         title: "Errore",
@@ -30,14 +32,62 @@ const Checkout = () => {
       return;
     }
 
-    toast({
-      title: "Pagamento in corso...",
-      description: "Verrai reindirizzato al tracking dell'ordine",
-    });
+    if (!orderData.orderData) {
+      toast({
+        title: "Errore",
+        description: "Dati ordine mancanti",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setTimeout(() => {
-      navigate("/tracking");
-    }, 2000);
+    setProcessing(true);
+
+    try {
+      // Generate pickup code
+      const { data: codeData, error: codeError } = await supabase.rpc('generate_pickup_code');
+      
+      if (codeError) throw codeError;
+
+      const pickupCode = codeData;
+
+      // Save order
+      const { error: insertError } = await supabase.from('orders').insert({
+        pickup_code: pickupCode,
+        customer_name: orderData.orderData.name,
+        customer_phone: orderData.orderData.phone,
+        delivery_address: orderData.orderData.address,
+        store_name: orderData.orderData.store,
+        delivery_date: orderData.orderData.deliveryDate,
+        time_slot: orderData.orderData.timeSlot,
+        items: orderData.orderData.items,
+        total_amount: subtotal,
+        delivery_fee: deliveryFee,
+        discount: discount,
+        payment_method: paymentMethod,
+        status: 'confirmed'
+      });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Pagamento completato!",
+        description: "Ordine confermato con successo",
+      });
+
+      setTimeout(() => {
+        navigate("/tracking", { state: { pickupCode } });
+      }, 1500);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare l'ordine. Riprova.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const paymentMethods = [
@@ -123,8 +173,8 @@ const Checkout = () => {
           </CardContent>
         </Card>
 
-        <Button onClick={handlePayment} className="w-full" size="lg">
-          Conferma e paga €{finalTotal.toFixed(2)}
+        <Button onClick={handlePayment} className="w-full" size="lg" disabled={processing}>
+          {processing ? "Elaborazione..." : `Conferma e paga €${finalTotal.toFixed(2)}`}
         </Button>
       </div>
 
