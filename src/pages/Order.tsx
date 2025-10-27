@@ -25,6 +25,9 @@ interface ShoppingItem {
   loading: boolean;
   quantity: number;
   suggestion: string | null;
+  isEstimated?: boolean;
+  estimateConfidence?: string;
+  estimateReasoning?: string;
 }
 
 const Order = () => {
@@ -187,8 +190,49 @@ const Order = () => {
       return;
     }
 
-    // Calculate total from valid items (use 0 if price is null)
-    const calculatedTotal = validItems.reduce((sum, item) => {
+    // Check if there are items without prices
+    const itemsWithoutPrice = validItems.filter(item => item.price === null || item.price === undefined);
+    
+    let finalItems = validItems;
+    
+    if (itemsWithoutPrice.length > 0) {
+      toast({
+        title: "Stima prezzi in corso...",
+        description: "Sto stimando i prezzi mancanti con l'IA",
+      });
+
+      try {
+        const { data, error } = await supabase.functions.invoke('estimate-missing-prices', {
+          body: { 
+            items: validItems,
+            storeName: store 
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.estimatedItems) {
+          finalItems = data.estimatedItems;
+          
+          const estimatedCount = finalItems.filter((item: ShoppingItem) => item.isEstimated).length;
+          toast({
+            title: "Prezzi stimati",
+            description: `${estimatedCount} ${estimatedCount === 1 ? 'prezzo stimato' : 'prezzi stimati'} con l'IA (stima conservativa)`,
+          });
+        }
+      } catch (error) {
+        console.error('Error estimating prices:', error);
+        toast({
+          title: "Errore",
+          description: "Impossibile stimare i prezzi. Riprova.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Calculate total from final items
+    const calculatedTotal = finalItems.reduce((sum, item) => {
       const itemPrice = item.price || 0;
       return sum + (itemPrice * item.quantity);
     }, 0);
@@ -196,7 +240,7 @@ const Order = () => {
     navigate("/checkout", { 
       state: { 
         total: calculatedTotal, 
-        itemCount: validItems.length,
+        itemCount: finalItems.length,
         deliveryFee: 3.99,
         discount: 4.99,
         orderData: {
@@ -206,7 +250,7 @@ const Order = () => {
           store,
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
-          items: validItems.map(item => ({
+          items: finalItems.map(item => ({
             ...item,
             price: item.price || 0
           }))
@@ -219,7 +263,7 @@ const Order = () => {
           store,
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
-          items,
+          items: finalItems,
           filteredStores
         }
       } 
@@ -399,7 +443,14 @@ const Order = () => {
                         {item.loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : item.price !== null ? (
-                          <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                          <div className="flex flex-col items-end">
+                            <span className={item.isEstimated ? "text-amber-600" : ""}>
+                              €{(item.price * item.quantity).toFixed(2)}
+                            </span>
+                            {item.isEstimated && (
+                              <span className="text-xs text-amber-600">stimato</span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}

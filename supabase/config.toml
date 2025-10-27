@@ -2,3 +2,6 @@ project_id = "bjeezhrfcyhvnfoxkrbq"
 
 [functions.search-product-price]
 verify_jwt = false
+
+[functions.estimate-missing-prices]
+verify_jwt = false
