@@ -15,6 +15,7 @@ import PersonalData from "./pages/PersonalData";
 import PriceSearch from "./pages/PriceSearch";
 import CompareStores from "./pages/CompareStores";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,7 +27,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/auth" element={<Auth />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/" element={<Index />} />
           <Route path="/home" element={<Home />} />
           <Route path="/ordina" element={<Order />} />

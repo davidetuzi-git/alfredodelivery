@@ -73,36 +73,51 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           allergies: string | null
+          city: string | null
           created_at: string
           delivery_notes: string | null
           dietary_preferences: string | null
           first_name: string | null
+          full_name: string | null
           id: string
           last_name: string | null
+          onboarding_completed: boolean
           phone: string | null
+          postal_code: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           allergies?: string | null
+          city?: string | null
           created_at?: string
           delivery_notes?: string | null
           dietary_preferences?: string | null
           first_name?: string | null
+          full_name?: string | null
           id: string
           last_name?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
+          postal_code?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           allergies?: string | null
+          city?: string | null
           created_at?: string
           delivery_notes?: string | null
           dietary_preferences?: string | null
           first_name?: string | null
+          full_name?: string | null
           id?: string
           last_name?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
+          postal_code?: string | null
           updated_at?: string
         }
         Relationships: []

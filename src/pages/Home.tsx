@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,29 @@ import { ShoppingBag, Star, TrendingUp, Gift } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const Home = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", session.user.id)
+          .single();
+
+        if (!profile?.onboarding_completed) {
+          navigate("/onboarding");
+        }
+      }
+    };
+
+    checkOnboarding();
+  }, [navigate]);
 
   const orderHistory = [
     { id: 1, store: "Esselunga", date: "15 Gen 2025", items: 12, total: "€45.80", status: "Consegnato" },

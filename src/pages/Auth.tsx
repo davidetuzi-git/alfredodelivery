@@ -17,16 +17,40 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkUserAndRedirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
-      }
-    });
+        // Check if onboarding is completed
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", session.user.id)
+          .single();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (profile?.onboarding_completed) {
+          navigate("/home");
+        } else {
+          navigate("/onboarding");
+        }
+      }
+    };
+
+    checkUserAndRedirect();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate("/home");
+        // Check if onboarding is completed
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profile?.onboarding_completed) {
+          navigate("/home");
+        } else {
+          navigate("/onboarding");
+        }
       }
     });
 
