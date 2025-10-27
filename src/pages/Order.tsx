@@ -35,6 +35,7 @@ const Order = () => {
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [store, setStore] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [timeSlot, setTimeSlot] = useState("");
   const [items, setItems] = useState<ShoppingItem[]>([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
 
@@ -239,12 +240,7 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label>Data di consegna</Label>
-                <Popover open={deliveryDate === undefined} onOpenChange={(open) => {
-                  if (!open && deliveryDate === undefined) {
-                    // Non permettere di chiudere se non è stata selezionata una data
-                    return;
-                  }
-                }}>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -263,6 +259,7 @@ const Order = () => {
                       selected={deliveryDate}
                       onSelect={(date) => {
                         setDeliveryDate(date);
+                        setCalendarOpen(false);
                       }}
                       disabled={(date) => date < new Date()}
                       initialFocus
