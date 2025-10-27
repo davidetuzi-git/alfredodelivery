@@ -396,7 +396,11 @@ const Order = () => {
                       </Select>
                     </TabsContent>
                     <TabsContent value="map" className="mt-4">
-                      <SupermarketMap onSelectStore={setStore} deliveryAddress={address} onStoresUpdate={handleStoresUpdate} />
+                      <SupermarketMap 
+                        onSelectStore={(storeName) => setStore(storeName)} 
+                        deliveryAddress={address} 
+                        onStoresUpdate={handleStoresUpdate} 
+                      />
                       {store && (
                         <p className="text-sm text-muted-foreground mt-2">
                           Selezionato: <strong>{store}</strong>
