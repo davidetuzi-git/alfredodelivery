@@ -31,9 +31,68 @@ serve(async (req) => {
       );
     }
 
-    // Prepare prompt for AI
-    const itemsList = itemsNeedingEstimation.map((item: any) => 
-      `- ${item.name} (quantità: ${item.quantity})`
+    // First, complete product descriptions with AI
+    const chainName = storeName.split(' - ')[0].trim();
+    
+    console.log('Step 1: Completing product descriptions...');
+    const completionPrompt = `Completa le seguenti descrizioni di prodotti per il supermercato "${chainName}" in Italia.
+Aggiungi dettagli realistici e specifici (tipo, marca comune italiana, formato esatto).
+
+Prodotti:
+${itemsNeedingEstimation.map((item: any) => `- ${item.name}`).join('\n')}
+
+Rispondi SOLO con un oggetto JSON:
+{
+  "completedProducts": [
+    {"original": "prodotto originale", "completed": "descrizione completa"}
+  ]
+}`;
+
+    let completedDescriptions: Record<string, string> = {};
+    
+    try {
+      const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: completionPrompt }],
+        }),
+      });
+
+      if (completionResponse.ok) {
+        const completionData = await completionResponse.json();
+        const completionText = completionData.choices[0].message.content;
+        console.log('Completion response:', completionText);
+        
+        const jsonMatch = completionText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.completedProducts) {
+            completedDescriptions = parsed.completedProducts.reduce((acc: any, item: any) => {
+              acc[item.original] = item.completed;
+              return acc;
+            }, {});
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to complete descriptions:', e);
+    }
+
+    // Use completed descriptions for estimation
+    const itemsWithCompletedNames = itemsNeedingEstimation.map((item: any) => ({
+      ...item,
+      completedName: completedDescriptions[item.name] || item.name,
+      originalName: item.name
+    }));
+
+    console.log('Step 2: Estimating prices for completed products...');
+    const itemsList = itemsWithCompletedNames.map((item: any) => 
+      `- ${item.completedName} (quantità: ${item.quantity})`
     ).join('\n');
 
     const prompt = `Sei un esperto di prezzi dei supermercati italiani. Devi stimare i prezzi per i seguenti prodotti da ${storeName}.
@@ -124,14 +183,21 @@ Regole per le stime:
         return item;
       }
 
+      const completedItem = itemsWithCompletedNames.find((i: any) => i.originalName === item.name);
+      const completedName = completedItem?.completedName || item.name;
+
       const estimate = estimates.estimates?.find((e: any) => 
         e.productName.toLowerCase().includes(item.name.toLowerCase()) ||
-        item.name.toLowerCase().includes(e.productName.toLowerCase())
+        item.name.toLowerCase().includes(e.productName.toLowerCase()) ||
+        e.productName.toLowerCase().includes(completedName.toLowerCase()) ||
+        completedName.toLowerCase().includes(e.productName.toLowerCase())
       );
 
       if (estimate) {
         return {
           ...item,
+          name: completedName,
+          originalName: item.name,
           price: estimate.estimatedPrice,
           isEstimated: true,
           estimateConfidence: estimate.confidence,
@@ -142,6 +208,8 @@ Regole per le stime:
       // Fallback to a conservative default if AI didn't provide estimate
       return {
         ...item,
+        name: completedName,
+        originalName: item.name,
         price: 5.00, // Conservative fallback
         isEstimated: true,
         estimateConfidence: 'low',

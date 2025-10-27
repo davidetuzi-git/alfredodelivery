@@ -14,6 +14,7 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
   const [product, setProduct] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [completedProduct, setCompletedProduct] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!product.trim()) {
@@ -27,6 +28,7 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
 
     setLoading(true);
     setResult(null);
+    setCompletedProduct(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('search-product-price', {
@@ -56,6 +58,12 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
       }
 
       setResult(data.priceInfo);
+      if (data.completedProduct) {
+        setCompletedProduct(data.completedProduct);
+      }
+      if (data.completedProduct && data.completedProduct !== product.trim()) {
+        setCompletedProduct(data.completedProduct);
+      }
     } catch (error) {
       console.error('Error searching product price:', error);
       toast({
@@ -94,6 +102,16 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
         <p className="text-sm text-muted-foreground">
           Seleziona prima un supermercato dalla lista o dalla mappa
         </p>
+      )}
+
+      {completedProduct && (
+        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+          <CardContent className="pt-6">
+            <p className="text-sm text-blue-900 dark:text-blue-100">
+              <strong>Prodotto completato:</strong> {completedProduct}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {result && (

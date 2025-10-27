@@ -28,6 +28,7 @@ interface ShoppingItem {
   isEstimated?: boolean;
   estimateConfidence?: string;
   estimateReasoning?: string;
+  originalName?: string;
 }
 
 const Order = () => {
@@ -143,7 +144,19 @@ const Order = () => {
       } else if (!error && data?.price) {
         setItems(prevItems => {
           const updatedItems = [...prevItems];
-          updatedItems[index] = { ...updatedItems[index], price: data.price, loading: false, suggestion: null };
+          const updateData: any = { 
+            price: data.price, 
+            loading: false, 
+            suggestion: null 
+          };
+          
+          // If product was completed by AI, update the name
+          if (data.completedProduct) {
+            updateData.name = data.completedProduct;
+            updateData.originalName = updatedItems[index].name;
+          }
+          
+          updatedItems[index] = { ...updatedItems[index], ...updateData };
           return updatedItems;
         });
       } else {
@@ -179,12 +192,12 @@ const Order = () => {
       return;
     }
 
-    // Validate that address contains a street number (civico)
-    const hasStreetNumber = /\d+/.test(address);
-    if (!hasStreetNumber) {
+    // CRITICAL: Validate that address contains a street number (civico)
+    const streetNumberRegex = /\d+/;
+    if (!streetNumberRegex.test(address)) {
       toast({
-        title: "Indirizzo non valido",
-        description: "L'indirizzo deve contenere il numero civico",
+        title: "Numero civico obbligatorio",
+        description: "Devi inserire il numero civico nell'indirizzo",
         variant: "destructive",
       });
       return;
@@ -420,14 +433,21 @@ const Order = () => {
                   <div key={index} className="space-y-2">
                     <div className="flex gap-2 items-start">
                       <div className="flex-[6] min-w-0">
-                        <Input
-                          placeholder="Es: Latte Conad 1L"
-                          value={item.name}
-                          onChange={(e) => updateItemName(index, e.target.value)}
-                          onBlur={() => fetchPrice(index, item.name)}
-                          required
-                          className="w-full"
-                        />
+                        <div className="space-y-1">
+                          <Input
+                            placeholder="Es: Latte 1L"
+                            value={item.name}
+                            onChange={(e) => updateItemName(index, e.target.value)}
+                            onBlur={() => fetchPrice(index, item.name)}
+                            required
+                            className="w-full"
+                          />
+                          {item.originalName && item.originalName !== item.name && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400">
+                              Completato: {item.name}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className="w-16 flex-shrink-0">
                         <Input

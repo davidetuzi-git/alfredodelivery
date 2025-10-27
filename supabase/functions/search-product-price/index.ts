@@ -34,7 +34,10 @@ serve(async (req) => {
 
     console.log(`Searching price for product: ${product} at ${chainName}`);
 
-    // Check if product has size/format information
+    // Complete product description with AI if details are missing
+    let finalProductDescription = product;
+    let wasCompleted = false;
+    
     const sizePatterns = [
       /\d+\s*(ml|l|litri|litro)/i,
       /\d+\s*(g|kg|grammi|chili)/i,
@@ -47,17 +50,40 @@ serve(async (req) => {
     const hasSize = sizePatterns.some(pattern => pattern.test(product));
     
     if (!hasSize) {
-      console.log('Product missing size/format information');
-      return new Response(
-        JSON.stringify({
-          needsDetails: true,
-          suggestion: `Per trovare il prezzo esatto di "${product}", specifica il formato (es: 1L, 500g, confezione da 6, ecc.)`
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
+      console.log('Product missing details, completing with AI...');
+      
+      const completionPrompt = `Completa la descrizione del prodotto "${product}" per il supermercato "${chainName}" in Italia. 
+      
+Aggiungi dettagli realistici come: tipo specifico, formato esatto, marca comune italiana.
+
+Rispondi SOLO con la descrizione completa del prodotto, nient'altro.
+Esempi:
+- "latte" → "Latte intero UHT Granarolo 1L"
+- "pasta" → "Pasta penne rigate Barilla 500g"
+- "acqua" → "Acqua minerale naturale Levissima 1.5L"`;
+
+      try {
+        const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: completionPrompt }],
+          }),
+        });
+
+        if (completionResponse.ok) {
+          const completionData = await completionResponse.json();
+          finalProductDescription = completionData.choices[0].message.content.trim();
+          wasCompleted = true;
+          console.log('Completed product description:', finalProductDescription);
         }
-      );
+      } catch (error) {
+        console.error('Failed to complete product description:', error);
+      }
     }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -71,11 +97,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Se il prodotto è descritto in modo generico (senza marca o dettagli sufficienti), suggerisci cosa specificare iniziando con "SPECIFICA:" seguito dal suggerimento. Altrimenti, fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
+            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
           },
           {
             role: 'user',
-            content: `Prodotto: "${product}" al supermercato ${chainName}. Se mancano dettagli importanti (marca, tipo specifico), rispondi "SPECIFICA: [suggerimento]". Altrimenti rispondi solo con il prezzo in euro.`
+            content: `Prodotto: "${finalProductDescription}" al supermercato ${chainName}. Rispondi solo con il prezzo in euro.`
           }
         ],
       }),
@@ -107,16 +133,6 @@ serve(async (req) => {
     const data = await response.json();
     const priceText = data.choices?.[0]?.message?.content || '0';
     
-    // Check if AI is asking for more details
-    if (priceText.startsWith('SPECIFICA:')) {
-      const suggestion = priceText.replace('SPECIFICA:', '').trim();
-      console.log('Suggestion requested:', suggestion);
-      return new Response(
-        JSON.stringify({ suggestion, needsDetails: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     // Parse the price from the response
     const priceMatch = priceText.match(/\d+[.,]?\d*/);
     const price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
@@ -124,7 +140,12 @@ serve(async (req) => {
     console.log('Price search successful:', price);
 
     return new Response(
-      JSON.stringify({ price, priceInfo: `€${price.toFixed(2)}`, needsDetails: false }),
+      JSON.stringify({ 
+        price, 
+        priceInfo: `€${price.toFixed(2)}`,
+        completedProduct: wasCompleted ? finalProductDescription : null,
+        needsDetails: false 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
