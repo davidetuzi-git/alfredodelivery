@@ -40,7 +40,7 @@ export const Header = () => {
   };
 
   const navItems = [
-    { path: "/home", icon: Home, label: "Home" },
+    { path: "/", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
     { path: "/tracking", icon: Clock, label: "Ordini" },
     { path: "/prezzi", icon: Search, label: "Prezzi" },
