@@ -44,9 +44,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="hidden md:block">
-        <Header />
-      </div>
+      <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between mb-6">

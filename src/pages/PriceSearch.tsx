@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { Header } from "@/components/Header";
 import ProductPriceSearch from "@/components/ProductPriceSearch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -81,6 +82,7 @@ const PriceSearch = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
           <Button

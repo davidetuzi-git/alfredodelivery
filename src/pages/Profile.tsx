@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
+import { Header } from "@/components/Header";
 import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -61,6 +62,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-4 mb-4">
