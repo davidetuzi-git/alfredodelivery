@@ -70,6 +70,17 @@ const Order = () => {
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
   const [selectedStoreCoords, setSelectedStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Set store coordinates when component loads if store is already selected
+  useEffect(() => {
+    if (store && !selectedStoreCoords) {
+      const selectedStore = stores.find(s => `${s.name} - ${s.address}` === store);
+      if (selectedStore) {
+        setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
+        console.log('Store coordinates set on load:', selectedStore);
+      }
+    }
+  }, [store]);
+
   const [storeVoucherInfo, setStoreVoucherInfo] = useState<{
     accepts: boolean;
     types: string[];
@@ -415,10 +426,14 @@ const Order = () => {
         selectedStoreCoords.lng
       );
       deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal);
+      console.log('Delivery calculation:', { deliveryDistance, subtotal: calculatedTotal, deliveryFee });
+    } else {
+      console.warn('Missing coordinates for delivery calculation:', { addressCoords, selectedStoreCoords });
     }
 
     // Calculate service fee
     const serviceFee = calculateServiceFee(finalItems);
+    console.log('Service fee calculation:', { itemCount: finalItems.length, serviceFee });
     
     navigate("/riepilogo-ordine", { 
       state: { 
