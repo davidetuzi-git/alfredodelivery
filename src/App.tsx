@@ -23,6 +23,8 @@ import HowItWorksPage from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import DelivererAuth from "./pages/DelivererAuth";
+import DelivererDashboard from "./pages/DelivererDashboard";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,8 @@ const App = () => (
           <Route path="/come-funziona" element={<HowItWorksPage />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/deliverer/auth" element={<DelivererAuth />} />
+          <Route path="/deliverer/dashboard" element={<DelivererDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
