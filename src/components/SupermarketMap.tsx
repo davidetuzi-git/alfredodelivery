@@ -618,15 +618,18 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
               <div className="w-3 h-3 rounded-full bg-green-500"></div>
               <span>Zona 0-7 km</span>
             </div>
-            <span className="font-semibold">€3.99</span>
+            <span className="font-semibold">€8-10</span>
           </div>
           <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
               <span>Zona 7-10 km</span>
             </div>
-            <span className="font-semibold">€5.99</span>
+            <span className="font-semibold">€12-15</span>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            * €8 o €12 per spese ≥€50, altrimenti €10 o €15
+          </p>
         </div>
       </div>
     </div>
