@@ -65,8 +65,16 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} ALFREDO. Tutti i diritti riservati.</p>
+        <div className="border-t border-border mt-8 pt-8 flex flex-col items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} ALFREDO. Tutti i diritti riservati.
+          </p>
+          <Link 
+            to="/admin/login" 
+            className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            Admin
+          </Link>
         </div>
       </div>
     </footer>
