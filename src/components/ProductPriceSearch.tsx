@@ -104,20 +104,15 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
         </p>
       )}
 
-      {completedProduct && (
-        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-6">
-            <p className="text-sm text-blue-900 dark:text-blue-100">
-              <strong>Prodotto completato:</strong> {completedProduct}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {result && (
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm whitespace-pre-line">{result}</p>
+          <CardContent className="pt-6 space-y-2">
+            <p className="text-lg font-semibold">{result}</p>
+            {completedProduct && (
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                {completedProduct}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

@@ -3,10 +3,12 @@ import ProductPriceSearch from "@/components/ProductPriceSearch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 const PriceSearch = () => {
   const [store, setStore] = useState("");
+  const [isStoreSelected, setIsStoreSelected] = useState(false);
 
   const stores = [
     "Esselunga - Via Tuscolana 123, Roma",
@@ -47,26 +49,50 @@ const PriceSearch = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="store">Supermercato</Label>
-              <Select value={store} onValueChange={setStore}>
-                <SelectTrigger id="store">
-                  <SelectValue placeholder="Seleziona un supermercato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Cerca prodotto</Label>
-              <ProductPriceSearch storeName={store} />
-            </div>
+            {!isStoreSelected ? (
+              <div className="space-y-2">
+                <Label htmlFor="store">Supermercato</Label>
+                <Select value={store} onValueChange={(value) => {
+                  setStore(value);
+                  setIsStoreSelected(true);
+                }}>
+                  <SelectTrigger id="store">
+                    <SelectValue placeholder="Seleziona un supermercato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Supermercato selezionato</Label>
+                    <p className="font-medium">{store}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setStore("");
+                      setIsStoreSelected(false);
+                    }}
+                  >
+                    Cambia
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Cerca prodotto</Label>
+                  <ProductPriceSearch storeName={store} />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
