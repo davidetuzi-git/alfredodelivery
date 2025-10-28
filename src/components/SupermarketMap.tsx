@@ -325,13 +325,18 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         setRouteDistance(distanceKm);
         setRouteDuration(durationMin);
 
+
         // Calculate delivery fee based on distance
+        // Note: Actual fee depends on order total, but we show base rate here
+        // Zona 1 (0-7km): €10 for <€50, €8 for ≥€50
+        // Zona 2 (7-10km): €15 for <€50, €12 for ≥€50
+        // Zona 3 (>10km): €20
         if (distanceKm <= 7) {
-          setDeliveryFee(3.99);
+          setDeliveryFee(10); // Base rate for Zona 1
         } else if (distanceKm <= 10) {
-          setDeliveryFee(5.99);
+          setDeliveryFee(15); // Base rate for Zona 2
         } else {
-          setDeliveryFee(null);
+          setDeliveryFee(20); // Base rate for Zona 3
         }
       }
     } catch (error) {
@@ -553,8 +558,20 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
                     )}
                     {deliveryFee !== null && (
                       <div className="flex justify-between">
-                        <span className="text-sm">Costo consegna:</span>
-                        <span className="text-sm font-medium text-primary">€{deliveryFee.toFixed(2)}</span>
+                        <span className="text-sm">Costo consegna base:</span>
+                        <span className="text-sm font-medium text-primary">
+                          €{deliveryFee.toFixed(2)}
+                          {routeDistance && routeDistance <= 7 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (€8 con spesa ≥€50)
+                            </span>
+                          )}
+                          {routeDistance && routeDistance > 7 && routeDistance <= 10 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (€12 con spesa ≥€50)
+                            </span>
+                          )}
+                        </span>
                       </div>
                     )}
                   </div>
