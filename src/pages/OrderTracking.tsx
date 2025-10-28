@@ -241,14 +241,27 @@ const OrderTracking = () => {
           </CardHeader>
           
           <CardContent className="pt-6 space-y-6">
-            {/* Data ordine */}
-            <div className="flex items-center justify-center gap-3 pb-4 border-b border-dashed border-muted">
-              <Calendar className="h-5 w-5 text-primary" />
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Data ordine</p>
-                <p className="font-semibold text-lg">
-                  {format(new Date(order.created_at), "dd MMMM yyyy 'alle' HH:mm", { locale: it })}
-                </p>
+            {/* Date ordine e consegna */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-dashed border-muted">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <Calendar className="h-5 w-5 text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Data ordine</p>
+                  <p className="font-semibold">
+                    {format(new Date(order.created_at), "dd MMM yyyy 'alle' HH:mm", { locale: it })}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <Clock className="h-5 w-5 text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Consegna prevista</p>
+                  <p className="font-semibold">
+                    {format(new Date(order.delivery_date), "dd MMM yyyy", { locale: it })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{order.time_slot}</p>
+                </div>
               </div>
             </div>
 
@@ -282,10 +295,10 @@ const OrderTracking = () => {
                 </div>
 
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <Clock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <Package className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Fascia oraria</p>
-                    <p className="font-semibold">{order.time_slot}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Supermercato</p>
+                    <p className="font-semibold text-sm">{order.store_name}</p>
                   </div>
                 </div>
               </div>
