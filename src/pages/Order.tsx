@@ -68,11 +68,23 @@ const Order = () => {
   const [timeSlot, setTimeSlot] = useState(initialState?.timeSlot || "");
   const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
+  const [selectedStoreCoords, setSelectedStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [storeVoucherInfo, setStoreVoucherInfo] = useState<{
     accepts: boolean;
     types: string[];
   } | null>(null);
+
+  // Calculate delivery fee based on distance and subtotal
+  const calculateDeliveryFee = (distance: number, subtotal: number): number => {
+    if (distance <= 7) {
+      return subtotal < 50 ? 10 : 8;
+    } else if (distance <= 10) {
+      return subtotal < 50 ? 15 : 12;
+    }
+    // Over 10km - could set a very high fee or not deliver
+    return 20; // High fee for >10km deliveries
+  };
 
   const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
@@ -386,6 +398,20 @@ const Order = () => {
 
     const fullAddress = `${address}, ${streetNumber}${addressNotes ? ` - ${addressNotes}` : ''}`;
     
+    // Calculate delivery fee based on distance
+    let deliveryFee = 3.99; // Default
+    let deliveryDistance = 0;
+    
+    if (addressCoords && selectedStoreCoords) {
+      deliveryDistance = calculateDistance(
+        addressCoords.lat,
+        addressCoords.lon,
+        selectedStoreCoords.lat,
+        selectedStoreCoords.lng
+      );
+      deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal);
+    }
+    
     navigate("/riepilogo-ordine", { 
       state: { 
         orderData: {
@@ -404,7 +430,9 @@ const Order = () => {
             waterFee: supplements.waterFee,
             waterOnlyFee: supplements.waterOnlyFee,
             total: supplements.total
-          }
+          },
+          deliveryFee,
+          deliveryDistance
         },
         orderFormData: {
           name,
@@ -518,6 +546,13 @@ const Order = () => {
                     <TabsContent value="list" className="mt-4">
                       <Select value={store} onValueChange={async (value) => {
                         setStore(value);
+                        
+                        // Find store coordinates
+                        const selectedStore = stores.find(s => `${s.name} - ${s.address}` === value);
+                        if (selectedStore) {
+                          setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
+                        }
+                        
                         // Check meal voucher acceptance
                         const storeNameOnly = value.split(' - ')[0].trim();
                         try {
@@ -578,6 +613,13 @@ const Order = () => {
                       <SupermarketMap 
                         onSelectStore={async (storeName) => {
                           setStore(storeName);
+                          
+                          // Find store coordinates
+                          const selectedStore = stores.find(s => `${s.name} - ${s.address}` === storeName);
+                          if (selectedStore) {
+                            setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
+                          }
+                          
                           // Check meal voucher acceptance
                           const storeNameOnly = storeName.split(' - ')[0].trim();
                           try {

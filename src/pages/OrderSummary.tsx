@@ -113,7 +113,8 @@ const OrderSummary = () => {
 
   const items = orderData.items as OrderItem[];
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryFee = 3.99;
+  const deliveryFee = orderData.deliveryFee || 3.99;
+  const deliveryDistance = orderData.deliveryDistance || 0;
   const discount = 4.99;
   const total = subtotal + deliveryFee - discount;
 
@@ -290,7 +291,12 @@ const OrderSummary = () => {
               <span className="font-semibold">€{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Spese di consegna</span>
+              <span className="text-muted-foreground">
+                Spese di consegna
+                {deliveryDistance > 0 && (
+                  <span className="ml-1 text-xs">({deliveryDistance.toFixed(1)} km)</span>
+                )}
+              </span>
               <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
