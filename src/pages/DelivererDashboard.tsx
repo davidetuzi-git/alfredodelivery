@@ -49,6 +49,7 @@ interface Order {
   delivery_status: string;
   total_amount: number;
   created_at: string;
+  store_name: string;
 }
 
 const DelivererDashboard = () => {
@@ -571,7 +572,8 @@ const DelivererDashboard = () => {
                 {orders.map((order) => (
                   <div
                     key={order.id}
-                    className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                    className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/deliverer/order/${order.id}`)}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -579,12 +581,15 @@ const DelivererDashboard = () => {
                         <p className="text-sm text-muted-foreground">
                           {order.delivery_address}
                         </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {order.store_name}
+                        </p>
                       </div>
                       <Badge className={getOrderStatusColor(order.delivery_status)}>
                         {order.delivery_status}
                       </Badge>
                     </div>
-                    <div className="flex justify-between items-center mt-2">
+                    <div className="flex justify-between items-center mt-3">
                       <p className="text-sm">
                         {new Date(order.created_at).toLocaleDateString('it-IT')}
                       </p>

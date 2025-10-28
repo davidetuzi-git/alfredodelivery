@@ -132,66 +132,17 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("status", "sent")
         .neq("id", notification_id);
 
-      return new Response(
-        `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Consegna accettata</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
-                background: #f6f9fc;
-              }
-              .container {
-                background: white;
-                padding: 48px;
-                border-radius: 16px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                text-align: center;
-                max-width: 500px;
-              }
-              h1 { color: #22c55e; font-size: 48px; margin: 0 0 24px 0; }
-              p { color: #666; font-size: 18px; line-height: 1.6; margin: 16px 0; }
-              .details {
-                background: #f9fafb;
-                padding: 24px;
-                border-radius: 8px;
-                margin: 24px 0;
-                text-align: left;
-              }
-              .detail-row {
-                margin: 12px 0;
-                color: #333;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>✅</h1>
-              <h2>Consegna accettata!</h2>
-              <p>Hai preso in carico questa consegna.</p>
-              <div class="details">
-                <div class="detail-row"><strong>📅 Data:</strong> ${new Date(notification.orders.delivery_date).toLocaleDateString("it-IT")}</div>
-                <div class="detail-row"><strong>🕐 Orario:</strong> ${notification.orders.time_slot}</div>
-                <div class="detail-row"><strong>🏪 Ritiro:</strong> ${notification.orders.store_name}</div>
-                <div class="detail-row"><strong>📍 Consegna:</strong> ${notification.orders.delivery_address}</div>
-                <div class="detail-row"><strong>🔑 Codice ritiro:</strong> ${notification.orders.pickup_code}</div>
-              </div>
-              <p>Riceverai ulteriori dettagli via email.</p>
-            </div>
-          </body>
-        </html>
-        `,
-        { status: 200, headers: { "Content-Type": "text/html; charset=UTF-8" } }
-      );
+      // Redirect to deliverer dashboard with order details
+      const appUrl = Deno.env.get("SUPABASE_URL")!.replace("supabase.co", "lovableproject.com");
+      const redirectUrl = `${appUrl.replace("https://bjeezhrfcyhvnfoxkrbq", "https://55199bfc-17e3-4364-ae68-6c4210fad884")}/deliverer/order/${notification.order_id}`;
+      
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          'Location': redirectUrl
+        }
+      });
     } else {
       // Reject
       await supabase
