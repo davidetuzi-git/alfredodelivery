@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.chatbot-assistant]
 verify_jwt = false
+
+[functions.setup-admin]
+verify_jwt = false
