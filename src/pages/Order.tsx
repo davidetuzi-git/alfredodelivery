@@ -225,20 +225,22 @@ const Order = () => {
     }
   };
 
-  // Calculate bags needed - improved logic based on typical product sizes
+  // Calculate bags needed - max 20 products per bag, considering volume
   const calculateBags = () => {
     const validItems = items.filter(item => item.name.trim() !== "");
     if (validItems.length === 0) return 0;
     
     let estimatedVolume = 0; // in liters
+    let productCount = 0;
     
     validItems.forEach(item => {
       const itemName = item.name.toLowerCase();
       const qty = item.quantity;
+      productCount += qty;
       
       // Volume estimates per product type (in liters)
       if (itemName.includes('acqua') || itemName.includes('water')) {
-        // Water bottles are handled separately but count towards volume
+        // Water bottles - extract volume from name
         const match = itemName.match(/(\d+(?:\.\d+)?)\s*l/i);
         if (match) {
           estimatedVolume += parseFloat(match[1]) * qty;
@@ -259,8 +261,14 @@ const Order = () => {
       }
     });
     
-    // Standard shopping bag: 20-25L capacity, use 20L for safety
-    const bagsNeeded = Math.ceil(estimatedVolume / 20);
+    // Calculate bags needed based on:
+    // 1. Product count: max 20 products per bag
+    // 2. Volume: max 15L per bag (realistic capacity)
+    const bagsByCount = Math.ceil(productCount / 20);
+    const bagsByVolume = Math.ceil(estimatedVolume / 15);
+    
+    // Use the larger number (more restrictive constraint)
+    const bagsNeeded = Math.max(bagsByCount, bagsByVolume);
     return Math.max(1, bagsNeeded); // At least 1 bag
   };
 
