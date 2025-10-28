@@ -66,6 +66,7 @@ export type Database = {
           operating_radius_km: number | null
           phone: string
           status: string
+          telegram_chat_id: string | null
           updated_at: string
           user_id: string | null
           zone: string | null
@@ -82,6 +83,7 @@ export type Database = {
           operating_radius_km?: number | null
           phone: string
           status?: string
+          telegram_chat_id?: string | null
           updated_at?: string
           user_id?: string | null
           zone?: string | null
@@ -98,6 +100,7 @@ export type Database = {
           operating_radius_km?: number | null
           phone?: string
           status?: string
+          telegram_chat_id?: string | null
           updated_at?: string
           user_id?: string | null
           zone?: string | null

@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "https://esm.sh/resend@4.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,8 +83,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send emails to all nearby deliverers
-    const emailPromises = nearbyDeliverers.map(async (deliverer) => {
+    // Send Telegram messages to all nearby deliverers
+    const notificationPromises = nearbyDeliverers.map(async (deliverer) => {
       // Create notification record
       const { data: notification } = await supabase
         .from("delivery_notifications")
@@ -99,84 +98,64 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!notification) return;
 
-      const acceptUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept`;
-      const rejectUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject`;
-      
-      // WhatsApp link with pre-filled message
-      const whatsappMessage = encodeURIComponent(
-        `Accetto la consegna per l'ordine del ${new Date(order.delivery_date).toLocaleDateString("it-IT")} alle ${order.time_slot}`
-      );
-      const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
+      // Send Telegram message if chat_id is available
+      if (deliverer.telegram_chat_id) {
+        const acceptUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept`;
+        const rejectUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject`;
 
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Nuova Consegna Disponibile</title>
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f6f9fc;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px;">
-              <h1 style="color: #333; font-size: 28px; margin-bottom: 24px;">🚚 Nuova Consegna Disponibile</h1>
-              
-              <p style="color: #333; font-size: 16px; margin-bottom: 16px;">Ciao ${deliverer.name}!</p>
-              
-              <p style="color: #333; font-size: 16px; margin-bottom: 24px;">
-                C'è una nuova consegna disponibile nella tua zona. Ecco i dettagli:
-              </p>
+        const message = `🚚 *Nuova Consegna Disponibile*
 
-              <div style="background-color: #f9fafb; border-radius: 8px; padding: 24px; margin: 24px 0; border: 1px solid #e5e7eb;">
-                <p style="margin: 8px 0; font-size: 15px;"><strong>📅 Data:</strong> ${new Date(order.delivery_date).toLocaleDateString("it-IT")}</p>
-                <p style="margin: 8px 0; font-size: 15px;"><strong>🕐 Orario:</strong> ${order.time_slot}</p>
-                <p style="margin: 8px 0; font-size: 15px;"><strong>🏪 Ritiro:</strong> ${order.store_name}</p>
-                <p style="margin: 8px 0; font-size: 15px;"><strong>📍 Consegna:</strong> ${order.delivery_address}</p>
-              </div>
+Ciao ${deliverer.name}!
 
-              <p style="color: #333; font-size: 16px; margin-bottom: 24px;">
-                <strong>Il primo che accetta riceverà l'ordine!</strong>
-              </p>
+C'è una nuova consegna disponibile nella tua zona:
 
-              <div style="margin: 24px 0;">
-                <a href="${acceptUrl}" style="display: block; width: 100%; padding: 16px 0; margin-bottom: 12px; background-color: #22c55e; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
-                  ✅ Accetta Consegna
-                </a>
-                <a href="${whatsappUrl}" style="display: block; width: 100%; padding: 16px 0; margin-bottom: 12px; background-color: #25D366; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
-                  💬 Accetta su WhatsApp
-                </a>
-                <a href="${rejectUrl}" style="display: block; width: 100%; padding: 16px 0; background-color: #ef4444; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
-                  ❌ Rifiuta
-                </a>
-              </div>
+📅 *Data:* ${new Date(order.delivery_date).toLocaleDateString("it-IT")}
+🕐 *Orario:* ${order.time_slot}
+🏪 *Ritiro:* ${order.store_name}
+📍 *Consegna:* ${order.delivery_address}
 
-              <p style="color: #8898aa; font-size: 12px; margin-top: 24px;">
-                Questa è una notifica automatica. Se non sei interessato, clicca su "Rifiuta".
-              </p>
-            </div>
-          </body>
-        </html>
-      `;
+⚡ *Il primo che accetta riceverà l'ordine!*`;
 
-      if (!deliverer.email) {
-        console.log("Deliverer", deliverer.name, "has no email");
-        return;
-      }
+        try {
+          const telegramResponse = await fetch(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: deliverer.telegram_chat_id,
+                text: message,
+                parse_mode: "Markdown",
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: "✅ Accetta Consegna", url: acceptUrl },
+                    ],
+                    [
+                      { text: "❌ Rifiuta", url: rejectUrl },
+                    ],
+                  ],
+                },
+              }),
+            }
+          );
 
-      const { error: emailError } = await resend.emails.send({
-        from: "Consegne <onboarding@resend.dev>",
-        to: [deliverer.email],
-        subject: "🚚 Nuova consegna disponibile",
-        html,
-      });
-
-      if (emailError) {
-        console.error("Error sending email to", deliverer.name, emailError);
+          const telegramData = await telegramResponse.json();
+          
+          if (telegramData.ok) {
+            console.log("Telegram message sent to", deliverer.name);
+          } else {
+            console.error("Error sending Telegram to", deliverer.name, telegramData);
+          }
+        } catch (error) {
+          console.error("Failed to send Telegram message:", error);
+        }
       } else {
-        console.log("Email sent to", deliverer.name);
+        console.log("Deliverer", deliverer.name, "has no Telegram chat ID");
       }
     });
 
-    await Promise.all(emailPromises);
+    await Promise.all(notificationPromises);
 
     return new Response(
       JSON.stringify({ success: true, notified: nearbyDeliverers.length }),

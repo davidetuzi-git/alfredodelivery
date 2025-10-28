@@ -21,6 +21,24 @@ interface Deliverer {
   latitude: number | null;
   longitude: number | null;
   operating_radius_km: number | null;
+  telegram_chat_id: string | null;
+}
+
+interface DeliveryNotification {
+  id: string;
+  order_id: string;
+  deliverer_id: string;
+  status: string;
+  created_at: string;
+  orders: {
+    id: string;
+    customer_name: string;
+    delivery_address: string;
+    delivery_date: string;
+    time_slot: string;
+    store_name: string;
+    total_amount: number;
+  };
 }
 
 interface Order {
@@ -41,10 +59,85 @@ const DelivererDashboard = () => {
   const [baseLatitude, setBaseLatitude] = useState<number | null>(null);
   const [baseLongitude, setBaseLongitude] = useState<number | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
+  const [notifications, setNotifications] = useState<DeliveryNotification[]>([]);
 
   useEffect(() => {
     checkAuthAndLoadData();
   }, []);
+
+  useEffect(() => {
+    if (!deliverer) return;
+
+    // Subscribe to real-time notifications
+    const channel = supabase
+      .channel('delivery-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'delivery_notifications',
+          filter: `deliverer_id=eq.${deliverer.id}`,
+        },
+        async (payload) => {
+          console.log('New notification:', payload);
+          
+          // Fetch order details for the notification
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', payload.new.order_id)
+            .single();
+
+          if (orderData) {
+            toast.info("Nuova consegna disponibile!", {
+              description: `${orderData.store_name} - ${orderData.delivery_address}`,
+            });
+            
+            // Add to notifications list
+            setNotifications(prev => [{
+              ...payload.new as any,
+              orders: orderData,
+            }, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    // Load existing pending notifications
+    loadNotifications();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [deliverer]);
+
+  const loadNotifications = async () => {
+    if (!deliverer) return;
+
+    const { data } = await supabase
+      .from('delivery_notifications')
+      .select(`
+        *,
+        orders (
+          id,
+          customer_name,
+          delivery_address,
+          delivery_date,
+          time_slot,
+          store_name,
+          total_amount
+        )
+      `)
+      .eq('deliverer_id', deliverer.id)
+      .eq('status', 'sent')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (data) {
+      setNotifications(data as any);
+    }
+  };
 
   const checkAuthAndLoadData = async () => {
     try {
@@ -253,11 +346,51 @@ const DelivererDashboard = () => {
           </Card>
         </div>
 
+        {notifications.length > 0 && (
+          <Card className="mb-6 border-yellow-200 dark:border-yellow-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                🔔 Nuove Consegne Disponibili
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-yellow-900 dark:text-yellow-100">
+                          {notif.orders.store_name}
+                        </p>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          📍 {notif.orders.delivery_address}
+                        </p>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          📅 {new Date(notif.orders.delivery_date).toLocaleDateString('it-IT')} - {notif.orders.time_slot}
+                        </p>
+                      </div>
+                      <Badge className="bg-yellow-600">
+                        €{notif.orders.total_amount.toFixed(2)}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                      Ricevuta {new Date(notif.created_at).toLocaleTimeString('it-IT')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Indirizzo Base
+              Indirizzo Base & Telegram
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -270,7 +403,7 @@ const DelivererDashboard = () => {
                       Indirizzo base configurato
                     </p>
                     <p className="text-sm text-green-700 dark:text-green-300">
-                      Riceverai notifiche WhatsApp per ordini entro {deliverer.operating_radius_km || 10} km
+                      Riceverai notifiche {deliverer.telegram_chat_id ? 'Telegram' : 'in-app'} per ordini entro {deliverer.operating_radius_km || 10} km
                     </p>
                   </div>
                 </div>
@@ -287,7 +420,7 @@ const DelivererDashboard = () => {
                       Configura il tuo indirizzo base
                     </p>
                     <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                      Riceverai notifiche WhatsApp solo per ordini entro 10 km dal tuo indirizzo
+                      Riceverai notifiche in-app per ordini entro 10 km dal tuo indirizzo
                     </p>
                   </div>
                 </div>
@@ -317,6 +450,23 @@ const DelivererDashboard = () => {
               <Save className="h-4 w-4 mr-2" />
               {savingAddress ? "Salvataggio..." : "Salva Indirizzo Base"}
             </Button>
+
+            {deliverer.latitude && deliverer.longitude && !deliverer.telegram_chat_id && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="font-medium text-blue-800 dark:text-blue-200 mb-2">
+                  💬 Attiva notifiche Telegram
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                  Per ricevere notifiche su Telegram invece che in-app:
+                </p>
+                <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
+                  <li>Cerca <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">@YourBotName</code> su Telegram</li>
+                  <li>Invia <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/start</code></li>
+                  <li>Il bot ti risponderà con il tuo chat_id</li>
+                  <li>Salva il chat_id nelle tue impostazioni</li>
+                </ol>
+              </div>
+            )}
           </CardContent>
         </Card>
 
