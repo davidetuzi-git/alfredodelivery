@@ -112,12 +112,27 @@ const handler = async (req: Request): Promise<Response> => {
         })
         .eq("id", notification_id);
 
-      // Update deliverer status
+      // Check if deliverer has other orders in the same date and time slot
+      const currentOrderDate = new Date(notification.orders.delivery_date).toISOString().split('T')[0];
+      const currentTimeSlot = notification.orders.time_slot;
+
+      const { data: sameSlotOrders } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("deliverer_id", notification.deliverers.id)
+        .gte("delivery_date", currentOrderDate + "T00:00:00Z")
+        .lte("delivery_date", currentOrderDate + "T23:59:59Z")
+        .eq("time_slot", currentTimeSlot)
+        .neq("id", notification.order_id);
+
+      const hasSameSlotOrders = sameSlotOrders && sameSlotOrders.length > 0;
+
+      // Update deliverer status - busy only if has orders in same date/time slot
       await supabase
         .from("deliverers")
         .update({
           current_orders: notification.deliverers.current_orders + 1,
-          status: notification.deliverers.current_orders + 1 >= notification.deliverers.max_orders ? "busy" : "available",
+          status: hasSameSlotOrders || (notification.deliverers.current_orders + 1 >= notification.deliverers.max_orders) ? "busy" : "available",
         })
         .eq("id", notification.deliverers.id);
 
