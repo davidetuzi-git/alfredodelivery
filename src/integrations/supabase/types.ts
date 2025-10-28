@@ -201,6 +201,39 @@ export type Database = {
         }
         Relationships: []
       }
+      supermarkets: {
+        Row: {
+          accepts_meal_vouchers: boolean
+          address: string
+          city: string
+          created_at: string
+          id: string
+          meal_voucher_types: Json | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          accepts_meal_vouchers?: boolean
+          address: string
+          city: string
+          created_at?: string
+          id?: string
+          meal_voucher_types?: Json | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          accepts_meal_vouchers?: boolean
+          address?: string
+          city?: string
+          created_at?: string
+          id?: string
+          meal_voucher_types?: Json | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

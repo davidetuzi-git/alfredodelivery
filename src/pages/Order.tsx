@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -68,6 +68,11 @@ const Order = () => {
   const [timeSlot, setTimeSlot] = useState(initialState?.timeSlot || "");
   const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
+
+  const [storeVoucherInfo, setStoreVoucherInfo] = useState<{
+    accepts: boolean;
+    types: string[];
+  } | null>(null);
 
   const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
@@ -511,7 +516,30 @@ const Order = () => {
                       <TabsTrigger value="map">Mappa</TabsTrigger>
                     </TabsList>
                     <TabsContent value="list" className="mt-4">
-                      <Select value={store} onValueChange={setStore}>
+                      <Select value={store} onValueChange={async (value) => {
+                        setStore(value);
+                        // Check meal voucher acceptance
+                        const storeNameOnly = value.split(' - ')[0].trim();
+                        try {
+                          const { data } = await supabase
+                            .from('supermarkets')
+                            .select('accepts_meal_vouchers, meal_voucher_types')
+                            .ilike('name', storeNameOnly)
+                            .limit(1)
+                            .single();
+                          
+                          if (data) {
+                            setStoreVoucherInfo({
+                              accepts: data.accepts_meal_vouchers,
+                              types: data.meal_voucher_types as string[] || []
+                            });
+                          } else {
+                            setStoreVoucherInfo(null);
+                          }
+                        } catch (error) {
+                          setStoreVoucherInfo(null);
+                        }
+                      }}>
                         <SelectTrigger id="store">
                           <SelectValue placeholder="Seleziona un supermercato" />
                         </SelectTrigger>
@@ -529,17 +557,73 @@ const Order = () => {
                           )}
                         </SelectContent>
                       </Select>
+                      
+                      {store && storeVoucherInfo && (
+                        <div className="mt-2">
+                          {storeVoucherInfo.accepts ? (
+                            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                              <Receipt className="h-3 w-3" />
+                              Accetta buoni pasto: {storeVoucherInfo.types.join(', ')}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Non accetta buoni pasto
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </TabsContent>
                     <TabsContent value="map" className="mt-4">
                       <SupermarketMap 
-                        onSelectStore={(storeName) => setStore(storeName)} 
+                        onSelectStore={async (storeName) => {
+                          setStore(storeName);
+                          // Check meal voucher acceptance
+                          const storeNameOnly = storeName.split(' - ')[0].trim();
+                          try {
+                            const { data } = await supabase
+                              .from('supermarkets')
+                              .select('accepts_meal_vouchers, meal_voucher_types')
+                              .ilike('name', storeNameOnly)
+                              .limit(1)
+                              .single();
+                            
+                            if (data) {
+                              setStoreVoucherInfo({
+                                accepts: data.accepts_meal_vouchers,
+                                types: data.meal_voucher_types as string[] || []
+                              });
+                            } else {
+                              setStoreVoucherInfo(null);
+                            }
+                          } catch (error) {
+                            setStoreVoucherInfo(null);
+                          }
+                        }} 
                         deliveryAddress={address} 
                         onStoresUpdate={handleStoresUpdate} 
                       />
                       {store && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Selezionato: <strong>{store}</strong>
-                        </p>
+                        <>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Selezionato: <strong>{store}</strong>
+                          </p>
+                          {storeVoucherInfo && (
+                            <div className="mt-1">
+                              {storeVoucherInfo.accepts ? (
+                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <Receipt className="h-3 w-3" />
+                                  Accetta buoni pasto: {storeVoucherInfo.types.join(', ')}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3" />
+                                  Non accetta buoni pasto
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
                     </TabsContent>
                   </Tabs>
