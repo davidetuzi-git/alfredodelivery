@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save } from "lucide-react";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { Label } from "@/components/ui/label";
 
 interface Deliverer {
   id: string;
@@ -16,6 +18,9 @@ interface Deliverer {
   current_orders: number;
   max_orders: number;
   zone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  operating_radius_km: number | null;
 }
 
 interface Order {
@@ -32,6 +37,10 @@ const DelivererDashboard = () => {
   const [deliverer, setDeliverer] = useState<Deliverer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [baseAddress, setBaseAddress] = useState("");
+  const [baseLatitude, setBaseLatitude] = useState<number | null>(null);
+  const [baseLongitude, setBaseLongitude] = useState<number | null>(null);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -81,6 +90,13 @@ const DelivererDashboard = () => {
     }
 
     setDeliverer(delivererData);
+    
+    // Imposta l'indirizzo base se già salvato
+    if (delivererData.latitude && delivererData.longitude) {
+      setBaseLatitude(delivererData.latitude);
+      setBaseLongitude(delivererData.longitude);
+      // Potresti voler fare una reverse geocode per mostrare l'indirizzo, ma per ora lasciamo vuoto
+    }
 
     const { data: ordersData } = await supabase
       .from('orders')
@@ -90,6 +106,40 @@ const DelivererDashboard = () => {
 
     if (ordersData) {
       setOrders(ordersData);
+    }
+  };
+
+  const handleSaveBaseAddress = async () => {
+    if (!baseLatitude || !baseLongitude || !deliverer) {
+      toast.error("Seleziona un indirizzo dalla lista");
+      return;
+    }
+
+    setSavingAddress(true);
+    try {
+      const { error } = await supabase
+        .from('deliverers')
+        .update({
+          latitude: baseLatitude,
+          longitude: baseLongitude,
+          operating_radius_km: 10,
+        })
+        .eq('id', deliverer.id);
+
+      if (error) throw error;
+
+      toast.success("Indirizzo base salvato! Riceverai notifiche per ordini entro 10km");
+      
+      // Ricarica i dati
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await loadDelivererData(session.user.id);
+      }
+    } catch (error: any) {
+      console.error("Error saving address:", error);
+      toast.error("Errore nel salvataggio dell'indirizzo");
+    } finally {
+      setSavingAddress(false);
     }
   };
 
@@ -202,6 +252,73 @@ const DelivererDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Indirizzo Base
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {deliverer.latitude && deliverer.longitude ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                  <MapPin className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-green-800 dark:text-green-200">
+                      Indirizzo base configurato
+                    </p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Riceverai notifiche WhatsApp per ordini entro {deliverer.operating_radius_km || 10} km
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Coordinate: {deliverer.latitude.toFixed(6)}, {deliverer.longitude.toFixed(6)}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <MapPin className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                      Configura il tuo indirizzo base
+                    </p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Riceverai notifiche WhatsApp solo per ordini entro 10 km dal tuo indirizzo
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="base-address">
+                {deliverer.latitude ? "Aggiorna indirizzo base" : "Inserisci il tuo indirizzo base"}
+              </Label>
+              <AddressAutocomplete
+                value={baseAddress}
+                onSelect={(address, lat, lon) => {
+                  setBaseAddress(address);
+                  setBaseLatitude(lat);
+                  setBaseLongitude(lon);
+                }}
+                placeholder="Via Roma 1, Milano, MI"
+              />
+            </div>
+
+            <Button 
+              onClick={handleSaveBaseAddress}
+              disabled={!baseLatitude || !baseLongitude || savingAddress}
+              className="w-full"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {savingAddress ? "Salvataggio..." : "Salva Indirizzo Base"}
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
