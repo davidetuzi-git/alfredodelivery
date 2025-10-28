@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.capture-paypal-order]
 verify_jwt = false
+
+[functions.chatbot-assistant]
+verify_jwt = false
