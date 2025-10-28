@@ -36,7 +36,7 @@ export const stores: Store[] = [
   { name: "Coop", address: "Via di Torre Spaccata 159, Roma", lat: 41.8735, lng: 12.5925 },
   { name: "Tigre", address: "Via Ostiense 260, Roma", lat: 41.8564, lng: 12.4787 },
   
-  // Anzio e Nettuno
+  // Anzio e Nettuno (zona densamente popolata)
   { name: "Conad", address: "Via Nettunense 255, Anzio", lat: 41.4497, lng: 12.6293 },
   { name: "Lidl", address: "Via Ardeatina 574, Anzio", lat: 41.4521, lng: 12.6187 },
   { name: "MD Discount", address: "Via di Villa Claudia 90, Anzio", lat: 41.4535, lng: 12.6251 },
@@ -45,22 +45,19 @@ export const stores: Store[] = [
   { name: "Pam", address: "Via Santa Barbara 180, Nettuno", lat: 41.4601, lng: 12.6512 },
   { name: "Carrefour", address: "Via Traunreut 40, Nettuno", lat: 41.4558, lng: 12.6775 },
   { name: "Tigre", address: "Via Roma 67, Anzio", lat: 41.4517, lng: 12.6241 },
+  { name: "Tigre", address: "Via Matteotti 155, Anzio", lat: 41.4477, lng: 12.6277 },
+  { name: "Buccolini", address: "Via Ardeatina 456, Anzio", lat: 41.4463, lng: 12.6278 },
   { name: "Decò", address: "Via Nettunense 422, Lavinio", lat: 41.5003, lng: 12.6212 },
   { name: "In Grande", address: "Via Nettunense 460, Lavinio", lat: 41.5027, lng: 12.6259 },
-  
-  // Aprilia e Latina
-  { name: "Conad", address: "Via dei Mille 32, Aprilia", lat: 41.5929, lng: 12.6506 },
-  { name: "Lidl", address: "Via delle Margherite 45, Aprilia", lat: 41.5885, lng: 12.6435 },
-  { name: "Eurospin", address: "Via Europa 78, Aprilia", lat: 41.5897, lng: 12.6578 },
-  { name: "Carrefour", address: "Corso Matteotti 12, Latina", lat: 41.4677, lng: 12.9041 },
-  { name: "Coop", address: "Viale Le Corbusier 280, Latina", lat: 41.4754, lng: 12.9147 },
-  
-  // Castelli Romani
-  { name: "Conad", address: "Via Appia Nuova 2004, Albano Laziale", lat: 41.7282, lng: 12.6595 },
-  { name: "Coop", address: "Corso della Repubblica 4, Velletri", lat: 41.6877, lng: 12.7785 },
-  { name: "Eurospin", address: "Via Nettunense 87, Velletri", lat: 41.6834, lng: 12.7812 },
-  { name: "Lidl", address: "Via Colle Ombricchio 30, Genzano", lat: 41.7051, lng: 12.6869 },
-  { name: "MD Discount", address: "Via dei Laghi 45, Marino", lat: 41.7695, lng: 12.6603 },
+  { name: "Conad Superstore", address: "Via Nettunense 380, Lavinio", lat: 41.5015, lng: 12.6272 },
+  { name: "In's Mercato", address: "Via degli Eroi 25, Lavinio", lat: 41.5079, lng: 12.5839 },
+  { name: "Conad", address: "Via Diaz 8, Nettuno", lat: 41.4629, lng: 12.6593 },
+  { name: "Eurospin", address: "Via Santa Maria 112, Nettuno", lat: 41.4645, lng: 12.6717 },
+  { name: "Conad", address: "Via Nettunense 320, Nettuno", lat: 41.4642, lng: 12.6709 },
+  { name: "Lidl", address: "Via Santa Barbara 95, Nettuno", lat: 41.4600, lng: 12.6511 },
+  { name: "Alimentari Teori", address: "Via Nettuno-Velletri 208, Nettuno", lat: 41.5037, lng: 12.6876 },
+  { name: "Panorama", address: "Via Giacomo Matteotti 35, Nettuno", lat: 41.4639, lng: 12.6628 },
+  { name: "Conad", address: "Via del Mare 89, Nettuno", lat: 41.4574, lng: 12.6576 },
   
   // Abruzzo
   { name: "Conad", address: "Via Monte Velino 15, Avezzano", lat: 42.0371, lng: 13.4219 },
@@ -202,14 +199,16 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
   const fetchNearbyStores = async (lat: number, lng: number) => {
     try {
-      const radius = 20000; // Aumentato a 20km
+      const radius = 10000;
       const query = `
-        [out:json][timeout:25];
+        [out:json][timeout:30];
         (
           node["shop"="supermarket"](around:${radius},${lat},${lng});
           way["shop"="supermarket"](around:${radius},${lat},${lng});
+          node["shop"="convenience"](around:${radius},${lat},${lng});
+          way["shop"="convenience"](around:${radius},${lat},${lng});
         );
-        out center 150;
+        out center 200;
       `;
 
       const response = await fetch('https://overpass-api.de/api/interpreter', {
@@ -236,7 +235,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
       const nearbyHardcodedStores = stores.filter(store => {
         const distance = calculateDistance(lat, lng, store.lat, store.lng);
-        return distance <= 20; // Aumentato a 20km
+        return distance <= 10;
       });
 
       const combinedStores = [...osmStores, ...nearbyHardcodedStores];
