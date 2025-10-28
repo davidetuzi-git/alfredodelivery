@@ -14,9 +14,9 @@ serve(async (req) => {
     const { items, storeName } = await req.json();
     console.log('Estimating prices for items:', items, 'at store:', storeName);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY is not configured");
     }
 
     // Filter items that need price estimation
@@ -51,21 +51,21 @@ Rispondi SOLO con un oggetto JSON:
     let completedDescriptions: Record<string, string> = {};
     
     try {
-      const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const completionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          messages: [{ role: 'user', content: completionPrompt }],
+          contents: [{
+            parts: [{ text: completionPrompt }]
+          }],
         }),
       });
 
       if (completionResponse.ok) {
         const completionData = await completionResponse.json();
-        const completionText = completionData.choices[0].message.content;
+        const completionText = completionData.candidates[0].content.parts[0].text;
         console.log('Completion response:', completionText);
         
         const jsonMatch = completionText.match(/\{[\s\S]*\}/);
@@ -121,17 +121,15 @@ Regole per le stime:
 4. Se il prodotto è generico, stima il prezzo medio-alto della categoria
 5. NON includere testo prima o dopo il JSON`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "user", content: prompt }
-        ],
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
       }),
     });
 
@@ -154,7 +152,7 @@ Regole per le stime:
     }
 
     const aiData = await response.json();
-    const aiContent = aiData.choices?.[0]?.message?.content;
+    const aiContent = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!aiContent) {
       throw new Error("Risposta AI vuota");

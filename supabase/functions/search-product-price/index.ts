@@ -23,9 +23,9 @@ serve(async (req) => {
     // Estrae solo il nome della catena (prima del trattino)
     const chainName = storeName.split(' - ')[0].trim();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      console.error('GOOGLE_AI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -63,21 +63,21 @@ Esempi:
 - "acqua" → "Acqua minerale naturale Levissima 1.5L"`;
 
       try {
-        const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const completionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
-            messages: [{ role: 'user', content: completionPrompt }],
+            contents: [{
+              parts: [{ text: completionPrompt }]
+            }],
           }),
         });
 
         if (completionResponse.ok) {
           const completionData = await completionResponse.json();
-          finalProductDescription = completionData.choices[0].message.content.trim();
+          finalProductDescription = completionData.candidates[0].content.parts[0].text.trim();
           wasCompleted = true;
           console.log('Completed product description:', finalProductDescription);
         }
@@ -86,24 +86,18 @@ Esempi:
       }
     }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const systemPrompt = 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).';
+    const userPrompt = `Prodotto: "${finalProductDescription}" al supermercato ${chainName}. Rispondi solo con il prezzo in euro.`;
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
-        messages: [
-          {
-            role: 'system',
-            content: 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).'
-          },
-          {
-            role: 'user',
-            content: `Prodotto: "${finalProductDescription}" al supermercato ${chainName}. Rispondi solo con il prezzo in euro.`
-          }
-        ],
+        contents: [{
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }],
       }),
     });
 
@@ -131,7 +125,7 @@ Esempi:
     }
 
     const data = await response.json();
-    const priceText = data.choices?.[0]?.message?.content || '0';
+    const priceText = data.candidates?.[0]?.content?.parts?.[0]?.text || '0';
     
     // Parse the price from the response
     const priceMatch = priceText.match(/\d+[.,]?\d*/);
