@@ -294,7 +294,7 @@ const OrderSummary = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                Spese di consegna
+                Costo consegna
                 {deliveryDistance > 0 && (
                   <span className="ml-1 text-xs">({deliveryDistance.toFixed(1)} km)</span>
                 )}

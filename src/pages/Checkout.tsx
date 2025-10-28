@@ -238,7 +238,7 @@ const Checkout = () => {
               <span className="font-semibold">€{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Consegna</span>
+              <span className="text-muted-foreground">Costo consegna</span>
               <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
