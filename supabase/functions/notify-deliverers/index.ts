@@ -109,6 +109,7 @@ Ciao ${deliverer.name}!
 
 C'è una nuova consegna disponibile nella tua zona:
 
+🔑 *Codice Ritiro:* \`${order.pickup_code}\`
 📅 *Data:* ${new Date(order.delivery_date).toLocaleDateString("it-IT")}
 🕐 *Orario:* ${order.time_slot}
 🏪 *Ritiro:* ${order.store_name}
