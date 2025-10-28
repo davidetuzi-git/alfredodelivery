@@ -171,6 +171,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<L.Marker | null>(null);
+  const [isLoadingStores, setIsLoadingStores] = useState(false);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -200,6 +201,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   }, [deliveryAddress]);
 
   const fetchNearbyStores = async (lat: number, lng: number) => {
+    setIsLoadingStores(true);
     try {
       const radius = 10000;
       const query = `
@@ -255,6 +257,8 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
       console.error('Error fetching stores:', error);
       setAllStores(stores);
       setFilteredStores(stores);
+    } finally {
+      setIsLoadingStores(false);
     }
   };
 
@@ -506,9 +510,19 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         ref={mapContainerRef}
         className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg relative"
         style={{ zIndex: 1 }}
-      />
+      >
+        {isLoadingStores && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-[1000] flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="text-sm font-medium">Ricerca supermercati...</p>
+              <p className="text-xs text-muted-foreground">Caricamento dei marker sulla mappa</p>
+            </div>
+          </div>
+        )}
+      </div>
       
-      {filteredStores.length > 0 && (
+      {!isLoadingStores && filteredStores.length > 0 && (
         <p className="text-sm text-muted-foreground text-center">
           {filteredStores.length} {filteredStores.length === 1 ? 'negozio trovato' : 'negozi trovati'} nel raggio di 10km
         </p>

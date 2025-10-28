@@ -190,12 +190,43 @@ const Order = () => {
     }
   };
 
-  // Calculate bags needed (estimate: ~8-10 items per bag, or 8L per bag)
+  // Calculate bags needed - improved logic based on typical product sizes
   const calculateBags = () => {
     const validItems = items.filter(item => item.name.trim() !== "");
-    const totalItems = validItems.reduce((sum, item) => sum + item.quantity, 0);
-    // Estimate: 8 items fit in one standard bag (20-25L)
-    return Math.ceil(totalItems / 8);
+    if (validItems.length === 0) return 0;
+    
+    let estimatedVolume = 0; // in liters
+    
+    validItems.forEach(item => {
+      const itemName = item.name.toLowerCase();
+      const qty = item.quantity;
+      
+      // Volume estimates per product type (in liters)
+      if (itemName.includes('acqua') || itemName.includes('water')) {
+        // Water bottles are handled separately but count towards volume
+        const match = itemName.match(/(\d+(?:\.\d+)?)\s*l/i);
+        if (match) {
+          estimatedVolume += parseFloat(match[1]) * qty;
+        } else {
+          estimatedVolume += 1.5 * qty; // Default 1.5L if not specified
+        }
+      } else if (itemName.includes('latte') || itemName.includes('milk') || itemName.includes('succo') || itemName.includes('juice')) {
+        estimatedVolume += 1 * qty; // ~1L per bottle
+      } else if (itemName.includes('olio') || itemName.includes('oil') || itemName.includes('vino') || itemName.includes('wine')) {
+        estimatedVolume += 0.75 * qty; // ~750ml per bottle
+      } else if (itemName.includes('pasta') || itemName.includes('riso') || itemName.includes('rice') || itemName.includes('farina') || itemName.includes('flour')) {
+        estimatedVolume += 0.5 * qty; // ~500g packages
+      } else if (itemName.includes('scatola') || itemName.includes('lattina') || itemName.includes('can')) {
+        estimatedVolume += 0.4 * qty; // Canned goods
+      } else {
+        // Generic items: estimate ~0.8L per item (average grocery product)
+        estimatedVolume += 0.8 * qty;
+      }
+    });
+    
+    // Standard shopping bag: 20-25L capacity, use 20L for safety
+    const bagsNeeded = Math.ceil(estimatedVolume / 20);
+    return Math.max(1, bagsNeeded); // At least 1 bag
   };
 
   // Calculate water volume in liters
@@ -267,6 +298,13 @@ const Order = () => {
   const supplements = calculateSupplements();
   const finalTotal = total + supplements.total;
   const meetsMinimum = total >= 25;
+  
+  // Check if all items have prices
+  const validItems = items.filter(item => item.name.trim() !== "");
+  const allPricesLoaded = validItems.length > 0 && validItems.every(item => 
+    item.price !== null && item.price !== undefined && !item.loading
+  );
+  const anyLoading = validItems.some(item => item.loading);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -720,8 +758,24 @@ const Order = () => {
 
               <PriceComparison items={items} currentStore={store} />
 
-              <Button type="submit" className="w-full" size="lg">
-                Procedi al pagamento
+              <Button 
+                type="submit" 
+                className="w-full" 
+                size="lg"
+                disabled={!allPricesLoaded || !meetsMinimum || anyLoading}
+              >
+                {anyLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Caricamento prezzi...
+                  </>
+                ) : !allPricesLoaded ? (
+                  "Completa i prezzi per continuare"
+                ) : !meetsMinimum ? (
+                  "Spesa minima €25"
+                ) : (
+                  "Procedi al pagamento"
+                )}
               </Button>
             </form>
           </CardContent>
