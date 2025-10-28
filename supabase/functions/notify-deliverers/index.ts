@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "npm:resend@4.0.0";
-import React from "npm:react@18.3.1";
-import { renderAsync } from "npm:@react-email/components@0.0.25";
-import { DeliveryRequestEmail } from "./_templates/delivery-request.tsx";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -60,10 +57,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${deliverers?.length || 0} deliverers`);
 
     // Filter deliverers by distance
-    const nearbyDeliverers = deliverers?.filter((deliverer) => {
-      if (!deliverer.latitude || !deliverer.longitude) return false;
+    const nearbyDeliverers: any[] = [];
+    
+    for (const deliverer of deliverers || []) {
+      if (!deliverer.latitude || !deliverer.longitude) continue;
 
-      const { data: distance } = supabase.rpc("calculate_distance", {
+      const { data: distance } = await supabase.rpc("calculate_distance", {
         lat1: order.latitude,
         lon1: order.longitude,
         lat2: deliverer.latitude,
@@ -71,8 +70,10 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const maxDistance = deliverer.operating_radius_km || 7;
-      return distance && distance <= maxDistance;
-    }) || [];
+      if (distance && distance <= maxDistance) {
+        nearbyDeliverers.push(deliverer);
+      }
+    }
 
     console.log(`Found ${nearbyDeliverers.length} nearby deliverers`);
 
@@ -107,18 +108,54 @@ const handler = async (req: Request): Promise<Response> => {
       );
       const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
 
-      const html = await renderAsync(
-        React.createElement(DeliveryRequestEmail, {
-          delivererName: deliverer.name,
-          orderDate: new Date(order.delivery_date).toLocaleDateString("it-IT"),
-          timeSlot: order.time_slot,
-          deliveryAddress: order.delivery_address,
-          storeName: order.store_name,
-          acceptUrl,
-          rejectUrl,
-          whatsappUrl,
-        })
-      );
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nuova Consegna Disponibile</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f6f9fc;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px;">
+              <h1 style="color: #333; font-size: 28px; margin-bottom: 24px;">🚚 Nuova Consegna Disponibile</h1>
+              
+              <p style="color: #333; font-size: 16px; margin-bottom: 16px;">Ciao ${deliverer.name}!</p>
+              
+              <p style="color: #333; font-size: 16px; margin-bottom: 24px;">
+                C'è una nuova consegna disponibile nella tua zona. Ecco i dettagli:
+              </p>
+
+              <div style="background-color: #f9fafb; border-radius: 8px; padding: 24px; margin: 24px 0; border: 1px solid #e5e7eb;">
+                <p style="margin: 8px 0; font-size: 15px;"><strong>📅 Data:</strong> ${new Date(order.delivery_date).toLocaleDateString("it-IT")}</p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>🕐 Orario:</strong> ${order.time_slot}</p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>🏪 Ritiro:</strong> ${order.store_name}</p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>📍 Consegna:</strong> ${order.delivery_address}</p>
+              </div>
+
+              <p style="color: #333; font-size: 16px; margin-bottom: 24px;">
+                <strong>Il primo che accetta riceverà l'ordine!</strong>
+              </p>
+
+              <div style="margin: 24px 0;">
+                <a href="${acceptUrl}" style="display: block; width: 100%; padding: 16px 0; margin-bottom: 12px; background-color: #22c55e; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                  ✅ Accetta Consegna
+                </a>
+                <a href="${whatsappUrl}" style="display: block; width: 100%; padding: 16px 0; margin-bottom: 12px; background-color: #25D366; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                  💬 Accetta su WhatsApp
+                </a>
+                <a href="${rejectUrl}" style="display: block; width: 100%; padding: 16px 0; background-color: #ef4444; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                  ❌ Rifiuta
+                </a>
+              </div>
+
+              <p style="color: #8898aa; font-size: 12px; margin-top: 24px;">
+                Questa è una notifica automatica. Se non sei interessato, clicca su "Rifiuta".
+              </p>
+            </div>
+          </body>
+        </html>
+      `;
 
       if (!deliverer.email) {
         console.log("Deliverer", deliverer.name, "has no email");
