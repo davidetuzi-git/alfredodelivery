@@ -39,6 +39,7 @@ export const DeliverersTab = ({ deliverers }: DeliverersTabProps) => {
   }, []);
 
   const fetchRequests = async () => {
+    console.log('Fetching deliverer requests...');
     const { data, error } = await supabase
       .from('deliverer_requests')
       .select('*')
@@ -47,9 +48,11 @@ export const DeliverersTab = ({ deliverers }: DeliverersTabProps) => {
 
     if (error) {
       console.error('Error fetching requests:', error);
+      toast.error(`Errore nel caricamento richieste: ${error.message}`);
       return;
     }
 
+    console.log('Requests fetched:', data);
     setRequests(data || []);
   };
 
