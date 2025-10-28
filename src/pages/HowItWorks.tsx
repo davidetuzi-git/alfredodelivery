@@ -16,7 +16,9 @@ import {
   Star,
   TrendingUp,
   Users,
-  Package
+  Package,
+  FileText,
+  AlertCircle
 } from "lucide-react";
 
 const HowItWorksPage = () => {
@@ -230,6 +232,197 @@ const HowItWorksPage = () => {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Rules Section */}
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <Badge className="mb-4">
+            <FileText className="h-3 w-3 mr-1" />
+            Regole del Servizio
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Regole per equità, qualità e sostenibilità
+          </h2>
+          <p className="text-xl text-muted-foreground">
+            Per assicurare un servizio affidabile, ALFREDO definisce regole precise per tutti i soggetti coinvolti
+          </p>
+        </div>
+
+        {/* Rules for Shoppers */}
+        <Card className="mb-8">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="bg-primary/10 p-3 rounded-xl">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold mb-2">Per gli Shopper (Alfredi)</h3>
+              </div>
+            </div>
+            <ul className="space-y-3 text-muted-foreground">
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Formazione obbligatoria e certificazione prima dell&apos;attivazione</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Rispetto rigoroso dei tempi, con comunicazione tempestiva di eventuali ritardi o problemi</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Gestione professionale degli ordini: attenzione a qualità, sostituzioni e comunicazioni precise</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Comportamento corretto, cortese e trasparente: feedback negativi continuativi portano a sospensioni o esclusioni</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Rispettare limiti di volume, sovrattasse e regole su prodotti soggetti a restrizioni (es. farmaci)</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Rules for Users */}
+        <Card className="mb-8">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="bg-secondary/10 p-3 rounded-xl">
+                <User className="h-6 w-6 text-secondary" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold mb-2">Per gli Utenti</h3>
+              </div>
+            </div>
+            <ul className="space-y-3 text-muted-foreground">
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
+                <span>Inserimento ordini attenti e completi: specifiche chiare su quantità, marche, preferenze o allergie</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
+                <span>Osservanza dei limiti di ordine e spesa minima</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
+                <span>Comunicazione rapida e puntuale in caso di variazioni o reclami</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
+                <span>Feedback costruttivi e onesti per migliorare il servizio</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Rules for Platform */}
+        <Card className="mb-8">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="bg-primary/10 p-3 rounded-xl">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold mb-2">Per la Piattaforma e il Team ALFREDO</h3>
+              </div>
+            </div>
+            <ul className="space-y-3 text-muted-foreground">
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Monitoraggio continuo di KPI e qualità del servizio</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Customer care reattivo e pronto a risolvere i problemi</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Aggiornamento regolare delle regole e policy in base a dati, feedback e normative</span>
+              </li>
+              <li className="flex gap-3">
+                <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <span>Rigida compliance GDPR e tutela dei dati</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Limits Table */}
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold mb-6 text-center">Tabella Riepilogativa Limiti e Supplementi</h3>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-primary/5 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold">Limite / Prodotto</th>
+                      <th className="px-4 py-3 text-left font-semibold">Quantità Consentita</th>
+                      <th className="px-4 py-3 text-left font-semibold">Supplemento Applicato</th>
+                      <th className="px-4 py-3 text-left font-semibold">Motivazione</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <tr className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">Buste standard</td>
+                      <td className="px-4 py-3 text-muted-foreground">Max 3 buste (20-25 litri totali)</td>
+                      <td className="px-4 py-3 text-muted-foreground">3 € per ogni busta aggiuntiva</td>
+                      <td className="px-4 py-3 text-muted-foreground">Incremento costi logistici e trasporto</td>
+                    </tr>
+                    <tr className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">Volume acqua</td>
+                      <td className="px-4 py-3 text-muted-foreground">Incluso nel volume buste</td>
+                      <td className="px-4 py-3 text-muted-foreground">0,50 € ogni 3 litri eccedenti</td>
+                      <td className="px-4 py-3 text-muted-foreground">Elevato peso e volume dell&apos;acqua</td>
+                    </tr>
+                    <tr className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">Ordine solo acqua</td>
+                      <td className="px-4 py-3 text-muted-foreground">Max 12 litri</td>
+                      <td className="px-4 py-3 text-muted-foreground">Extra fisso 10 € + 0,50 € ogni 3 litri</td>
+                      <td className="px-4 py-3 text-muted-foreground">Costi elevati di gestione esclusiva di ordini acqua</td>
+                    </tr>
+                    <tr className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">Spesa minima</td>
+                      <td className="px-4 py-3 text-muted-foreground">Minimo 25 €</td>
+                      <td className="px-4 py-3 text-muted-foreground">-</td>
+                      <td className="px-4 py-3 text-muted-foreground">Sostenibilità e copertura costi fissi</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Problem Management */}
+        <Card className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded-xl">
+                <AlertCircle className="h-6 w-6 text-yellow-700 dark:text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold mb-2">Gestione Problemi</h3>
+              </div>
+            </div>
+            <ul className="space-y-3 text-muted-foreground">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground">Ritardo &gt;15 min →</span>
+                <span>Notifica automatica a backup shopper + comunicazione cliente</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground">Prodotti mancanti o errore ordine →</span>
+                <span>Gestione rimborso / consegna sostitutiva entro 24h</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground">Reclami ripetitivi →</span>
+                <span>Revisione formazione e, se necessario, sospensione temporanea dal servizio</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </div>
 
       <Navigation />
