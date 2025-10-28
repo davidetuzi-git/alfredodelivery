@@ -7,7 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -145,6 +156,50 @@ const OrderTracking = () => {
       loadOrder(inputCode.trim().toUpperCase());
     }
   };
+
+  const handleEditOrder = () => {
+    // Naviga alla pagina dell'ordine con i dati esistenti
+    navigate('/ordina', { 
+      state: { 
+        editMode: true, 
+        orderId: order.id,
+        existingOrder: order 
+      } 
+    });
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          delivery_status: 'cancelled',
+          status: 'cancelled'
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Ordine cancellato",
+        description: "Il tuo ordine è stato cancellato con successo",
+      });
+
+      // Ricarica l'ordine per mostrare lo stato aggiornato
+      loadOrder(pickupCode);
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile cancellare l'ordine",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Determina se i pulsanti devono essere mostrati
+  const canEditOrder = order && !['at_store', 'shopping_complete', 'on_the_way', 'delivered', 'cancelled'].includes(order.delivery_status);
+  const canCancelOrder = order && !['in_progress', 'at_store', 'shopping_complete', 'on_the_way', 'delivered', 'cancelled'].includes(order.delivery_status);
 
   if (!order) {
     return (
@@ -332,6 +387,56 @@ const OrderTracking = () => {
             <OrderStatusTracker currentStatus={order.delivery_status || 'confirmed'} />
           </CardContent>
         </Card>
+
+        {/* Action Buttons */}
+        {(canEditOrder || canCancelOrder) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Azioni ordine</CardTitle>
+            </CardHeader>
+            <CardContent className="flex gap-3">
+              {canEditOrder && (
+                <Button 
+                  onClick={handleEditOrder}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifica ordine
+                </Button>
+              )}
+              
+              {canCancelOrder && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Cancella ordine
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Questa azione cancellerà definitivamente il tuo ordine. 
+                        Non potrai più recuperarlo.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleCancelOrder}>
+                        Cancella ordine
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Chat */}
         <OrderChat 
