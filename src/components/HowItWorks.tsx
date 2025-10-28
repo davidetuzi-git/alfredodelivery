@@ -3,8 +3,8 @@ import { MessageSquare, ShoppingBasket, Truck, CheckCircle } from "lucide-react"
 const steps = [
   {
     icon: MessageSquare,
-    title: "Contattaci su WhatsApp",
-    description: "Invia un messaggio con la tua lista della spesa o scegli prodotti dal catalogo",
+    title: "Prepara la lista e controlla i prezzi",
+    description: "Crea la tua lista della spesa e confronta i prezzi tra i supermercati disponibili",
     step: "01"
   },
   {

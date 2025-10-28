@@ -109,7 +109,7 @@ export const Header = () => {
             </DropdownMenu>
           ) : (
             <Button variant="hero" onClick={() => navigate("/auth")}>
-              Accedi
+              Registrati
             </Button>
           )}
         </div>
