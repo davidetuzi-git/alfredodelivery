@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface Deliverer {
   id: string;
@@ -60,6 +61,8 @@ const DelivererDashboard = () => {
   const [baseLongitude, setBaseLongitude] = useState<number | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
   const [notifications, setNotifications] = useState<DeliveryNotification[]>([]);
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [savingTelegram, setSavingTelegram] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -184,11 +187,14 @@ const DelivererDashboard = () => {
 
     setDeliverer(delivererData);
     
-    // Imposta l'indirizzo base se già salvato
+    // Imposta l'indirizzo base e chat_id se già salvati
     if (delivererData.latitude && delivererData.longitude) {
       setBaseLatitude(delivererData.latitude);
       setBaseLongitude(delivererData.longitude);
-      // Potresti voler fare una reverse geocode per mostrare l'indirizzo, ma per ora lasciamo vuoto
+    }
+    
+    if (delivererData.telegram_chat_id) {
+      setTelegramChatId(delivererData.telegram_chat_id);
     }
 
     const { data: ordersData } = await supabase
@@ -233,6 +239,36 @@ const DelivererDashboard = () => {
       toast.error("Errore nel salvataggio dell'indirizzo");
     } finally {
       setSavingAddress(false);
+    }
+  };
+
+  const handleSaveTelegramChatId = async () => {
+    if (!telegramChatId.trim() || !deliverer) {
+      toast.error("Inserisci un chat_id valido");
+      return;
+    }
+
+    setSavingTelegram(true);
+    try {
+      const { error } = await supabase
+        .from('deliverers')
+        .update({ telegram_chat_id: telegramChatId.trim() })
+        .eq('id', deliverer.id);
+
+      if (error) throw error;
+
+      toast.success("Chat ID Telegram salvato! Riceverai notifiche su Telegram");
+      
+      // Ricarica i dati
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await loadDelivererData(session.user.id);
+      }
+    } catch (error: any) {
+      console.error("Error saving telegram chat_id:", error);
+      toast.error("Errore nel salvataggio del chat_id");
+    } finally {
+      setSavingTelegram(false);
     }
   };
 
@@ -451,22 +487,73 @@ const DelivererDashboard = () => {
               {savingAddress ? "Salvataggio..." : "Salva Indirizzo Base"}
             </Button>
 
-            {deliverer.latitude && deliverer.longitude && !deliverer.telegram_chat_id && (
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="font-medium text-blue-800 dark:text-blue-200 mb-2">
-                  💬 Attiva notifiche Telegram
-                </p>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  Per ricevere notifiche su Telegram invece che in-app:
-                </p>
-                <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                  <li>Cerca <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">@YourBotName</code> su Telegram</li>
-                  <li>Invia <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/start</code></li>
-                  <li>Il bot ti risponderà con il tuo chat_id</li>
-                  <li>Salva il chat_id nelle tue impostazioni</li>
-                </ol>
+            <div className="mt-6 pt-6 border-t">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageCircle className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold text-lg">Notifiche Telegram</h3>
               </div>
-            )}
+              
+              {deliverer.telegram_chat_id ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                    <MessageCircle className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-800 dark:text-green-200">
+                        Telegram configurato! ✅
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Chat ID: {deliverer.telegram_chat_id}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telegram-chatid">Aggiorna Chat ID</Label>
+                    <Input
+                      id="telegram-chatid"
+                      type="text"
+                      value={telegramChatId}
+                      onChange={(e) => setTelegramChatId(e.target.value)}
+                      placeholder="123456789"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="font-medium text-blue-800 dark:text-blue-200 mb-2">
+                      💬 Attiva notifiche Telegram
+                    </p>
+                    <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside mb-3">
+                      <li>Cerca <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">@Alfredo257_bot</code> su Telegram</li>
+                      <li>Invia <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/start</code></li>
+                      <li>Il bot ti risponderà con il tuo chat_id</li>
+                      <li>Copia il numero qui sotto e salva</li>
+                    </ol>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="telegram-chatid">Il tuo Chat ID Telegram</Label>
+                    <Input
+                      id="telegram-chatid"
+                      type="text"
+                      value={telegramChatId}
+                      onChange={(e) => setTelegramChatId(e.target.value)}
+                      placeholder="123456789"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <Button 
+                onClick={handleSaveTelegramChatId}
+                disabled={!telegramChatId.trim() || savingTelegram}
+                className="w-full mt-3"
+                variant="outline"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                {savingTelegram ? "Salvataggio..." : "Salva Chat ID Telegram"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
