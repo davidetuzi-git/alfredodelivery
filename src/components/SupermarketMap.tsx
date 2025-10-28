@@ -415,6 +415,9 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
           e.preventDefault();
           e.stopPropagation();
           
+          // Close the popup first
+          marker.closePopup();
+          
           // Reset previous selected marker
           if (selectedMarker) {
             selectedMarker.setIcon(DefaultIcon);
@@ -453,6 +456,11 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     if (selectedStore) {
       onSelectStore(selectedStore.name, selectedStore.address);
       setShowConfirmDialog(false);
+      
+      // Close all popups
+      if (mapRef.current) {
+        mapRef.current.closePopup();
+      }
     }
   };
 
@@ -497,6 +505,12 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-lg relative"
         style={{ zIndex: 1 }}
       />
+      
+      {filteredStores.length > 0 && (
+        <p className="text-sm text-muted-foreground text-center">
+          {filteredStores.length} {filteredStores.length === 1 ? 'negozio trovato' : 'negozi trovati'} nel raggio di 10km
+        </p>
+      )}
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
