@@ -187,7 +187,15 @@ export type Database = {
           total_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_deliverer_id_fkey"
+            columns: ["deliverer_id"]
+            isOneToOne: false
+            referencedRelation: "deliverers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
