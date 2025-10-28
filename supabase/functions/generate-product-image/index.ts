@@ -31,7 +31,7 @@ serve(async (req) => {
 
     console.log(`Generating image for product: ${productName}`);
 
-    const prompt = `A professional, high-quality product photo of ${productName} on a clean white background. Studio lighting, commercial photography style, centered composition.`;
+    const prompt = `Ultra realistic product photography of exactly: ${productName}. Professional studio shot with perfect lighting, white background, centered, highly detailed, photorealistic, commercial quality, sharp focus, true-to-life colors, exact product representation.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
