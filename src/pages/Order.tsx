@@ -414,8 +414,8 @@ const Order = () => {
 
     const fullAddress = `${address}, ${streetNumber}${addressNotes ? ` - ${addressNotes}` : ''}`;
     
-    // Calculate delivery fee based on distance
-    let deliveryFee = 3.99; // Default
+    // Calculate delivery fee based on distance and subtotal
+    let deliveryFee = 10; // Default for Zona 1 (0-7km) with <50€ spend
     let deliveryDistance = 0;
     
     if (addressCoords && selectedStoreCoords) {
@@ -426,14 +426,13 @@ const Order = () => {
         selectedStoreCoords.lng
       );
       deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal);
-      console.log('Delivery calculation:', { deliveryDistance, subtotal: calculatedTotal, deliveryFee });
     } else {
-      console.warn('Missing coordinates for delivery calculation:', { addressCoords, selectedStoreCoords });
+      // If we don't have coordinates, use default based on subtotal
+      deliveryFee = calculatedTotal < 50 ? 10 : 8;
     }
 
     // Calculate service fee
     const serviceFee = calculateServiceFee(finalItems);
-    console.log('Service fee calculation:', { itemCount: finalItems.length, serviceFee });
     
     navigate("/riepilogo-ordine", { 
       state: { 
