@@ -3,15 +3,16 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -189,7 +190,83 @@ const Order = () => {
     }
   };
 
+  // Calculate bags needed (estimate: ~8-10 items per bag, or 8L per bag)
+  const calculateBags = () => {
+    const validItems = items.filter(item => item.name.trim() !== "");
+    const totalItems = validItems.reduce((sum, item) => sum + item.quantity, 0);
+    // Estimate: 8 items fit in one standard bag (20-25L)
+    return Math.ceil(totalItems / 8);
+  };
+
+  // Calculate water volume in liters
+  const calculateWaterVolume = () => {
+    const waterItems = items.filter(item => 
+      item.name.toLowerCase().includes('acqua') || 
+      item.name.toLowerCase().includes('water')
+    );
+    // Estimate liters from item names (e.g., "acqua 1.5L" or "acqua 6x1.5L")
+    let totalLiters = 0;
+    waterItems.forEach(item => {
+      const match = item.name.match(/(\d+(?:\.\d+)?)\s*l/i);
+      if (match) {
+        const liters = parseFloat(match[1]);
+        totalLiters += liters * item.quantity;
+      }
+    });
+    return totalLiters;
+  };
+
+  // Calculate supplements based on rules
+  const calculateSupplements = () => {
+    const bags = calculateBags();
+    const waterLiters = calculateWaterVolume();
+    const validItems = items.filter(item => item.name.trim() !== "");
+    
+    let supplements = {
+      bagFee: 0,
+      waterFee: 0,
+      waterOnlyFee: 0,
+      total: 0
+    };
+
+    // Bag supplement: 3€ for each bag over 3
+    if (bags > 3) {
+      supplements.bagFee = (bags - 3) * 3;
+    }
+
+    // Check if order is water-only
+    const isWaterOnly = validItems.every(item => 
+      item.name.toLowerCase().includes('acqua') || 
+      item.name.toLowerCase().includes('water')
+    );
+
+    if (isWaterOnly && waterLiters > 0) {
+      // Water-only order: 10€ fixed + 0.50€ per 3L
+      supplements.waterOnlyFee = 10;
+      if (waterLiters > 12) {
+        const excessLiters = waterLiters - 12;
+        supplements.waterOnlyFee += Math.ceil(excessLiters / 3) * 0.50;
+      }
+    } else if (waterLiters > 0) {
+      // Mixed order with water: 0.50€ every 3L excess
+      // Assume first ~6L are included in normal bags
+      const includedWater = 6;
+      if (waterLiters > includedWater) {
+        const excessLiters = waterLiters - includedWater;
+        supplements.waterFee = Math.ceil(excessLiters / 3) * 0.50;
+      }
+    }
+
+    supplements.total = supplements.bagFee + supplements.waterFee + supplements.waterOnlyFee;
+    return supplements;
+  };
+
   const total = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
+  const bags = calculateBags();
+  const waterLiters = calculateWaterVolume();
+  const supplements = calculateSupplements();
+  const finalTotal = total + supplements.total;
+  const meetsMinimum = total >= 25;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +328,16 @@ const Order = () => {
       const itemPrice = item.price || 0;
       return sum + (itemPrice * item.quantity);
     }, 0);
+    
+    // Check minimum spend
+    if (total < 25) {
+      toast({
+        title: "Spesa minima non raggiunta",
+        description: "La spesa minima è di 25€. Aggiungi altri prodotti per continuare.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const fullAddress = `${address}, ${streetNumber}${addressNotes ? ` - ${addressNotes}` : ''}`;
     
@@ -266,7 +353,13 @@ const Order = () => {
           items: finalItems.map(item => ({
             ...item,
             price: item.price || 0
-          }))
+          })),
+          supplements: {
+            bagFee: supplements.bagFee,
+            waterFee: supplements.waterFee,
+            waterOnlyFee: supplements.waterOnlyFee,
+            total: supplements.total
+          }
         },
         orderFormData: {
           name,
@@ -554,9 +647,73 @@ const Order = () => {
                 </Button>
                 
                 {total > 0 && (
-                  <div className="pt-3 border-t flex justify-between items-center">
-                    <span className="font-semibold text-lg">Totale stimato:</span>
-                    <span className="font-bold text-xl text-primary">€{total.toFixed(2)}</span>
+                  <div className="space-y-4">
+                    {/* Bag Counter */}
+                    <Card className="bg-primary/5 border-primary/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <ShoppingBag className="h-5 w-5 text-primary" />
+                            <span className="font-semibold">Buste necessarie</span>
+                          </div>
+                          <Badge variant={bags <= 3 ? "secondary" : "default"}>
+                            {bags} {bags === 1 ? 'busta' : 'buste'}
+                          </Badge>
+                        </div>
+                        {bags > 3 && (
+                          <p className="text-sm text-muted-foreground">
+                            Supplemento buste: +€{supplements.bagFee.toFixed(2)} ({bags - 3} buste extra × €3)
+                          </p>
+                        )}
+                        {waterLiters > 0 && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Volume acqua: {waterLiters.toFixed(1)}L
+                            {supplements.waterFee > 0 && ` (+€${supplements.waterFee.toFixed(2)})`}
+                            {supplements.waterOnlyFee > 0 && ` (Ordine solo acqua: +€${supplements.waterOnlyFee.toFixed(2)})`}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Minimum Spend Alert */}
+                    {!meetsMinimum && (
+                      <Card className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-yellow-700 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm">
+                              <p className="font-semibold text-yellow-900 dark:text-yellow-100 mb-1">
+                                Spesa minima richiesta: €25
+                              </p>
+                              <p className="text-yellow-700 dark:text-yellow-300">
+                                Mancano €{(25 - total).toFixed(2)} per raggiungere la spesa minima
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Total Breakdown */}
+                    <div className="pt-3 border-t space-y-2">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Subtotale prodotti:</span>
+                        <span>€{total.toFixed(2)}</span>
+                      </div>
+                      {supplements.total > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Supplementi:</span>
+                          <span>€{supplements.total.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="font-semibold text-lg">Totale stimato:</span>
+                        <span className="font-bold text-xl text-primary">€{finalTotal.toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-right">
+                        (Esclusa consegna)
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
