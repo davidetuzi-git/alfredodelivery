@@ -115,8 +115,10 @@ const OrderSummary = () => {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = orderData.deliveryFee || 3.99;
   const deliveryDistance = orderData.deliveryDistance || 0;
+  const serviceFee = orderData.serviceFee || 0;
+  const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, total: 0 };
   const discount = 4.99;
-  const total = subtotal + deliveryFee - discount;
+  const total = subtotal + deliveryFee + serviceFee + supplements.total - discount;
 
   const handleProceedToCheckout = () => {
     navigate("/checkout", {
@@ -299,6 +301,16 @@ const OrderSummary = () => {
               </span>
               <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
             </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Costo del servizio</span>
+              <span className="font-semibold">€{serviceFee.toFixed(2)}</span>
+            </div>
+            {supplements.total > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Supplementi</span>
+                <span className="font-semibold">€{supplements.total.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
               <span>Sconto primo ordine</span>
               <span className="font-semibold">-€{discount.toFixed(2)}</span>

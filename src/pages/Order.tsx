@@ -86,6 +86,11 @@ const Order = () => {
     return 20; // High fee for >10km deliveries
   };
 
+  // Calculate service fee: €0.15 per product * quantity
+  const calculateServiceFee = (items: ShoppingItem[]): number => {
+    return items.reduce((sum, item) => sum + (item.quantity * 0.15), 0);
+  };
+
   const storesFullList = [
     "Esselunga - Via Tuscolana 123, Roma",
     "Carrefour Express - Via Appia Nuova 45, Roma",
@@ -411,6 +416,9 @@ const Order = () => {
       );
       deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal);
     }
+
+    // Calculate service fee
+    const serviceFee = calculateServiceFee(finalItems);
     
     navigate("/riepilogo-ordine", { 
       state: { 
@@ -432,7 +440,8 @@ const Order = () => {
             total: supplements.total
           },
           deliveryFee,
-          deliveryDistance
+          deliveryDistance,
+          serviceFee
         },
         orderFormData: {
           name,
