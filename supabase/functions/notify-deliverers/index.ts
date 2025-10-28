@@ -101,8 +101,9 @@ const handler = async (req: Request): Promise<Response> => {
       // Send Telegram message if chat_id is available
       if (deliverer.telegram_chat_id) {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const acceptUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept`;
-        const rejectUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject`;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const acceptUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept&apikey=${anonKey}`;
+        const rejectUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject&apikey=${anonKey}`;
 
         const message = `🚚 *Nuova Consegna Disponibile*
 
