@@ -112,6 +112,47 @@ const Checkout = () => {
       return;
     }
 
+    // If PayPal, create order and redirect
+    if (paymentMethod === 'paypal') {
+      setProcessing(true);
+      try {
+        const returnUrl = `${window.location.origin}/paypal-success`;
+        const cancelUrl = `${window.location.origin}/checkout`;
+        
+        const { data, error } = await supabase.functions.invoke('create-paypal-order', {
+          body: { 
+            amount: finalTotal,
+            returnUrl,
+            cancelUrl
+          }
+        });
+
+        if (error) throw error;
+        
+        // Store order data in sessionStorage for later
+        sessionStorage.setItem('pendingOrder', JSON.stringify({
+          ...orderData,
+          total: subtotal,
+          deliveryFee,
+          discount,
+          paymentMethod: 'paypal'
+        }));
+        
+        // Redirect to PayPal
+        window.location.href = data.approvalUrl;
+        return;
+      } catch (error) {
+        console.error('PayPal error:', error);
+        toast({
+          title: "Errore PayPal",
+          description: "Impossibile avviare il pagamento. Riprova.",
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
+      }
+    }
+
     setProcessing(true);
 
     try {
