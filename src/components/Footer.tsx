@@ -36,7 +36,7 @@ export const Footer = () => {
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Per Alfedi</h4>
+            <h4 className="font-semibold mb-4">Per Alfredi</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-secondary transition-colors">Diventa Alfredo</a></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Requisiti</a></li>
