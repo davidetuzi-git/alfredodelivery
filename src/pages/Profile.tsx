@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
-import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 
@@ -12,6 +12,7 @@ const Profile = () => {
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => {} },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => {} },
+    { icon: Store, label: "Segnala supermercato", action: () => navigate("/segnala-supermercato") },
     { icon: Bell, label: "Notifiche", action: () => {} },
     { icon: Settings, label: "Impostazioni", action: () => {} },
   ];

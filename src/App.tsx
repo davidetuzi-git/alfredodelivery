@@ -16,6 +16,7 @@ import PriceSearch from "./pages/PriceSearch";
 import CompareStores from "./pages/CompareStores";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import ReportStore from "./pages/ReportStore";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/dati-personali" element={<PersonalData />} />
           <Route path="/prezzi" element={<PriceSearch />} />
           <Route path="/confronta" element={<CompareStores />} />
+          <Route path="/segnala-supermercato" element={<ReportStore />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

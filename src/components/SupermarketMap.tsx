@@ -51,6 +51,8 @@ export const stores: Store[] = [
   { name: "In Grande", address: "Via Nettunense 460, Lavinio", lat: 41.5027, lng: 12.6259 },
   { name: "Conad Superstore", address: "Via Nettunense 380, Lavinio", lat: 41.5015, lng: 12.6272 },
   { name: "In's Mercato", address: "Via degli Eroi 25, Lavinio", lat: 41.5079, lng: 12.5839 },
+  { name: "In's Mercato", address: "Via Nettunense 315, Aprilia", lat: 41.5897, lng: 12.6512 },
+  { name: "In's", address: "Via delle Rose 78, Ardea", lat: 41.6134, lng: 12.5489 },
   { name: "Conad", address: "Via Diaz 8, Nettuno", lat: 41.4629, lng: 12.6593 },
   { name: "Eurospin", address: "Via Santa Maria 112, Nettuno", lat: 41.4645, lng: 12.6717 },
   { name: "Conad", address: "Via Nettunense 320, Nettuno", lat: 41.4642, lng: 12.6709 },
