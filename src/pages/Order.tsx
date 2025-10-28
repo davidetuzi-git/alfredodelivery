@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon, Trash2 } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -290,6 +290,15 @@ const Order = () => {
       <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/")}
+            className="mb-4 -ml-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Menu principale
+          </Button>
           <h1 className="text-3xl font-bold mb-2">Ordine rapido</h1>
           <p className="text-muted-foreground">Compila i dati e aggiungi i prodotti</p>
         </div>
