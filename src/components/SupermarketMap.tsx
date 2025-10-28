@@ -112,7 +112,7 @@ const DefaultIcon = L.icon({
   popupAnchor: [1, -34],
 });
 
-const SelectedIcon = L.icon({
+const RedIcon = L.icon({
   iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjZWY0NDQ0IiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDguMiAxMi41IDI4LjUgMTIuNSAyOC41UzI1IDIwLjcgMjUgMTIuNUMyNSA1LjYgMTkuNCAwIDEyLjUgMHptMCAxN2MtMi41IDAtNC41LTItNC41LTQuNXMyLTQuNSA0LjUtNC41IDQuNSAyIDQuNSA0LjUtMiA0LjUtNC41IDQuNXoiLz48L3N2Zz4=',
   shadowUrl: iconShadow,
   iconSize: [25, 41],
@@ -358,9 +358,9 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
       circlesRef.current.push(circle10km);
     }
 
-    // Add delivery address marker
+    // Add delivery address marker (red)
     if (addressLocation && mapRef.current) {
-      const marker = L.marker(addressLocation).addTo(mapRef.current);
+      const marker = L.marker(addressLocation, { icon: RedIcon }).addTo(mapRef.current);
       marker.bindPopup(`<strong>Indirizzo di consegna</strong><br/>${deliveryAddress}`);
       markersRef.current.push(marker);
     }
@@ -391,7 +391,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
           }
           
           // Set new selected marker to red
-          marker.setIcon(SelectedIcon);
+          marker.setIcon(RedIcon);
           setSelectedMarker(marker);
           
           fetchRoute([store.lat, store.lng]);
