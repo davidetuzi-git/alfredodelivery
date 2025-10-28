@@ -60,18 +60,18 @@ export const Hero = () => {
               </Button>
             </div>
 
-            <div className="flex gap-8 pt-8">
-              <div>
-                <div className="text-3xl font-bold text-primary">500+</div>
-                <div className="text-sm text-muted-foreground">Clienti felici</div>
+            <div className="flex flex-wrap gap-6 sm:gap-8 pt-8 justify-center lg:justify-start">
+              <div className="text-center lg:text-left">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">500+</div>
+                <div className="text-base lg:text-lg text-muted-foreground">Clienti felici</div>
               </div>
-              <div>
-                <div className="text-3xl font-bold text-secondary">50+</div>
-                <div className="text-sm text-muted-foreground">Alfedi attivi</div>
+              <div className="text-center lg:text-left">
+                <div className="text-4xl lg:text-5xl font-bold text-secondary">50+</div>
+                <div className="text-base lg:text-lg text-muted-foreground">Alfedi attivi</div>
               </div>
-              <div>
-                <div className="text-3xl font-bold text-primary">10+</div>
-                <div className="text-sm text-muted-foreground">Supermercati partner</div>
+              <div className="text-center lg:text-left">
+                <div className="text-4xl lg:text-5xl font-bold text-primary">10+</div>
+                <div className="text-base lg:text-lg text-muted-foreground">Supermercati partner</div>
               </div>
             </div>
           </div>
