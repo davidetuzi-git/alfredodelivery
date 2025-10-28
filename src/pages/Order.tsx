@@ -161,7 +161,7 @@ const Order = () => {
           updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: data.suggestion, price: null };
           return updatedItems;
         });
-      } else if (!error && data?.price) {
+      } else if (!error && data?.price !== undefined) {
         setItems(prevItems => {
           const updatedItems = [...prevItems];
           const updateData: any = { 
@@ -170,10 +170,9 @@ const Order = () => {
             suggestion: null 
           };
           
-          // If product was completed by AI, update the name
-          if (data.completedProduct) {
-            updateData.name = data.completedProduct;
-            updateData.originalName = updatedItems[index].name;
+          // If product was completed by AI, show it
+          if (data.completedProduct && data.completedProduct !== productName.trim()) {
+            updateData.suggestion = `Prodotto completato: ${data.completedProduct}`;
           }
           
           updatedItems[index] = { ...updatedItems[index], ...updateData };
@@ -478,9 +477,9 @@ const Order = () => {
                             required
                             className="w-full"
                           />
-                          {item.originalName && item.originalName !== item.name && (
+                          {item.suggestion && (
                             <p className="text-xs text-blue-600 dark:text-blue-400">
-                              Completato: {item.name}
+                              {item.suggestion}
                             </p>
                           )}
                         </div>

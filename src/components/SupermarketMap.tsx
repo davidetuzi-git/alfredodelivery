@@ -112,6 +112,14 @@ const DefaultIcon = L.icon({
   popupAnchor: [1, -34],
 });
 
+const SelectedIcon = L.icon({
+  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjZWY0NDQ0IiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDguMiAxMi41IDI4LjUgMTIuNSAyOC41UzI1IDIwLjcgMjUgMTIuNUMyNSA1LjYgMTkuNCAwIDEyLjUgMHptMCAxN2MtMi41IDAtNC41LTItNC41LTQuNXMyLTQuNSA0LjUtNC41IDQuNSAyIDQuNSA0LjUtMiA0LjUtNC41IDQuNXoiLz48L3N2Zz4=',
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, deliveryAddress, onStoresUpdate }) => {
@@ -132,6 +140,7 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<L.Marker | null>(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -375,6 +384,16 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
         button.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
+          
+          // Reset previous selected marker
+          if (selectedMarker) {
+            selectedMarker.setIcon(DefaultIcon);
+          }
+          
+          // Set new selected marker to red
+          marker.setIcon(SelectedIcon);
+          setSelectedMarker(marker);
+          
           fetchRoute([store.lat, store.lng]);
           setSelectedStore(store);
           setShowConfirmDialog(true);
@@ -452,16 +471,41 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Conferma selezione negozio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hai selezionato <strong>{selectedStore?.name}</strong> in {selectedStore?.address}.
-              Vuoi confermare questa scelta?
+            <AlertDialogTitle>Informazioni supermercato selezionato</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <div>
+                  <p className="font-semibold text-foreground">{selectedStore?.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedStore?.address}</p>
+                </div>
+                
+                {routeDistance !== null && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Distanza:</span>
+                      <span className="text-sm font-medium">{routeDistance.toFixed(2)} km</span>
+                    </div>
+                    {routeDuration !== null && (
+                      <div className="flex justify-between">
+                        <span className="text-sm">Tempo stimato:</span>
+                        <span className="text-sm font-medium">{Math.round(routeDuration)} min</span>
+                      </div>
+                    )}
+                    {deliveryFee !== null && (
+                      <div className="flex justify-between">
+                        <span className="text-sm">Costo consegna:</span>
+                        <span className="text-sm font-medium text-primary">€{deliveryFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmStore}>
-              Conferma
+              Conferma selezione
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
