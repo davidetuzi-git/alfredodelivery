@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, User } from "lucide-react";
+import { Lock, User, KeyRound } from "lucide-react";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -49,6 +50,29 @@ const AdminLogin = () => {
       toast.error(error.message || "Errore durante l'accesso");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasswordRecovery = async () => {
+    if (!email) {
+      toast.error("Inserisci la tua email prima di richiedere il recupero");
+      return;
+    }
+
+    setIsRecovering(true);
+    try {
+      const { error } = await supabase.functions.invoke('admin-password-recovery', {
+        body: { adminEmail: email }
+      });
+
+      if (error) throw error;
+
+      toast.success("Email di recupero inviata a davide.tuzi@gmail.com");
+    } catch (error: any) {
+      console.error("Errore recupero password:", error);
+      toast.error("Errore nell'invio dell'email di recupero");
+    } finally {
+      setIsRecovering(false);
     }
   };
 
@@ -100,6 +124,22 @@ const AdminLogin = () => {
               {isLoading ? "Accesso in corso..." : "Accedi"}
             </Button>
           </form>
+          
+          <div className="mt-4 pt-4 border-t border-border">
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full" 
+              onClick={handlePasswordRecovery}
+              disabled={isRecovering}
+            >
+              <KeyRound className="h-4 w-4 mr-2" />
+              {isRecovering ? "Invio in corso..." : "Recupero Password"}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              L'email verrà inviata a davide.tuzi@gmail.com
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
