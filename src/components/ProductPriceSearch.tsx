@@ -110,7 +110,7 @@ const ProductPriceSearch = ({ storeName }: ProductPriceSearchProps) => {
             <p className="text-lg font-semibold">{result}</p>
             {completedProduct && (
               <p className="text-sm text-blue-600 dark:text-blue-400">
-                {completedProduct}
+                Selezionato: {completedProduct}
               </p>
             )}
           </CardContent>

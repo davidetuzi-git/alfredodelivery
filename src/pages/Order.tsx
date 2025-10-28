@@ -172,7 +172,7 @@ const Order = () => {
           
           // If product was completed by AI, show it
           if (data.completedProduct && data.completedProduct !== productName.trim()) {
-            updateData.suggestion = `Prodotto completato: ${data.completedProduct}`;
+            updateData.suggestion = `Selezionato: ${data.completedProduct}`;
           }
           
           updatedItems[index] = { ...updatedItems[index], ...updateData };
