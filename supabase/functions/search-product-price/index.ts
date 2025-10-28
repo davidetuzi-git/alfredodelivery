@@ -125,8 +125,7 @@ Esempi:
       JSON.stringify({ 
         price, 
         priceInfo: `€${price.toFixed(2)}`,
-        completedProduct: wasCompleted ? finalProductDescription : null,
-        needsDetails: false 
+        completedProduct: wasCompleted ? finalProductDescription : null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
