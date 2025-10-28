@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, CheckCircle, Clock, MapPin, Phone, MessageCircle, Copy, Check } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import OrderStatusTracker from "@/components/OrderStatusTracker";
+import OrderChat from "@/components/OrderChat";
 
 const OrderTracking = () => {
   const navigate = useNavigate();
@@ -21,13 +22,19 @@ const OrderTracking = () => {
   const [inputCode, setInputCode] = useState("");
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   useEffect(() => {
     if (pickupCodeFromState) {
       loadOrder(pickupCodeFromState);
     }
   }, [pickupCodeFromState]);
+
+  useEffect(() => {
+    if (order) {
+      subscribeToOrderUpdates();
+    }
+  }, [order]);
 
   const loadOrder = async (code: string) => {
     setLoading(true);
@@ -62,20 +69,79 @@ const OrderTracking = () => {
     }
   };
 
+  const subscribeToOrderUpdates = () => {
+    if (!pickupCode) return;
+
+    const channel = supabase
+      .channel('order-updates-' + pickupCode)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `pickup_code=eq.${pickupCode}`
+        },
+        (payload) => {
+          const oldStatus = order?.delivery_status;
+          const newStatus = (payload.new as any).delivery_status;
+          
+          setOrder(payload.new);
+          
+          // Show notification for status changes
+          if (notificationsEnabled && oldStatus !== newStatus) {
+            showNotification(newStatus);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  const showNotification = (status: string) => {
+    const statusMessages: Record<string, string> = {
+      confirmed: "Ordine confermato!",
+      assigned: "Un deliverer ha preso in carico il tuo ordine",
+      at_store: "Il deliverer è arrivato al supermercato",
+      shopping_complete: "La spesa è stata completata",
+      on_the_way: "Il deliverer sta arrivando!",
+      delivered: "Ordine consegnato!"
+    };
+
+    toast({
+      title: statusMessages[status] || "Aggiornamento ordine",
+      description: `Stato aggiornato`,
+    });
+
+    // Browser notification if permission granted
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Aggiornamento ordine", {
+        body: statusMessages[status] || "Il tuo ordine è stato aggiornato",
+        icon: "/favicon.ico"
+      });
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        setNotificationsEnabled(true);
+        toast({
+          title: "Notifiche attivate",
+          description: "Riceverai aggiornamenti sullo stato dell'ordine",
+        });
+      }
+    }
+  };
+
   const handleSearchOrder = () => {
     if (inputCode.trim()) {
       loadOrder(inputCode.trim().toUpperCase());
     }
-  };
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(pickupCode);
-    setCopied(true);
-    toast({
-      title: "Codice copiato!",
-      description: "Il codice ritiro è stato copiato negli appunti",
-    });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   if (!order) {
@@ -121,103 +187,115 @@ const OrderTracking = () => {
     <div className="min-h-screen bg-background pb-20">
       <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">Tracking ordine</h1>
-          <p className="text-muted-foreground">Segui in tempo reale il tuo ordine</p>
+        <div className="max-w-4xl mx-auto">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/")}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Home
+          </Button>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Traccia il tuo ordine</h1>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-lg px-3 py-1">
+                  {pickupCode}
+                </Badge>
+              </div>
+            </div>
+            <Button
+              variant={notificationsEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={requestNotificationPermission}
+              disabled={notificationsEnabled}
+            >
+              <Bell className="mr-2 h-4 w-4" />
+              {notificationsEnabled ? "Notifiche attive" : "Attiva notifiche"}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        <Card className="bg-gradient-to-br from-primary/5 to-background border-2 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Codice ritiro</p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-4xl font-bold tracking-wider">{pickupCode}</p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleCopyCode}
-                  >
-                    {copied ? <Check className="h-5 w-5 text-green-600" /> : <Copy className="h-5 w-5" />}
-                  </Button>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Mostra questo codice al momento del ritiro
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Order Details */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Ordine #{order.id.slice(0, 8)}</CardTitle>
-              <Badge className="bg-yellow-500">{order.status === 'confirmed' ? 'Confermato' : 'In corso'}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">{order.store_name}</p>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Dettagli Ordine
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cliente:</span>
-                <span className="font-medium">{order.customer_name}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Cliente</p>
+                  <p className="font-semibold">{order.customer_name}</p>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Telefono:</span>
-                <span className="font-medium">{order.customer_phone}</span>
+
+              <div className="flex items-start gap-3">
+                <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Telefono</p>
+                  <p className="font-semibold">{order.customer_phone}</p>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Indirizzo:</span>
-                <span className="font-medium text-right">{order.delivery_address}</span>
+
+              <div className="flex items-start gap-3">
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Indirizzo</p>
+                  <p className="font-semibold">{order.delivery_address}</p>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Data consegna:</span>
-                <span className="font-medium">{new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}</span>
+
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Fascia oraria</p>
+                  <p className="font-semibold">{order.time_slot}</p>
+                </div>
               </div>
             </div>
+
+            {order.deliverer_name && (
+              <div className="pt-4 border-t">
+                <div className="flex items-start gap-3">
+                  <User className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Il tuo deliverer</p>
+                    <p className="font-semibold text-lg">{order.deliverer_name}</p>
+                    {order.deliverer_phone && (
+                      <p className="text-sm text-muted-foreground">{order.deliverer_phone}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Status Tracker */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Riepilogo ordine</CardTitle>
+            <CardTitle>Stato della consegna</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Prodotti ({order.items.length} articoli)</span>
-              <span className="font-semibold">€{parseFloat(order.total_amount).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Consegna</span>
-              <span className="font-semibold">€{parseFloat(order.delivery_fee).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Sconto</span>
-              <span className="font-semibold text-green-600">-€{parseFloat(order.discount).toFixed(2)}</span>
-            </div>
-            <div className="border-t pt-3 flex justify-between text-lg">
-              <span className="font-bold">Totale</span>
-              <span className="font-bold">€{(parseFloat(order.total_amount) + parseFloat(order.delivery_fee) - parseFloat(order.discount)).toFixed(2)}</span>
-            </div>
+          <CardContent>
+            <OrderStatusTracker currentStatus={order.delivery_status || 'confirmed'} />
           </CardContent>
         </Card>
 
-        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex gap-3">
-            <MessageCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <div className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                Puoi condividere il codice
-              </div>
-              <div className="text-blue-700 dark:text-blue-300">
-                Chiunque abbia il codice ritiro può ritirare la spesa per tuo conto
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Chat */}
+        <OrderChat 
+          orderId={order.id}
+          customerName={order.customer_name}
+          delivererName={order.deliverer_name}
+        />
       </div>
 
       <Navigation />

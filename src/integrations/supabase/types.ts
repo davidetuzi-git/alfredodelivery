@@ -14,20 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_chat_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          order_id: string
+          sender_name: string
+          sender_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          order_id: string
+          sender_name: string
+          sender_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          order_id?: string
+          sender_name?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_chat_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           created_at: string
           customer_name: string
           customer_phone: string
+          deliverer_id: string | null
+          deliverer_name: string | null
+          deliverer_phone: string | null
           delivery_address: string
           delivery_date: string
           delivery_fee: number
+          delivery_status: string
           discount: number
           id: string
           items: Json
           payment_method: string | null
           pickup_code: string
           status: string
+          status_updated_at: string | null
           store_name: string
           time_slot: string
           total_amount: number
@@ -37,15 +106,20 @@ export type Database = {
           created_at?: string
           customer_name: string
           customer_phone: string
+          deliverer_id?: string | null
+          deliverer_name?: string | null
+          deliverer_phone?: string | null
           delivery_address: string
           delivery_date: string
           delivery_fee?: number
+          delivery_status?: string
           discount?: number
           id?: string
           items: Json
           payment_method?: string | null
           pickup_code: string
           status?: string
+          status_updated_at?: string | null
           store_name: string
           time_slot: string
           total_amount: number
@@ -55,15 +129,20 @@ export type Database = {
           created_at?: string
           customer_name?: string
           customer_phone?: string
+          deliverer_id?: string | null
+          deliverer_name?: string | null
+          deliverer_phone?: string | null
           delivery_address?: string
           delivery_date?: string
           delivery_fee?: number
+          delivery_status?: string
           discount?: number
           id?: string
           items?: Json
           payment_method?: string | null
           pickup_code?: string
           status?: string
+          status_updated_at?: string | null
           store_name?: string
           time_slot?: string
           total_amount?: number
