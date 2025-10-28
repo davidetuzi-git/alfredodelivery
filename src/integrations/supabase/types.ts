@@ -19,8 +19,11 @@ export type Database = {
           created_at: string
           current_orders: number
           id: string
+          latitude: number | null
+          longitude: number | null
           max_orders: number
           name: string
+          operating_radius_km: number | null
           phone: string
           status: string
           updated_at: string
@@ -31,8 +34,11 @@ export type Database = {
           created_at?: string
           current_orders?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           max_orders?: number
           name: string
+          operating_radius_km?: number | null
           phone: string
           status?: string
           updated_at?: string
@@ -43,8 +49,11 @@ export type Database = {
           created_at?: string
           current_orders?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           max_orders?: number
           name?: string
+          operating_radius_km?: number | null
           phone?: string
           status?: string
           updated_at?: string
@@ -52,6 +61,51 @@ export type Database = {
           zone?: string | null
         }
         Relationships: []
+      }
+      delivery_notifications: {
+        Row: {
+          created_at: string
+          deliverer_id: string
+          id: string
+          order_id: string
+          responded_at: string | null
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          deliverer_id: string
+          id?: string
+          order_id: string
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          deliverer_id?: string
+          id?: string
+          order_id?: string
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_notifications_deliverer_id_fkey"
+            columns: ["deliverer_id"]
+            isOneToOne: false
+            referencedRelation: "deliverers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_chat_messages: {
         Row: {
@@ -132,6 +186,8 @@ export type Database = {
           discount: number
           id: string
           items: Json
+          latitude: number | null
+          longitude: number | null
           payment_method: string | null
           pickup_code: string
           status: string
@@ -155,6 +211,8 @@ export type Database = {
           discount?: number
           id?: string
           items: Json
+          latitude?: number | null
+          longitude?: number | null
           payment_method?: string | null
           pickup_code: string
           status?: string
@@ -178,6 +236,8 @@ export type Database = {
           discount?: number
           id?: string
           items?: Json
+          latitude?: number | null
+          longitude?: number | null
           payment_method?: string | null
           pickup_code?: string
           status?: string
@@ -307,6 +367,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_distance: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
       generate_pickup_code: { Args: never; Returns: string }
       has_role: {
         Args: {
