@@ -903,13 +903,67 @@ const Order = () => {
                           <span>€{supplements.total.toFixed(2)}</span>
                         </div>
                       )}
+                      <div className="flex justify-between text-muted-foreground">
+                        <div className="flex flex-col gap-1">
+                          <span>Costo consegna stimato</span>
+                          {addressCoords && selectedStoreCoords && (() => {
+                            const distance = calculateDistance(
+                              addressCoords.lat,
+                              addressCoords.lon,
+                              selectedStoreCoords.lat,
+                              selectedStoreCoords.lng
+                            );
+                            const zone = distance <= 7 ? "Zona 1 (0-7km)" : distance <= 10 ? "Zona 2 (7-10km)" : "Zona 3 (>10km)";
+                            return (
+                              <span className="text-xs text-muted-foreground">
+                                {zone} - {distance.toFixed(1)}km
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <span>
+                          {addressCoords && selectedStoreCoords 
+                            ? `€${calculateDeliveryFee(
+                                calculateDistance(
+                                  addressCoords.lat,
+                                  addressCoords.lon,
+                                  selectedStoreCoords.lat,
+                                  selectedStoreCoords.lng
+                                ),
+                                total
+                              ).toFixed(2)}`
+                            : "da calcolare"
+                          }
+                        </span>
+                      </div>
                       <div className="flex justify-between items-center pt-2 border-t">
                         <span className="font-semibold text-lg">Totale stimato:</span>
-                        <span className="font-bold text-xl text-primary">€{finalTotal.toFixed(2)}</span>
+                        <span className="font-bold text-xl text-primary">
+                          €{(finalTotal + (addressCoords && selectedStoreCoords 
+                            ? calculateDeliveryFee(
+                                calculateDistance(
+                                  addressCoords.lat,
+                                  addressCoords.lon,
+                                  selectedStoreCoords.lat,
+                                  selectedStoreCoords.lng
+                                ),
+                                total
+                              )
+                            : 0
+                          )).toFixed(2)}
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground text-right">
-                        (Esclusa consegna)
-                      </p>
+                      {addressCoords && selectedStoreCoords && (
+                        <p className="text-xs text-muted-foreground text-right">
+                          Consegna basata su distanza di {calculateDistance(
+                            addressCoords.lat,
+                            addressCoords.lon,
+                            selectedStoreCoords.lat,
+                            selectedStoreCoords.lng
+                          ).toFixed(1)}km 
+                          {total >= 50 && " (sconto per spesa ≥€50)"}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
