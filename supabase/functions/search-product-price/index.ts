@@ -123,11 +123,16 @@ Esempi:
 
     // Generate product image URL using Lovable AI Gateway
     let imageUrl = null;
-    try {
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-      if (LOVABLE_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    
+    console.log('Attempting to generate product image...');
+    console.log('LOVABLE_API_KEY exists:', !!LOVABLE_API_KEY);
+    
+    if (LOVABLE_API_KEY) {
+      try {
         const imagePrompt = `Professional product photo of "${finalProductDescription}" on white background, high quality, commercial photography style, centered, well-lit, detailed, 800x800px`;
         
+        console.log('Sending image generation request...');
         const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -146,15 +151,22 @@ Esempi:
           })
         });
 
+        console.log('Image generation response status:', imageResponse.status);
+        
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
           imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          console.log('Product image generated successfully');
+          console.log('Product image generated successfully:', !!imageUrl);
+        } else {
+          const errorText = await imageResponse.text();
+          console.error('Image generation failed:', imageResponse.status, errorText);
         }
+      } catch (imageError) {
+        console.error('Error generating product image:', imageError);
+        // Continue without image if generation fails
       }
-    } catch (imageError) {
-      console.error('Error generating product image:', imageError);
-      // Continue without image if generation fails
+    } else {
+      console.log('LOVABLE_API_KEY not configured, skipping image generation');
     }
 
     return new Response(
