@@ -49,6 +49,19 @@ const Checkout = () => {
       return;
     }
 
+    // If card payment, redirect to card payment page
+    if (paymentMethod === 'card') {
+      navigate("/card-payment", { 
+        state: {
+          ...orderData,
+          total: subtotal,
+          deliveryFee: deliveryFee,
+          discount: discount
+        } 
+      });
+      return;
+    }
+
     setProcessing(true);
 
     try {

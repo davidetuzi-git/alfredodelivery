@@ -31,6 +31,7 @@ interface ShoppingItem {
   estimateConfidence?: string;
   estimateReasoning?: string;
   originalName?: string;
+  imageUrl?: string;
 }
 
 const Order = () => {
@@ -162,7 +163,8 @@ const Order = () => {
           const updateData: any = { 
             price: data.price, 
             loading: false, 
-            suggestion: null 
+            suggestion: null,
+            imageUrl: data.imageUrl || null
           };
           
           // If product was completed by AI, show it in blue

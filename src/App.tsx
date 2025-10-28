@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Order from "./pages/Order";
 import OrderSummary from "./pages/OrderSummary";
 import Checkout from "./pages/Checkout";
+import CardPayment from "./pages/CardPayment";
 import OrderTracking from "./pages/OrderTracking";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/ordina" element={<Order />} />
           <Route path="/riepilogo-ordine" element={<OrderSummary />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/card-payment" element={<CardPayment />} />
           <Route path="/tracking" element={<OrderTracking />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/profilo" element={<Profile />} />

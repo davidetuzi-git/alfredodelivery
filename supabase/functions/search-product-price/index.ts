@@ -121,11 +121,48 @@ Esempi:
 
     console.log('Price search successful:', price);
 
+    // Generate product image URL using Lovable AI Gateway
+    let imageUrl = null;
+    try {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (LOVABLE_API_KEY) {
+        const imagePrompt = `Professional product photo of "${finalProductDescription}" on white background, high quality, commercial photography style, centered, well-lit, detailed, 800x800px`;
+        
+        const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: imagePrompt
+              }
+            ],
+            modalities: ["image", "text"]
+          })
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          console.log('Product image generated successfully');
+        }
+      }
+    } catch (imageError) {
+      console.error('Error generating product image:', imageError);
+      // Continue without image if generation fails
+    }
+
     return new Response(
       JSON.stringify({ 
         price, 
         priceInfo: `€${price.toFixed(2)}`,
-        completedProduct: wasCompleted ? finalProductDescription : null
+        completedProduct: wasCompleted ? finalProductDescription : null,
+        imageUrl: imageUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
