@@ -1,5 +1,14 @@
 project_id = "bjeezhrfcyhvnfoxkrbq"
 
+[functions.notify-deliverers]
+verify_jwt = false
+
+[functions.respond-delivery-request]
+verify_jwt = false
+
+[functions.report-store]
+verify_jwt = false
+
 [functions.search-product-price]
 verify_jwt = false
 

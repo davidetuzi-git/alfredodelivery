@@ -463,7 +463,9 @@ const Order = () => {
           },
           deliveryFee,
           deliveryDistance,
-          serviceFee
+          serviceFee,
+          latitude: addressCoords?.lat || null,
+          longitude: addressCoords?.lon || null
         },
         orderFormData: {
           name,

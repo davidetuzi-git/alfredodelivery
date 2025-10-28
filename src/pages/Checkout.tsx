@@ -164,7 +164,7 @@ const Checkout = () => {
       const pickupCode = codeData;
 
       // Save order
-      const { error: insertError } = await supabase.from('orders').insert({
+      const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
         pickup_code: pickupCode,
         customer_name: orderData.orderData.name,
         customer_phone: orderData.orderData.phone,
@@ -177,10 +177,21 @@ const Checkout = () => {
         delivery_fee: deliveryFee,
         discount: discount,
         payment_method: paymentMethod,
-        status: 'confirmed'
-      });
+        status: 'confirmed',
+        latitude: orderData.orderData.latitude,
+        longitude: orderData.orderData.longitude
+      }).select().single();
 
       if (insertError) throw insertError;
+
+      // Notify deliverers
+      if (orderInserted) {
+        supabase.functions.invoke('notify-deliverers', {
+          body: { order_id: orderInserted.id }
+        }).then(({ error }) => {
+          if (error) console.error('Error notifying deliverers:', error);
+        });
+      }
 
       toast({
         title: "Pagamento completato!",
