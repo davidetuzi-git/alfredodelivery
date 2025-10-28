@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, User, KeyRound } from "lucide-react";
+import { Lock, User, KeyRound, Home } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -78,6 +79,14 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+      <Link 
+        to="/" 
+        className="fixed top-4 left-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Home className="h-5 w-5" />
+        <span className="hidden sm:inline">Home</span>
+      </Link>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
@@ -136,9 +145,6 @@ const AdminLogin = () => {
               <KeyRound className="h-4 w-4 mr-2" />
               {isRecovering ? "Invio in corso..." : "Recupero Password"}
             </Button>
-            <p className="text-xs text-center text-muted-foreground mt-2">
-              L'email verrà inviata a davide.tuzi@gmail.com
-            </p>
           </div>
         </CardContent>
       </Card>
