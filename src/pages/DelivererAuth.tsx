@@ -29,6 +29,21 @@ const DelivererAuth = () => {
         
         if (roles) {
           navigate('/deliverer/dashboard');
+        } else {
+          // Controlla se ha una richiesta pending
+          const { data: request } = await supabase
+            .from('deliverer_requests')
+            .select('status')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (request?.status === 'pending') {
+            await supabase.auth.signOut();
+            toast.info("La tua richiesta è in attesa di approvazione");
+          } else if (request?.status === 'rejected') {
+            await supabase.auth.signOut();
+            toast.error("La tua richiesta è stata rifiutata");
+          }
         }
       }
     };
@@ -77,24 +92,30 @@ const DelivererAuth = () => {
               name,
               phone,
             },
-            emailRedirectTo: `${window.location.origin}/deliverer/dashboard`,
+            emailRedirectTo: `${window.location.origin}/deliverer/auth`,
           },
         });
 
         if (signUpError) throw signUpError;
 
         if (authData.user) {
-          // Add deliverer role
-          const { error: roleError } = await supabase
-            .from('user_roles')
+          // Crea richiesta di registrazione
+          const { error: requestError } = await supabase
+            .from('deliverer_requests')
             .insert({
               user_id: authData.user.id,
-              role: 'deliverer',
+              name,
+              email,
+              phone,
+              status: 'pending',
             });
 
-          if (roleError) throw roleError;
+          if (requestError) throw requestError;
 
-          toast.success("Registrazione completata! Verifica la tua email.");
+          toast.success("Richiesta inviata! Attendi l'approvazione dell'admin.");
+          
+          // Logout automatico fino all'approvazione
+          await supabase.auth.signOut();
         }
       }
     } catch (error: any) {
