@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon, Trash2 } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -464,14 +464,22 @@ const Order = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Lista della spesa</Label>
-                  {items.length > 1 && (
+                  {items.length > 0 && items.some(item => item.name.trim() !== "") && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="destructive"
                       size="sm"
-                      onClick={() => setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }])}
-                      className="text-destructive hover:text-destructive"
+                      onClick={() => {
+                        if (confirm("Sei sicuro di voler svuotare il carrello?")) {
+                          setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+                          toast({
+                            title: "Carrello svuotato",
+                            description: "Tutti gli articoli sono stati rimossi",
+                          });
+                        }
+                      }}
                     >
+                      <Trash2 className="h-4 w-4 mr-2" />
                       Svuota carrello
                     </Button>
                   )}
