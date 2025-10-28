@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
+import { Header } from "@/components/Header";
 import { Package, CheckCircle, Clock, MapPin, Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +81,7 @@ const OrderTracking = () => {
   if (!order) {
     return (
       <div className="min-h-screen bg-background pb-20">
+        <Header />
         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
           <div className="max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold mb-2">Tracking ordine</h1>
@@ -117,6 +119,7 @@ const OrderTracking = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">Tracking ordine</h1>
