@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           current_orders: number
+          email: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -33,6 +34,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_orders?: number
+          email?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -48,6 +50,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_orders?: number
+          email?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
