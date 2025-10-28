@@ -498,11 +498,6 @@ const Order = () => {
                             required
                             className="w-full"
                           />
-                          {item.suggestion && (
-                            <p className="text-xs text-blue-600 dark:text-blue-400">
-                              {item.suggestion}
-                            </p>
-                          )}
                         </div>
                       </div>
                       <div className="w-16 flex-shrink-0">

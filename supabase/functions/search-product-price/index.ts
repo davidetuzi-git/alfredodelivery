@@ -34,56 +34,44 @@ serve(async (req) => {
 
     console.log(`Searching price for product: ${product} at ${chainName}`);
 
-    // Complete product description with AI if details are missing
+    // Complete product description with AI
     let finalProductDescription = product;
     let wasCompleted = false;
     
-    const sizePatterns = [
-      /\d+\s*(ml|l|litri|litro)/i,
-      /\d+\s*(g|kg|grammi|chili)/i,
-      /\d+\s*(pz|pezzi|unità)/i,
-      /\d+x\d+/i,
-      /confezione/i,
-      /formato/i
-    ];
+    console.log('Completing product description with AI...');
     
-    const hasSize = sizePatterns.some(pattern => pattern.test(product));
+    const completionPrompt = `Completa la descrizione del prodotto "${product}" per il supermercato "${chainName}" in Italia. 
     
-    if (!hasSize) {
-      console.log('Product missing details, completing with AI...');
-      
-      const completionPrompt = `Completa la descrizione del prodotto "${product}" per il supermercato "${chainName}" in Italia. 
-      
 Aggiungi dettagli realistici come: tipo specifico, formato esatto, marca comune italiana.
 
 Rispondi SOLO con la descrizione completa del prodotto, nient'altro.
 Esempi:
 - "latte" → "Latte intero UHT Granarolo 1L"
+- "latte 1L" → "Latte intero UHT Granarolo 1L"
 - "pasta" → "Pasta penne rigate Barilla 500g"
 - "acqua" → "Acqua minerale naturale Levissima 1.5L"`;
 
-      try {
-        const completionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: completionPrompt }]
-            }],
-          }),
-        });
+    try {
+      const completionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: completionPrompt }]
+          }],
+        }),
+      });
 
-        if (completionResponse.ok) {
-          const completionData = await completionResponse.json();
-          finalProductDescription = completionData.candidates[0].content.parts[0].text.trim();
-          wasCompleted = true;
-          console.log('Completed product description:', finalProductDescription);
-        }
-      } catch (error) {
-        console.error('Failed to complete product description:', error);
+      if (completionResponse.ok) {
+        const completionData = await completionResponse.json();
+        finalProductDescription = completionData.candidates[0].content.parts[0].text.trim();
+        wasCompleted = true;
+        console.log('Completed product description:', finalProductDescription);
       }
+    } catch (error) {
+      console.error('Failed to complete product description:', error);
     }
 
     const systemPrompt = 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).';
