@@ -462,7 +462,20 @@ const Order = () => {
               </div>
 
               <div className="space-y-3">
-                <Label>Lista della spesa</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Lista della spesa</Label>
+                  {items.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }])}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      Svuota carrello
+                    </Button>
+                  )}
+                </div>
                 
                 {items.map((item, index) => (
                   <div key={index} className="space-y-2">
