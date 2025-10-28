@@ -155,13 +155,7 @@ const Order = () => {
         }
       });
 
-      if (!error && data?.needsDetails) {
-        setItems(prevItems => {
-          const updatedItems = [...prevItems];
-          updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: data.suggestion, price: null };
-          return updatedItems;
-        });
-      } else if (!error && data?.price !== undefined) {
+      if (!error && data?.price !== undefined) {
         setItems(prevItems => {
           const updatedItems = [...prevItems];
           const updateData: any = { 
@@ -170,7 +164,7 @@ const Order = () => {
             suggestion: null 
           };
           
-          // If product was completed by AI, show it
+          // If product was completed by AI, show it in blue
           if (data.completedProduct && data.completedProduct !== productName.trim()) {
             updateData.suggestion = `Selezionato: ${data.completedProduct}`;
           }
@@ -181,7 +175,7 @@ const Order = () => {
       } else {
         setItems(prevItems => {
           const updatedItems = [...prevItems];
-          updatedItems[index] = { ...updatedItems[index], loading: false };
+          updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: null };
           return updatedItems;
         });
       }
