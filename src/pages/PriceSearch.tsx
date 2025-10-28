@@ -5,8 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { calculateDistance } from "@/components/SupermarketMap";
+import { useNavigate } from "react-router-dom";
 
 interface Store {
   name: string;
@@ -37,6 +39,7 @@ const allStores: Store[] = [
 ];
 
 const PriceSearch = () => {
+  const navigate = useNavigate();
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
@@ -80,6 +83,15 @@ const PriceSearch = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/")}
+            className="mb-4 -ml-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Menu principale
+          </Button>
           <h1 className="text-3xl font-bold mb-2">Cerca Prezzi</h1>
           <p className="text-muted-foreground">Confronta i prezzi dei prodotti nei supermercati</p>
         </div>

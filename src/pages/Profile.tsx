@@ -71,7 +71,7 @@ const Profile = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold mb-1">
-                {firstName && lastName ? `${firstName} ${lastName}` : "Utente"}
+                Ciao {firstName || "Utente"}
               </h1>
               <p className="text-muted-foreground">{email}</p>
               <Badge variant="secondary" className="mt-2 flex items-center gap-1 w-fit">
