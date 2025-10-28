@@ -100,7 +100,8 @@ const DelivererAuth = () => {
 
         if (authData.user) {
           // Crea richiesta di registrazione
-          const { error: requestError } = await supabase
+          console.log('Creating deliverer request for user:', authData.user.id);
+          const { data: requestData, error: requestError } = await supabase
             .from('deliverer_requests')
             .insert({
               user_id: authData.user.id,
@@ -108,10 +109,16 @@ const DelivererAuth = () => {
               email,
               phone,
               status: 'pending',
-            });
+            })
+            .select()
+            .single();
 
-          if (requestError) throw requestError;
+          if (requestError) {
+            console.error('Error creating request:', requestError);
+            throw requestError;
+          }
 
+          console.log('Request created:', requestData);
           toast.success("Richiesta inviata! Attendi l'approvazione dell'admin.");
           
           // Logout automatico fino all'approvazione
