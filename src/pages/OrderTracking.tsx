@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
 import OrderChat from "@/components/OrderChat";
 
@@ -220,58 +222,86 @@ const OrderTracking = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Order Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Dettagli Ordine
-            </CardTitle>
+        {/* Order Ticket - Stile ricevuta */}
+        <Card className="relative overflow-hidden border-2 border-dashed border-primary/30">
+          {/* Decorative notches */}
+          <div className="absolute top-0 left-8 w-8 h-8 bg-background rounded-full -translate-y-1/2 border-2 border-dashed border-primary/30"></div>
+          <div className="absolute top-0 right-8 w-8 h-8 bg-background rounded-full -translate-y-1/2 border-2 border-dashed border-primary/30"></div>
+          <div className="absolute bottom-0 left-8 w-8 h-8 bg-background rounded-full translate-y-1/2 border-2 border-dashed border-primary/30"></div>
+          <div className="absolute bottom-0 right-8 w-8 h-8 bg-background rounded-full translate-y-1/2 border-2 border-dashed border-primary/30"></div>
+          
+          <CardHeader className="text-center border-b border-dashed border-primary/30 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <ShoppingBag className="h-6 w-6 text-primary" />
+              <CardTitle className="text-2xl">Ticket Ordine</CardTitle>
+            </div>
+            <Badge variant="outline" className="text-xl px-4 py-2 font-mono bg-background">
+              {pickupCode}
+            </Badge>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Cliente</p>
-                  <p className="font-semibold">{order.customer_name}</p>
+          
+          <CardContent className="pt-6 space-y-6">
+            {/* Data ordine */}
+            <div className="flex items-center justify-center gap-3 pb-4 border-b border-dashed border-muted">
+              <Calendar className="h-5 w-5 text-primary" />
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Data ordine</p>
+                <p className="font-semibold text-lg">
+                  {format(new Date(order.created_at), "dd MMMM yyyy 'alle' HH:mm", { locale: it })}
+                </p>
+              </div>
+            </div>
+
+            {/* Dettagli in grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <User className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Cliente</p>
+                    <p className="font-semibold">{order.customer_name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Phone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Telefono</p>
+                    <p className="font-semibold font-mono">{order.customer_phone}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Telefono</p>
-                  <p className="font-semibold">{order.customer_phone}</p>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <MapPin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Indirizzo</p>
+                    <p className="font-semibold text-sm">{order.delivery_address}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Indirizzo</p>
-                  <p className="font-semibold">{order.delivery_address}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Fascia oraria</p>
-                  <p className="font-semibold">{order.time_slot}</p>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Clock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Fascia oraria</p>
+                    <p className="font-semibold">{order.time_slot}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {order.deliverer_name && (
-              <div className="pt-4 border-t">
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Il tuo deliverer</p>
+              <div className="pt-4 border-t border-dashed border-muted">
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Il tuo deliverer</p>
                     <p className="font-semibold text-lg">{order.deliverer_name}</p>
                     {order.deliverer_phone && (
-                      <p className="text-sm text-muted-foreground">{order.deliverer_phone}</p>
+                      <p className="text-sm text-muted-foreground font-mono">{order.deliverer_phone}</p>
                     )}
                   </div>
                 </div>
