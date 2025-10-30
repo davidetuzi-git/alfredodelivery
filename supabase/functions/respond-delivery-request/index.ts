@@ -148,11 +148,9 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("status", "sent")
         .neq("id", notification_id);
 
-      // Generate redirect URL to auto-login page
+      // Redirect to deliverer auth page
       const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovableproject.com') || 'https://55199bfc-17e3-4364-ae68-6c4210fad884.lovableproject.com';
-      const redirectUrl = authToken 
-        ? `${baseUrl}/deliverer-auto-login?token=${authToken}`
-        : `${baseUrl}/deliverer-auth`;
+      const redirectUrl = `${baseUrl}/deliverer-auth`;
       
       return new Response(null, {
         status: 302,
