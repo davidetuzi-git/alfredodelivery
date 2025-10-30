@@ -58,6 +58,7 @@ const App = () => (
           <Route path="/deliverer/auth" element={<DelivererAuth />} />
           <Route path="/deliverer-auth" element={<DelivererAuth />} />
           <Route path="/deliverer/dashboard" element={<DelivererDashboard />} />
+          <Route path="/deliverer-dashboard" element={<DelivererDashboard />} />
           <Route path="/deliverer/order/:orderId" element={<DelivererOrderDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
