@@ -148,7 +148,8 @@ const handler = async (req: Request): Promise<Response> => {
         .neq("id", notification_id);
 
       // Redirect to deliverer auth/login page
-      const redirectUrl = `https://55199bfc-17e3-4364-ae68-6c4210fad884.lovableproject.com/deliverer-auth`;
+      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovableproject.com') || 'https://55199bfc-17e3-4364-ae68-6c4210fad884.lovableproject.com';
+      const redirectUrl = `${baseUrl}/deliverer-auth`;
       
       return new Response(null, {
         status: 302,
