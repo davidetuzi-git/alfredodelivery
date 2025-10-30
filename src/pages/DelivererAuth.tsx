@@ -92,7 +92,7 @@ const DelivererAuth = () => {
               name,
               phone,
             },
-            emailRedirectTo: `${window.location.origin}/deliverer/auth`,
+            emailRedirectTo: `${window.location.origin}/deliverer-dashboard`,
           },
         });
 

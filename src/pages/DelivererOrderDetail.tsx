@@ -47,7 +47,7 @@ const DelivererOrderDetail = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate('/deliverer/auth');
+        navigate('/deliverer-auth');
         return;
       }
 
@@ -102,7 +102,7 @@ const DelivererOrderDetail = () => {
       if (error) throw error;
 
       toast.success("Ordine completato!");
-      navigate('/deliverer/dashboard');
+      navigate('/deliverer-dashboard');
     } catch (error: any) {
       console.error("Error completing order:", error);
       toast.error("Errore nel completamento dell'ordine");
@@ -133,7 +133,7 @@ const DelivererOrderDetail = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="outline" size="icon" onClick={() => navigate('/deliverer/dashboard')}>
+          <Button variant="outline" size="icon" onClick={() => navigate('/deliverer-dashboard')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Dettagli Ordine</h1>

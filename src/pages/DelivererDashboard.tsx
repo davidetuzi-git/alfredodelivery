@@ -166,7 +166,7 @@ const DelivererDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate('/deliverer/auth');
+        navigate('/deliverer-auth');
         return;
       }
 
@@ -186,7 +186,7 @@ const DelivererDashboard = () => {
       await loadDelivererData(session.user.id);
     } catch (error: any) {
       console.error("Error checking auth:", error);
-      navigate('/deliverer/auth');
+      navigate('/deliverer-auth');
     } finally {
       setLoading(false);
     }
@@ -445,7 +445,7 @@ const DelivererDashboard = () => {
       }
       
       // Naviga ai dettagli dell'ordine
-      navigate(`/deliverer/order/${orderId}`);
+      navigate(`/deliverer-order/${orderId}`);
     } catch (error) {
       console.error('Error accepting order:', error);
       toast.error("Errore nell'accettazione dell'ordine");
@@ -930,7 +930,7 @@ const DelivererDashboard = () => {
                       <div
                         key={order.id}
                         className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/deliverer/order/${order.id}`)}
+                        onClick={() => navigate(`/deliverer-order/${order.id}`)}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div>
@@ -976,7 +976,7 @@ const DelivererDashboard = () => {
                       <div
                         key={order.id}
                         className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/deliverer/order/${order.id}`)}
+                        onClick={() => navigate(`/deliverer-order/${order.id}`)}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div>
