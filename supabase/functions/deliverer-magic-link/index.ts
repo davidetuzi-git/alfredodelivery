@@ -106,11 +106,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Generate session for the user
+    const baseUrl = Deno.env.get("SUPABASE_URL")!.replace('.supabase.co', '.lovableproject.com');
+    const redirectTo = `${baseUrl}/deliverer-dashboard`;
+    
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: user.email!,
       options: {
-        redirectTo: `${Deno.env.get("SUPABASE_URL")!.replace('.supabase.co', '.lovableproject.com')}/deliverer-dashboard`,
+        redirectTo: redirectTo,
       }
     });
 
@@ -122,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Magic link generated:", sessionData);
+    console.log("Magic link generated, redirecting to:", redirectTo);
 
     // Redirect to the magic link which will authenticate the user
     const redirectUrl = sessionData.properties.action_link;
