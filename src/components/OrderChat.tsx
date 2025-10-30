@@ -20,9 +20,10 @@ interface OrderChatProps {
   orderId: string;
   customerName: string;
   delivererName?: string;
+  userType: 'customer' | 'deliverer';
 }
 
-const OrderChat = ({ orderId, customerName, delivererName }: OrderChatProps) => {
+const OrderChat = ({ orderId, customerName, delivererName, userType }: OrderChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -79,17 +80,19 @@ const OrderChat = ({ orderId, customerName, delivererName }: OrderChatProps) => 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !delivererName) return;
+    if (!newMessage.trim()) return;
 
     setSending(true);
 
     try {
+      const senderName = userType === 'customer' ? customerName : delivererName || 'Deliverer';
+      
       const { error } = await supabase
         .from('order_chat_messages')
         .insert({
           order_id: orderId,
-          sender_type: 'customer',
-          sender_name: customerName,
+          sender_type: userType,
+          sender_name: senderName,
           message: newMessage.trim()
         });
 
@@ -108,7 +111,7 @@ const OrderChat = ({ orderId, customerName, delivererName }: OrderChatProps) => 
     }
   };
 
-  if (!delivererName) {
+  if (userType === 'customer' && !delivererName) {
     return (
       <Card>
         <CardHeader>
@@ -126,12 +129,16 @@ const OrderChat = ({ orderId, customerName, delivererName }: OrderChatProps) => 
     );
   }
 
+  const chatTitle = userType === 'customer' 
+    ? `Chat con ${delivererName}` 
+    : `Chat con ${customerName}`;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
-          Chat con {delivererName}
+          {chatTitle}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -145,15 +152,15 @@ const OrderChat = ({ orderId, customerName, delivererName }: OrderChatProps) => 
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={cn(
-                    "flex",
-                    msg.sender_type === 'customer' ? "justify-end" : "justify-start"
-                  )}
+                    className={cn(
+                      "flex",
+                      msg.sender_type === userType ? "justify-end" : "justify-start"
+                    )}
                 >
                   <div
                     className={cn(
                       "max-w-[70%] rounded-lg px-4 py-2",
-                      msg.sender_type === 'customer'
+                      msg.sender_type === userType
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted"
                     )}

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation } from "lucide-react";
+import OrderChat from "@/components/OrderChat";
 
 interface OrderItem {
   name: string;
@@ -37,10 +38,95 @@ const DelivererOrderDetail = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [delivererName, setDelivererName] = useState<string>("");
 
   useEffect(() => {
     loadOrderDetails();
+    loadDelivererInfo();
   }, [orderId]);
+
+  useEffect(() => {
+    let watchId: number | null = null;
+
+    if (sharingLocation) {
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            // Update deliverer position in database
+            const { error } = await supabase
+              .from('deliverers')
+              .update({
+                latitude,
+                longitude
+              })
+              .eq('user_id', session.user.id);
+
+            if (error) {
+              console.error('Error updating position:', error);
+            }
+          } catch (error) {
+            console.error('Error sharing location:', error);
+          }
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          toast.error("Errore nell'accesso alla posizione");
+          setSharingLocation(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    }
+
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [sharingLocation]);
+
+  const loadDelivererInfo = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('deliverers')
+        .select('name')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setDelivererName(data.name);
+      }
+    } catch (error) {
+      console.error('Error loading deliverer info:', error);
+    }
+  };
+
+  const toggleLocationSharing = () => {
+    if (!sharingLocation) {
+      if ('geolocation' in navigator) {
+        setSharingLocation(true);
+        toast.success("Condivisione posizione attivata");
+      } else {
+        toast.error("Geolocalizzazione non supportata");
+      }
+    } else {
+      setSharingLocation(false);
+      toast.success("Condivisione posizione disattivata");
+    }
+  };
 
   const loadOrderDetails = async () => {
     try {
@@ -249,6 +335,27 @@ const DelivererOrderDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        <div className="mb-4">
+          <Button
+            onClick={toggleLocationSharing}
+            variant={sharingLocation ? "default" : "outline"}
+            className="w-full"
+            size="lg"
+          >
+            <Navigation className={`h-5 w-5 mr-2 ${sharingLocation ? 'animate-pulse' : ''}`} />
+            {sharingLocation ? 'Condivisione posizione attiva' : 'Condividi posizione con cliente'}
+          </Button>
+        </div>
+
+        <div className="mb-4">
+          <OrderChat
+            orderId={order.id}
+            customerName={order.customer_name}
+            delivererName={delivererName}
+            userType="deliverer"
+          />
+        </div>
 
         <Button
           onClick={handleCompleteOrder}

@@ -611,10 +611,11 @@ const OrderTracking = () => {
         )}
 
         {/* Chat */}
-        <OrderChat 
+        <OrderChat
           orderId={order.id}
           customerName={order.customer_name}
           delivererName={order.deliverer_name}
+          userType="customer"
         />
       </div>
 
