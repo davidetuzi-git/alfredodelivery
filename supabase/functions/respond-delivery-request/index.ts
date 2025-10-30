@@ -148,12 +148,11 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("status", "sent")
         .neq("id", notification_id);
 
-      // Generate redirect URL with auth token via magic link function
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      // Generate redirect URL to auto-login page
+      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovableproject.com') || 'https://55199bfc-17e3-4364-ae68-6c4210fad884.lovableproject.com';
       const redirectUrl = authToken 
-        ? `${supabaseUrl}/functions/v1/deliverer-magic-link?token=${authToken}&apikey=${anonKey}`
-        : `${supabaseUrl.replace('.supabase.co', '.lovableproject.com')}/deliverer-auth`;
+        ? `${baseUrl}/deliverer-auto-login?token=${authToken}`
+        : `${baseUrl}/deliverer-auth`;
       
       return new Response(null, {
         status: 302,

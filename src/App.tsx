@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import DelivererAuth from "./pages/DelivererAuth";
+import DelivererAutoLogin from "./pages/DelivererAutoLogin";
 import DelivererDashboard from "./pages/DelivererDashboard";
 import DelivererOrderDetail from "./pages/DelivererOrderDetail";
 
@@ -56,6 +57,8 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/deliverer/auth" element={<DelivererAuth />} />
+          <Route path="/deliverer-auto-login" element={<DelivererAutoLogin />} />
+          <Route path="/deliverer-auth" element={<DelivererAuth />} />
           <Route path="/deliverer/dashboard" element={<DelivererDashboard />} />
           <Route path="/deliverer/order/:orderId" element={<DelivererOrderDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

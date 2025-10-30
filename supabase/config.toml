@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.deliverer-magic-link]
 verify_jwt = false
+
+[functions.create-deliverer-session]
+verify_jwt = false
