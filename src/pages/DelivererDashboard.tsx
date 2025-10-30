@@ -224,7 +224,7 @@ const DelivererDashboard = () => {
       .from('orders')
       .select('*')
       .eq('deliverer_id', delivererData.id)
-      .in('delivery_status', ['in_progress', 'confirmed'])
+      .in('delivery_status', ['assigned', 'at_store', 'shopping_complete', 'on_the_way'])
       .order('created_at', { ascending: false });
 
     if (openOrdersData) {
