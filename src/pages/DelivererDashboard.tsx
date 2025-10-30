@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -61,7 +62,8 @@ interface Order {
 const DelivererDashboard = () => {
   const navigate = useNavigate();
   const [deliverer, setDeliverer] = useState<Deliverer | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [openOrders, setOpenOrders] = useState<Order[]>([]);
+  const [closedOrders, setClosedOrders] = useState<Order[]>([]);
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [baseAddress, setBaseAddress] = useState("");
@@ -210,15 +212,28 @@ const DelivererDashboard = () => {
       setTelegramChatId(delivererData.telegram_chat_id);
     }
 
-    // Carica ordini già assegnati al fattorino
-    const { data: ordersData } = await supabase
+    // Carica ordini aperti (in corso) già assegnati al fattorino
+    const { data: openOrdersData } = await supabase
       .from('orders')
       .select('*')
       .eq('deliverer_id', delivererData.id)
+      .in('delivery_status', ['in_progress', 'confirmed'])
       .order('created_at', { ascending: false });
 
-    if (ordersData) {
-      setOrders(ordersData);
+    if (openOrdersData) {
+      setOpenOrders(openOrdersData);
+    }
+
+    // Carica ordini chiusi (completati/cancellati) già assegnati al fattorino
+    const { data: closedOrdersData } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('deliverer_id', delivererData.id)
+      .in('delivery_status', ['delivered', 'cancelled'])
+      .order('created_at', { ascending: false });
+
+    if (closedOrdersData) {
+      setClosedOrders(closedOrdersData);
     }
   };
 
@@ -552,14 +567,14 @@ const DelivererDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground">Ordini Correnti</p>
+                <p className="text-sm text-muted-foreground">Ordini Aperti</p>
                 <p className="text-3xl font-bold">
-                  {deliverer.current_orders}/{deliverer.max_orders}
+                  {openOrders.length}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Totale Ordini</p>
-                <p className="text-3xl font-bold">{orders.length}</p>
+                <p className="text-sm text-muted-foreground">Totale Completati</p>
+                <p className="text-3xl font-bold">{closedOrders.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -740,104 +755,165 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Ordini disponibili nella zona */}
-        {availableOrders.length > 0 && (
-          <Card className="mb-6 border-green-200 dark:border-green-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
-                🎯 Ordini Disponibili nella Tua Zona (10km)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {availableOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="border rounded-lg p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <p className="font-semibold text-green-900 dark:text-green-100">
-                          {order.store_name}
-                        </p>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                          📍 {order.delivery_address}
-                        </p>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                          📅 {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
-                        </p>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                          👤 {order.customer_name}
-                        </p>
-                      </div>
-                      <Badge className="bg-green-600">
-                        €{order.total_amount.toFixed(2)}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        onClick={() => handleAcceptOrder(order.id)}
-                        disabled={acceptingOrder === order.id}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
-                      >
-                        {acceptingOrder === order.id ? "Accettazione..." : "✅ Accetta Ordine"}
-                      </Button>
-                    </div>
-                    
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                      💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Tabs per Ordini Aperti e Chiusi */}
+        <Tabs defaultValue="open" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="open">
+              📋 Aperti ({availableOrders.length + openOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="closed">
+              ✅ Chiusi ({closedOrders.length})
+            </TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>I Tuoi Ordini Assegnati</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {orders.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nessun ordine assegnato ancora
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/deliverer/order/${order.id}`)}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-semibold">{order.customer_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {order.delivery_address}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {order.store_name}
+          <TabsContent value="open" className="space-y-6">
+            {/* Ordini disponibili nella zona */}
+            {availableOrders.length > 0 && (
+              <Card className="border-green-200 dark:border-green-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                    🎯 Ordini Disponibili nella Tua Zona (10km)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {availableOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border rounded-lg p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-green-900 dark:text-green-100">
+                              {order.store_name}
+                            </p>
+                            <p className="text-sm text-green-700 dark:text-green-300">
+                              📍 {order.delivery_address}
+                            </p>
+                            <p className="text-sm text-green-700 dark:text-green-300">
+                              📅 {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
+                            </p>
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                              👤 {order.customer_name}
+                            </p>
+                          </div>
+                          <Badge className="bg-green-600">
+                            €{order.total_amount.toFixed(2)}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            onClick={() => handleAcceptOrder(order.id)}
+                            disabled={acceptingOrder === order.id}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
+                            {acceptingOrder === order.id ? "Accettazione..." : "✅ Accetta Ordine"}
+                          </Button>
+                        </div>
+                        
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                          💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine
                         </p>
                       </div>
-                      <Badge className={getOrderStatusColor(order.delivery_status)}>
-                        {order.delivery_status}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <p className="text-sm">
-                        {new Date(order.created_at).toLocaleDateString('it-IT')}
-                      </p>
-                      <p className="font-semibold">€{order.total_amount.toFixed(2)}</p>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Ordini assegnati aperti */}
+            <Card>
+              <CardHeader>
+                <CardTitle>I Tuoi Ordini in Corso</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {openOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nessun ordine in corso
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {openOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/deliverer/order/${order.id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold">{order.customer_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.delivery_address}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {order.store_name}
+                            </p>
+                          </div>
+                          <Badge className={getOrderStatusColor(order.delivery_status)}>
+                            {order.delivery_status}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between items-center mt-3">
+                          <p className="text-sm">
+                            {new Date(order.created_at).toLocaleDateString('it-IT')}
+                          </p>
+                          <p className="font-semibold">€{order.total_amount.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="closed">
+            <Card>
+              <CardHeader>
+                <CardTitle>Storico Ordini Completati</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {closedOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nessun ordine completato
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {closedOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/deliverer/order/${order.id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold">{order.customer_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.delivery_address}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {order.store_name}
+                            </p>
+                          </div>
+                          <Badge className={getOrderStatusColor(order.delivery_status)}>
+                            {order.delivery_status === 'delivered' ? 'Consegnato' : 'Cancellato'}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between items-center mt-3">
+                          <p className="text-sm">
+                            {new Date(order.created_at).toLocaleDateString('it-IT')}
+                          </p>
+                          <p className="font-semibold">€{order.total_amount.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
