@@ -38,7 +38,7 @@ export const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Per Alfredi</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/deliverer/auth" className="hover:text-secondary transition-colors">Area Fattorini</Link></li>
+              <li><Link to="/deliverer-dashboard" className="hover:text-secondary transition-colors">Area Fattorini</Link></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Diventa Alfredo</a></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Requisiti</a></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Guadagni</a></li>
