@@ -172,17 +172,69 @@ const DelivererOrderDetail = () => {
     }
   };
 
-  const toggleItemCheck = (index: number) => {
-    setItems(prev => prev.map((item, i) => 
+  const toggleItemCheck = async (index: number) => {
+    const currentCheckedCount = items.filter(item => item.checked).length;
+    const newItems = items.map((item, i) => 
       i === index ? { ...item, checked: !item.checked } : item
-    ));
+    );
+    const newCheckedCount = newItems.filter(item => item.checked).length;
+    
+    setItems(newItems);
+
+    try {
+      // Se è il primo prodotto spuntato, aggiorna lo stato a "at_store"
+      if (currentCheckedCount === 0 && newCheckedCount === 1 && order?.delivery_status === 'assigned') {
+        const { error } = await supabase
+          .from('orders')
+          .update({ 
+            delivery_status: 'at_store',
+            status: 'at_store'
+          })
+          .eq('id', orderId);
+
+        if (error) throw error;
+        
+        // Aggiorna l'ordine locale
+        if (order) {
+          setOrder({ ...order, delivery_status: 'at_store' });
+        }
+        
+        toast.success("Stato aggiornato: Arrivato al supermercato");
+      }
+      
+      // Se tutti i prodotti sono spuntati, aggiorna lo stato a "shopping_complete"
+      if (newCheckedCount === items.length && order?.delivery_status === 'at_store') {
+        const { error } = await supabase
+          .from('orders')
+          .update({ 
+            delivery_status: 'shopping_complete',
+            status: 'shopping_complete'
+          })
+          .eq('id', orderId);
+
+        if (error) throw error;
+        
+        // Aggiorna l'ordine locale
+        if (order) {
+          setOrder({ ...order, delivery_status: 'shopping_complete' });
+        }
+        
+        toast.success("Stato aggiornato: Spesa completata");
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error("Errore nell'aggiornamento dello stato");
+    }
   };
 
   const handleCompleteOrder = async () => {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ delivery_status: 'delivered' })
+        .update({ 
+          delivery_status: 'delivered',
+          status: 'delivered'
+        })
         .eq('id', orderId);
 
       if (error) throw error;
