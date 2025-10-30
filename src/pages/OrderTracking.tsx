@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2 } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2, Star } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,11 @@ const OrderTracking = () => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [feedback, setFeedback] = useState<any>(null);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (pickupCodeFromState) {
@@ -63,6 +69,19 @@ const OrderTracking = () => {
       if (data) {
         setOrder(data);
         setPickupCode(code);
+        
+        // Carica feedback se esiste
+        if (data.delivery_status === 'delivered') {
+          const { data: feedbackData } = await supabase
+            .from('order_feedback')
+            .select('*')
+            .eq('order_id', data.id)
+            .single();
+          
+          if (feedbackData) {
+            setFeedback(feedbackData);
+          }
+        }
       } else {
         toast({
           title: "Errore",
@@ -194,6 +213,57 @@ const OrderTracking = () => {
         description: "Impossibile cancellare l'ordine",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (rating === 0) {
+      toast({
+        title: "Errore",
+        description: "Seleziona un punteggio da 1 a 5 stelle",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!order.deliverer_id) {
+      toast({
+        title: "Errore",
+        description: "Nessun deliverer assegnato a questo ordine",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingFeedback(true);
+    try {
+      const { data, error } = await supabase
+        .from('order_feedback')
+        .insert({
+          order_id: order.id,
+          deliverer_id: order.deliverer_id,
+          rating,
+          comment: comment.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setFeedback(data);
+      toast({
+        title: "Grazie!",
+        description: "Il tuo feedback è stato inviato con successo",
+      });
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile inviare il feedback",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -434,6 +504,108 @@ const OrderTracking = () => {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Feedback Section - Solo per ordini consegnati */}
+        {order.delivery_status === 'delivered' && !feedback && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary" />
+                Lascia un feedback
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="mb-3 block">Come valuti il servizio?</Label>
+                <div className="flex gap-2 justify-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`h-10 w-10 ${
+                          star <= (hoverRating || rating)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {rating > 0 && (
+                  <p className="text-center text-sm text-muted-foreground mt-2">
+                    {rating} {rating === 1 ? 'stella' : 'stelle'}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="comment">Commento (opzionale)</Label>
+                <Textarea
+                  id="comment"
+                  placeholder="Raccontaci la tua esperienza..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={4}
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {comment.length}/500 caratteri
+                </p>
+              </div>
+
+              <Button
+                onClick={handleSubmitFeedback}
+                disabled={submittingFeedback || rating === 0}
+                className="w-full"
+              >
+                {submittingFeedback ? "Invio..." : "Invia feedback"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Feedback già inviato */}
+        {feedback && (
+          <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                <Star className="h-5 w-5" />
+                Grazie per il tuo feedback!
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-green-700 dark:text-green-300">La tua valutazione:</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-5 w-5 ${
+                        star <= feedback.rating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+              {feedback.comment && (
+                <div className="p-3 bg-white dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
+                  <p className="text-sm text-green-900 dark:text-green-100">"{feedback.comment}"</p>
+                </div>
+              )}
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Feedback inviato il {format(new Date(feedback.created_at), "dd MMM yyyy 'alle' HH:mm", { locale: it })}
+              </p>
             </CardContent>
           </Card>
         )}
