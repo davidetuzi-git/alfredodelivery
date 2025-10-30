@@ -100,6 +100,7 @@ export type Database = {
       }
       deliverers: {
         Row: {
+          avatar_url: string | null
           created_at: string
           current_orders: number
           email: string | null
@@ -108,15 +109,19 @@ export type Database = {
           longitude: number | null
           max_orders: number
           name: string
+          on_time_deliveries: number | null
           operating_radius_km: number | null
           phone: string
+          rating: number | null
           status: string
           telegram_chat_id: string | null
+          total_deliveries: number | null
           updated_at: string
           user_id: string | null
           zone: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           current_orders?: number
           email?: string | null
@@ -125,15 +130,19 @@ export type Database = {
           longitude?: number | null
           max_orders?: number
           name: string
+          on_time_deliveries?: number | null
           operating_radius_km?: number | null
           phone: string
+          rating?: number | null
           status?: string
           telegram_chat_id?: string | null
+          total_deliveries?: number | null
           updated_at?: string
           user_id?: string | null
           zone?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           current_orders?: number
           email?: string | null
@@ -142,10 +151,13 @@ export type Database = {
           longitude?: number | null
           max_orders?: number
           name?: string
+          on_time_deliveries?: number | null
           operating_radius_km?: number | null
           phone?: string
+          rating?: number | null
           status?: string
           telegram_chat_id?: string | null
+          total_deliveries?: number | null
           updated_at?: string
           user_id?: string | null
           zone?: string | null

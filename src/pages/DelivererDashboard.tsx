@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
 interface Deliverer {
   id: string;
+  user_id: string;
   name: string;
   email: string;
   phone: string;
@@ -24,6 +26,10 @@ interface Deliverer {
   longitude: number | null;
   operating_radius_km: number | null;
   telegram_chat_id: string | null;
+  avatar_url: string | null;
+  rating: number | null;
+  total_deliveries: number | null;
+  on_time_deliveries: number | null;
 }
 
 interface DeliveryNotification {
@@ -75,6 +81,7 @@ const DelivererDashboard = () => {
   const [savingTelegram, setSavingTelegram] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [acceptingOrder, setAcceptingOrder] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -310,6 +317,45 @@ const DelivererDashboard = () => {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!deliverer || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${deliverer.user_id}/${Date.now()}.${fileExt}`;
+    
+    setUploadingAvatar(true);
+    try {
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('deliverer-avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('deliverer-avatars')
+        .getPublicUrl(fileName);
+
+      // Update deliverer profile
+      const { error: updateError } = await supabase
+        .from('deliverers')
+        .update({ avatar_url: publicUrl })
+        .eq('id', deliverer.id);
+
+      if (updateError) throw updateError;
+
+      setDeliverer({ ...deliverer, avatar_url: publicUrl });
+      toast.success("Foto profilo aggiornata!");
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      toast.error("Errore nel caricamento della foto");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSaveTelegramChatId = async () => {
     if (!telegramChatId.trim() || !deliverer) {
       toast.error("Inserisci un chat_id valido");
@@ -419,8 +465,6 @@ const DelivererDashboard = () => {
         return 'bg-green-500';
       case 'busy':
         return 'bg-yellow-500';
-      case 'unavailable':
-        return 'bg-orange-500';
       case 'inactive':
         return 'bg-gray-500';
       default:
@@ -434,8 +478,6 @@ const DelivererDashboard = () => {
         return 'Disponibile';
       case 'busy':
         return 'Occupato';
-      case 'unavailable':
-        return 'Non Disponibile';
       case 'inactive':
         return 'Non Attivo';
       default:
@@ -511,15 +553,6 @@ const DelivererDashboard = () => {
                 </Button>
                 
                 <Button
-                  onClick={() => updateAvailabilityStatus('unavailable')}
-                  disabled={updatingStatus || deliverer.status === 'unavailable'}
-                  className="w-full bg-orange-500 hover:bg-orange-600"
-                  variant={deliverer.status === 'unavailable' ? 'default' : 'outline'}
-                >
-                  ⏸️ Non Disponibile
-                </Button>
-                
-                <Button
                   onClick={() => updateAvailabilityStatus('inactive')}
                   disabled={updatingStatus || deliverer.status === 'inactive'}
                   className="w-full bg-gray-500 hover:bg-gray-600"
@@ -531,7 +564,6 @@ const DelivererDashboard = () => {
               
               <div className="text-xs text-muted-foreground space-y-1 mt-4 p-3 bg-muted/50 rounded-lg">
                 <p><strong>Disponibile:</strong> Ricevi nuove consegne</p>
-                <p><strong>Non Disponibile:</strong> Pausa temporanea</p>
                 <p><strong>Non Attivo:</strong> Fuori servizio</p>
               </div>
             </CardContent>
@@ -542,7 +574,67 @@ const DelivererDashboard = () => {
               <CardTitle>Il Tuo Profilo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <div className="flex items-start gap-4">
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={deliverer.avatar_url || undefined} />
+                    <AvatarFallback className="text-2xl">
+                      {deliverer.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 cursor-pointer">
+                    <div className="bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90">
+                      <Upload className="h-4 w-4" />
+                    </div>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      disabled={uploadingAvatar}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <p className="font-semibold text-lg">{deliverer.name}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < Math.floor(deliverer.rating || 0)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-sm text-muted-foreground ml-2">
+                        {deliverer.rating?.toFixed(1) || '0.0'} / 5.0
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Consegne Totali</p>
+                      <p className="font-semibold text-lg">{deliverer.total_deliveries || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Puntualità</p>
+                      <p className="font-semibold text-lg">
+                        {deliverer.total_deliveries && deliverer.on_time_deliveries
+                          ? Math.round((deliverer.on_time_deliveries / deliverer.total_deliveries) * 100)
+                          : 0}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2 pt-4 border-t">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4" />
                   <span>{deliverer.email}</span>
