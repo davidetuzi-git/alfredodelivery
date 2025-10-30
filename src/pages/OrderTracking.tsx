@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2, Star } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2, Star, TruckIcon } from "lucide-react";
+import DeliveryMap from "@/components/DeliveryMap";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,8 @@ const OrderTracking = () => {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
+  const [loadingEstimate, setLoadingEstimate] = useState(false);
 
   useEffect(() => {
     if (pickupCodeFromState) {
@@ -52,6 +55,11 @@ const OrderTracking = () => {
   useEffect(() => {
     if (order) {
       subscribeToOrderUpdates();
+      
+      // Load delivery estimate if order is on the way or shopping complete
+      if (['shopping_complete', 'on_the_way'].includes(order.delivery_status) && order.deliverer_id && order.latitude && order.longitude) {
+        loadDeliveryEstimate();
+      }
     }
   }, [order]);
 
@@ -98,6 +106,28 @@ const OrderTracking = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDeliveryEstimate = async () => {
+    if (!order?.deliverer_id || !order?.latitude || !order?.longitude) return;
+    
+    setLoadingEstimate(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('estimate-delivery-time', {
+        body: {
+          delivererId: order.deliverer_id,
+          customerLatitude: order.latitude,
+          customerLongitude: order.longitude
+        }
+      });
+
+      if (error) throw error;
+      setDeliveryEstimate(data);
+    } catch (error) {
+      console.error('Error loading delivery estimate:', error);
+    } finally {
+      setLoadingEstimate(false);
     }
   };
 
@@ -457,6 +487,49 @@ const OrderTracking = () => {
             <OrderStatusTracker currentStatus={order.delivery_status || 'confirmed'} />
           </CardContent>
         </Card>
+
+        {/* Delivery Map and Estimate */}
+        {(['shopping_complete', 'on_the_way'].includes(order.delivery_status)) && order.deliverer_id && order.latitude && order.longitude && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TruckIcon className="h-5 w-5" />
+                Tracciamento in Tempo Reale
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Delivery Estimate */}
+              {deliveryEstimate && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tempo Stimato</p>
+                    <p className="text-2xl font-bold text-primary">{deliveryEstimate.estimatedMinutes} min</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Distanza</p>
+                    <p className="text-2xl font-bold">{deliveryEstimate.distance} km</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Traffico</p>
+                    <p className="text-2xl font-bold capitalize">{deliveryEstimate.trafficCondition}</p>
+                  </div>
+                </div>
+              )}
+              
+              {loadingEstimate && (
+                <p className="text-center text-muted-foreground py-4">Caricamento stima...</p>
+              )}
+              
+              {/* Map */}
+              <DeliveryMap
+                delivererId={order.deliverer_id}
+                delivererName={order.deliverer_name || 'Deliverer'}
+                customerLatitude={order.latitude}
+                customerLongitude={order.longitude}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         {(canEditOrder || canCancelOrder) && (
