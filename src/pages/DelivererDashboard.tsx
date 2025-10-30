@@ -420,7 +420,8 @@ const DelivererDashboard = () => {
           deliverer_id: deliverer.id,
           deliverer_name: deliverer.name,
           deliverer_phone: deliverer.phone,
-          delivery_status: 'in_progress'
+          delivery_status: 'assigned',
+          status: 'assigned'
         })
         .eq('id', orderId);
 
