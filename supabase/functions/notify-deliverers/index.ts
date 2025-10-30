@@ -69,7 +69,9 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const maxDistance = deliverer.operating_radius_km || 7;
-      if (distance && distance <= maxDistance) {
+      console.log(`Deliverer ${deliverer.name}: distance=${distance}km, max=${maxDistance}km, telegram=${deliverer.telegram_chat_id || 'none'}, willAdd=${!!(distance && distance <= maxDistance)}`);
+      
+      if (distance !== null && distance !== undefined && distance <= maxDistance) {
         nearbyDeliverers.push(deliverer);
       }
     }
