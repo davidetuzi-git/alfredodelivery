@@ -848,18 +848,71 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs per Ordini Aperti e Chiusi */}
-        <Tabs defaultValue="open" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="open">
-              📋 Aperti ({availableOrders.length + openOrders.length})
+        {/* Tabs per organizzare ordini: In Corso, Aperti, Chiusi */}
+        <Tabs defaultValue="in-corso" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="in-corso">
+              🚚 In Corso ({openOrders.length})
             </TabsTrigger>
-            <TabsTrigger value="closed">
+            <TabsTrigger value="aperti">
+              📋 Aperti ({availableOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="chiusi">
               ✅ Chiusi ({closedOrders.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="open" className="space-y-6">
+          {/* Tab: In Corso - Ordini assegnati e in lavorazione */}
+          <TabsContent value="in-corso" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>I Tuoi Ordini in Corso</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {openOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nessun ordine in corso
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {openOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/deliverer-order/${order.id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold">{order.customer_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.delivery_address}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {order.store_name}
+                            </p>
+                          </div>
+                          <Badge className={getOrderStatusColor(order.delivery_status)}>
+                            {order.delivery_status}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between items-center mt-3">
+                          <span className="text-sm font-semibold">
+                            €{order.total_amount.toFixed(2)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab: Aperti - Ordini disponibili da accettare */}
+          <TabsContent value="aperti" className="space-y-6">
             {/* Ordini disponibili nella zona */}
             {availableOrders.length > 0 && (
               <Card className="border-green-200 dark:border-green-800">
@@ -915,53 +968,20 @@ const DelivererDashboard = () => {
               </Card>
             )}
 
-            {/* Ordini assegnati aperti */}
-            <Card>
-              <CardHeader>
-                <CardTitle>I Tuoi Ordini in Corso</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {openOrders.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nessun ordine in corso
+            {/* Nota se non ci sono ordini disponibili */}
+            {availableOrders.length === 0 && (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">
+                    Nessun ordine disponibile nella tua zona al momento
                   </p>
-                ) : (
-                  <div className="space-y-4">
-                    {openOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/deliverer-order/${order.id}`)}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-semibold">{order.customer_name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {order.delivery_address}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {order.store_name}
-                            </p>
-                          </div>
-                          <Badge className={getOrderStatusColor(order.delivery_status)}>
-                            {order.delivery_status}
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center mt-3">
-                          <p className="text-sm">
-                            {new Date(order.created_at).toLocaleDateString('it-IT')}
-                          </p>
-                          <p className="font-semibold">€{order.total_amount.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
-          <TabsContent value="closed">
+          {/* Tab: Chiusi - Ordini completati */}
+          <TabsContent value="chiusi" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Storico Ordini Completati</CardTitle>
