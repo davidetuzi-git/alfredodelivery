@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Phone, MapPin, Calendar, ShoppingBag, Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Phone, MapPin, Calendar, ShoppingBag, Package, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { OrderDetailDialog } from "./OrderDetailDialog";
 
 interface Order {
   id: string;
@@ -40,6 +43,9 @@ interface OrdersTabProps {
 }
 
 export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps) => {
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  
   const assignDeliverer = async (orderId: string, delivererId: string) => {
     const deliverer = deliverers.find(d => d.id === delivererId);
     if (!deliverer) return;
@@ -113,10 +119,13 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
             <p className="text-center text-muted-foreground py-8">Nessun ordine in questa categoria</p>
           ) : (
             filterByStatus(tabValue).map((order) => (
-              <Card key={order.id} className="overflow-hidden">
+              <Card key={order.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div className="space-y-3 flex-1">
+                    <div className="space-y-3 flex-1" onClick={() => {
+                      setSelectedOrder(order);
+                      setDialogOpen(true);
+                    }}>
                       <div className="flex items-start justify-between">
                         <div>
                           <Badge className={getStatusColor(order.delivery_status)}>
@@ -170,7 +179,18 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
                       )}
                     </div>
 
-                    <div className="lg:w-64">
+                    <div className="lg:w-64 space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Vedi Dettagli
+                      </Button>
                       <Select
                         value={order.deliverer_id || ""}
                         onValueChange={(value) => assignDeliverer(order.id, value)}
@@ -199,6 +219,12 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
           )}
         </TabsContent>
       ))}
+      
+      <OrderDetailDialog 
+        order={selectedOrder} 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen} 
+      />
     </Tabs>
   );
 };
