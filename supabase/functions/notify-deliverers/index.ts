@@ -100,11 +100,21 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!notification) return;
 
+      // Generate one-time auth token
+      const authToken = crypto.randomUUID();
+      await supabase
+        .from("deliverer_auth_tokens")
+        .insert({
+          deliverer_id: deliverer.id,
+          notification_id: notification.id,
+          token: authToken,
+        });
+
       // Send Telegram message if chat_id is available
       if (deliverer.telegram_chat_id) {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-        const acceptUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept&apikey=${anonKey}`;
+        const acceptUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept&token=${authToken}&apikey=${anonKey}`;
         const rejectUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject&apikey=${anonKey}`;
 
         const message = `🚚 *Nuova Consegna Disponibile*

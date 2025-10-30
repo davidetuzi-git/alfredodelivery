@@ -15,6 +15,7 @@ const handler = async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const notification_id = url.searchParams.get("notification_id");
     const response = url.searchParams.get("response"); // 'accept' or 'reject'
+    const authToken = url.searchParams.get("token"); // One-time auth token
 
     if (!notification_id || !response) {
       throw new Error("Missing parameters");
@@ -147,9 +148,12 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("status", "sent")
         .neq("id", notification_id);
 
-      // Redirect to deliverer dashboard
-      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovableproject.com') || 'https://55199bfc-17e3-4364-ae68-6c4210fad884.lovableproject.com';
-      const redirectUrl = `${baseUrl}/deliverer-dashboard`;
+      // Generate redirect URL with auth token via magic link function
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const redirectUrl = authToken 
+        ? `${supabaseUrl}/functions/v1/deliverer-magic-link?token=${authToken}&apikey=${anonKey}`
+        : `${supabaseUrl.replace('.supabase.co', '.lovableproject.com')}/deliverer-auth`;
       
       return new Response(null, {
         status: 302,

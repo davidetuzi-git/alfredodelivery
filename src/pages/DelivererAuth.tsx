@@ -28,7 +28,7 @@ const DelivererAuth = () => {
           .single();
         
         if (roles) {
-          navigate('/deliverer/dashboard');
+          navigate('/deliverer-dashboard');
         } else {
           // Controlla se ha una richiesta pending
           const { data: request } = await supabase
@@ -60,7 +60,7 @@ const DelivererAuth = () => {
           .single()
           .then(({ data: roles }) => {
             if (roles) {
-              navigate('/deliverer/dashboard');
+              navigate('/deliverer-dashboard');
             }
           });
       }

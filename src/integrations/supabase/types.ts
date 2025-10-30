@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      deliverer_auth_tokens: {
+        Row: {
+          created_at: string
+          deliverer_id: string
+          expires_at: string
+          id: string
+          notification_id: string | null
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          deliverer_id: string
+          expires_at?: string
+          id?: string
+          notification_id?: string | null
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          deliverer_id?: string
+          expires_at?: string
+          id?: string
+          notification_id?: string | null
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliverer_auth_tokens_deliverer_id_fkey"
+            columns: ["deliverer_id"]
+            isOneToOne: false
+            referencedRelation: "deliverers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliverer_auth_tokens_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliverer_requests: {
         Row: {
           created_at: string
