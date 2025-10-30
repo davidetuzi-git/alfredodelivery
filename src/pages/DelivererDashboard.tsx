@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,7 @@ const DelivererDashboard = () => {
   const [notifications, setNotifications] = useState<DeliveryNotification[]>([]);
   const [telegramChatId, setTelegramChatId] = useState("");
   const [savingTelegram, setSavingTelegram] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -273,9 +274,31 @@ const DelivererDashboard = () => {
     }
   };
 
+  const updateAvailabilityStatus = async (newStatus: 'available' | 'unavailable' | 'inactive') => {
+    if (!deliverer) return;
+    
+    setUpdatingStatus(true);
+    try {
+      const { error } = await supabase
+        .from('deliverers')
+        .update({ status: newStatus })
+        .eq('id', deliverer.id);
+
+      if (error) throw error;
+
+      setDeliverer({ ...deliverer, status: newStatus });
+      toast.success("Stato aggiornato con successo!");
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error("Errore nell'aggiornamento dello stato");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/deliverer/auth');
+    navigate('/deliverer-auth');
   };
 
   const getStatusColor = (status: string) => {
@@ -284,10 +307,27 @@ const DelivererDashboard = () => {
         return 'bg-green-500';
       case 'busy':
         return 'bg-yellow-500';
-      case 'offline':
+      case 'unavailable':
+        return 'bg-orange-500';
+      case 'inactive':
         return 'bg-gray-500';
       default:
         return 'bg-gray-500';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'Disponibile';
+      case 'busy':
+        return 'Occupato';
+      case 'unavailable':
+        return 'Non Disponibile';
+      case 'inactive':
+        return 'Non Attivo';
+      default:
+        return status;
     }
   };
 
@@ -332,19 +372,64 @@ const DelivererDashboard = () => {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 mb-6">
-          <Card>
+        <div className="grid gap-6 md:grid-cols-3 mb-6">
+          {/* Card Disponibilità */}
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Power className="h-5 w-5" />
+                Disponibilità
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center mb-4">
+                <Badge className={`${getStatusColor(deliverer.status)} text-lg py-2 px-4`}>
+                  {getStatusLabel(deliverer.status)}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2">
+                <Button
+                  onClick={() => updateAvailabilityStatus('available')}
+                  disabled={updatingStatus || deliverer.status === 'available'}
+                  className="w-full bg-green-500 hover:bg-green-600"
+                  variant={deliverer.status === 'available' ? 'default' : 'outline'}
+                >
+                  ✅ Disponibile
+                </Button>
+                
+                <Button
+                  onClick={() => updateAvailabilityStatus('unavailable')}
+                  disabled={updatingStatus || deliverer.status === 'unavailable'}
+                  className="w-full bg-orange-500 hover:bg-orange-600"
+                  variant={deliverer.status === 'unavailable' ? 'default' : 'outline'}
+                >
+                  ⏸️ Non Disponibile
+                </Button>
+                
+                <Button
+                  onClick={() => updateAvailabilityStatus('inactive')}
+                  disabled={updatingStatus || deliverer.status === 'inactive'}
+                  className="w-full bg-gray-500 hover:bg-gray-600"
+                  variant={deliverer.status === 'inactive' ? 'default' : 'outline'}
+                >
+                  🔴 Non Attivo
+                </Button>
+              </div>
+              
+              <div className="text-xs text-muted-foreground space-y-1 mt-4 p-3 bg-muted/50 rounded-lg">
+                <p><strong>Disponibile:</strong> Ricevi nuove consegne</p>
+                <p><strong>Non Disponibile:</strong> Pausa temporanea</p>
+                <p><strong>Non Attivo:</strong> Fuori servizio</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Il Tuo Profilo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <p className="font-semibold text-lg">{deliverer.name}</p>
-                <Badge className={getStatusColor(deliverer.status)}>
-                  {deliverer.status === 'available' ? 'Disponibile' : 
-                   deliverer.status === 'busy' ? 'Occupato' : 'Offline'}
-                </Badge>
-              </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4" />
