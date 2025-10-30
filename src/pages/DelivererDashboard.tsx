@@ -50,12 +50,19 @@ interface Order {
   total_amount: number;
   created_at: string;
   store_name: string;
+  delivery_date: string;
+  time_slot: string;
+  latitude: number | null;
+  longitude: number | null;
+  deliverer_id: string | null;
+  pickup_code: string;
 }
 
 const DelivererDashboard = () => {
   const navigate = useNavigate();
   const [deliverer, setDeliverer] = useState<Deliverer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [baseAddress, setBaseAddress] = useState("");
   const [baseLatitude, setBaseLatitude] = useState<number | null>(null);
@@ -65,6 +72,7 @@ const DelivererDashboard = () => {
   const [telegramChatId, setTelegramChatId] = useState("");
   const [savingTelegram, setSavingTelegram] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [acceptingOrder, setAcceptingOrder] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -193,12 +201,16 @@ const DelivererDashboard = () => {
     if (delivererData.latitude && delivererData.longitude) {
       setBaseLatitude(delivererData.latitude);
       setBaseLongitude(delivererData.longitude);
+      
+      // Carica ordini disponibili nella zona (10km)
+      await loadAvailableOrders(delivererData.latitude, delivererData.longitude);
     }
     
     if (delivererData.telegram_chat_id) {
       setTelegramChatId(delivererData.telegram_chat_id);
     }
 
+    // Carica ordini già assegnati al fattorino
     const { data: ordersData } = await supabase
       .from('orders')
       .select('*')
@@ -207,6 +219,45 @@ const DelivererDashboard = () => {
 
     if (ordersData) {
       setOrders(ordersData);
+    }
+  };
+
+  const loadAvailableOrders = async (lat: number, lon: number) => {
+    // Carica ordini confermati ma non ancora assegnati nella zona
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('delivery_status', 'confirmed')
+      .is('deliverer_id', null)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
+
+    if (error) {
+      console.error('Error loading available orders:', error);
+      return;
+    }
+
+    if (data) {
+      // Filtra ordini entro 10km usando la funzione calculate_distance
+      const ordersInRange: Order[] = [];
+      
+      for (const order of data) {
+        if (order.latitude && order.longitude) {
+          const { data: distanceData } = await supabase
+            .rpc('calculate_distance', {
+              lat1: lat,
+              lon1: lon,
+              lat2: order.latitude,
+              lon2: order.longitude
+            });
+          
+          if (distanceData !== null && distanceData <= 10) {
+            ordersInRange.push(order as Order);
+          }
+        }
+      }
+      
+      setAvailableOrders(ordersInRange);
     }
   };
 
@@ -293,6 +344,52 @@ const DelivererDashboard = () => {
       toast.error("Errore nell'aggiornamento dello stato");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleAcceptOrder = async (orderId: string) => {
+    if (!deliverer) return;
+    
+    setAcceptingOrder(orderId);
+    try {
+      // Aggiorna l'ordine assegnandolo al fattorino e cambiando lo stato
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          deliverer_id: deliverer.id,
+          deliverer_name: deliverer.name,
+          deliverer_phone: deliverer.phone,
+          delivery_status: 'in_progress'
+        })
+        .eq('id', orderId);
+
+      if (updateError) throw updateError;
+
+      // Aggiorna il numero di ordini correnti del fattorino
+      const { error: delivererError } = await supabase
+        .from('deliverers')
+        .update({
+          current_orders: deliverer.current_orders + 1
+        })
+        .eq('id', deliverer.id);
+
+      if (delivererError) throw delivererError;
+
+      toast.success("Ordine accettato! Ora puoi vedere tutti i dettagli");
+      
+      // Ricarica i dati
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await loadDelivererData(session.user.id);
+      }
+      
+      // Naviga ai dettagli dell'ordine
+      navigate(`/deliverer/order/${orderId}`);
+    } catch (error) {
+      console.error('Error accepting order:', error);
+      toast.error("Errore nell'accettazione dell'ordine");
+    } finally {
+      setAcceptingOrder(null);
     }
   };
 
@@ -643,14 +740,69 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Ordini disponibili nella zona */}
+        {availableOrders.length > 0 && (
+          <Card className="mb-6 border-green-200 dark:border-green-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                🎯 Ordini Disponibili nella Tua Zona (10km)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {availableOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="border rounded-lg p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-green-900 dark:text-green-100">
+                          {order.store_name}
+                        </p>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          📍 {order.delivery_address}
+                        </p>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          📅 {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
+                        </p>
+                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                          👤 {order.customer_name}
+                        </p>
+                      </div>
+                      <Badge className="bg-green-600">
+                        €{order.total_amount.toFixed(2)}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        onClick={() => handleAcceptOrder(order.id)}
+                        disabled={acceptingOrder === order.id}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        {acceptingOrder === order.id ? "Accettazione..." : "✅ Accetta Ordine"}
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                      💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
-            <CardTitle>I Tuoi Ordini</CardTitle>
+            <CardTitle>I Tuoi Ordini Assegnati</CardTitle>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Nessun ordine ancora
+                Nessun ordine assegnato ancora
               </p>
             ) : (
               <div className="space-y-4">
