@@ -396,7 +396,7 @@ export type Database = {
           time_slot: string
           total_amount: number
           updated_at: string
-          user_id: string | null
+          user_id: string
           voucher_code: string | null
           voucher_discount: number | null
         }
@@ -424,7 +424,7 @@ export type Database = {
           time_slot: string
           total_amount: number
           updated_at?: string
-          user_id?: string | null
+          user_id: string
           voucher_code?: string | null
           voucher_discount?: number | null
         }
@@ -452,7 +452,7 @@ export type Database = {
           time_slot?: string
           total_amount?: number
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           voucher_code?: string | null
           voucher_discount?: number | null
         }
