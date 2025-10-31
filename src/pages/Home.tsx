@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Home = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
+  const [userName, setUserName] = useState<string>("Utente");
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -19,12 +20,18 @@ const Home = () => {
       if (session) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("onboarding_completed")
+          .select("onboarding_completed, first_name, full_name")
           .eq("id", session.user.id)
           .single();
 
-        if (!profile?.onboarding_completed) {
-          navigate("/onboarding");
+        if (profile) {
+          // Usa first_name se disponibile, altrimenti full_name, altrimenti "Utente"
+          const displayName = profile.first_name || profile.full_name || "Utente";
+          setUserName(displayName);
+          
+          if (!profile.onboarding_completed) {
+            navigate("/onboarding");
+          }
         }
       }
     };
@@ -59,7 +66,7 @@ const Home = () => {
         <div className="max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold mb-1">Ciao, Mario!</h1>
+              <h1 className="text-2xl font-bold mb-1">Ciao, {userName}!</h1>
               <p className="text-muted-foreground">Benvenuto su ALFREDO</p>
             </div>
             <div className="flex gap-2">
