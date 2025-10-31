@@ -5,14 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Session } from "@supabase/supabase-js";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [processing, setProcessing] = useState(false);
   const [acceptsMealVouchers, setAcceptsMealVouchers] = useState(false);
@@ -26,6 +29,38 @@ const Checkout = () => {
   const itemCount = orderData.itemCount || 0;
   const finalTotal = subtotal + deliveryFee - discount;
   const storeName = orderData.orderData?.store || "";
+
+  // Check authentication first
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Autenticazione richiesta",
+          description: "Devi effettuare l'accesso per completare l'ordine",
+          variant: "destructive",
+        });
+        navigate("/auth", { state: { returnTo: "/checkout" } });
+        return;
+      }
+      
+      setSession(session);
+      setAuthLoading(false);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth", { state: { returnTo: "/checkout" } });
+      } else {
+        setSession(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   useEffect(() => {
     const checkStoreVouchers = async () => {
@@ -219,6 +254,15 @@ const Checkout = () => {
     { id: "card", name: "Carta di credito/debito", icon: CreditCard, description: "Visa, Mastercard, American Express" },
     { id: "meal-voucher", name: "Buoni pasto", icon: Receipt, description: "Ticket Restaurant, Edenred, Day" },
   ];
+
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

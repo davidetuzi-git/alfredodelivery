@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { ShoppingCart } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +21,9 @@ const Auth = () => {
     const checkUserAndRedirect = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Check if there's a return URL
+        const returnTo = location.state?.returnTo;
+        
         // Check if onboarding is completed
         const { data: profile } = await supabase
           .from("profiles")
@@ -28,7 +32,7 @@ const Auth = () => {
           .single();
 
         if (profile?.onboarding_completed) {
-          navigate("/home");
+          navigate(returnTo || "/home");
         } else {
           navigate("/onboarding");
         }
@@ -39,6 +43,9 @@ const Auth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
+        // Check if there's a return URL
+        const returnTo = location.state?.returnTo;
+        
         // Check if onboarding is completed
         const { data: profile } = await supabase
           .from("profiles")
@@ -47,7 +54,7 @@ const Auth = () => {
           .single();
 
         if (profile?.onboarding_completed) {
-          navigate("/home");
+          navigate(returnTo || "/home");
         } else {
           navigate("/onboarding");
         }
@@ -55,7 +62,7 @@ const Auth = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Session } from "@supabase/supabase-js";
 
 interface ShoppingItem {
   name: string;
@@ -38,6 +39,40 @@ const Order = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const savedState = location.state?.orderFormData;
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Check authentication first
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Autenticazione richiesta",
+          description: "Devi effettuare l'accesso per fare un ordine",
+          variant: "destructive",
+        });
+        navigate("/auth", { state: { returnTo: "/order" } });
+        return;
+      }
+      
+      setSession(session);
+      setLoading(false);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth", { state: { returnTo: "/order" } });
+      } else {
+        setSession(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
   
   // Try to restore from sessionStorage if no state was passed
   const getInitialState = () => {
@@ -977,9 +1012,14 @@ const Order = () => {
                 type="submit" 
                 className="w-full" 
                 size="lg"
-                disabled={!allPricesLoaded || !meetsMinimum || anyLoading}
+                disabled={!allPricesLoaded || !meetsMinimum || anyLoading || loading}
               >
-                {anyLoading ? (
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifica autenticazione...
+                  </>
+                ) : anyLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Caricamento prezzi...
@@ -992,6 +1032,49 @@ const Order = () => {
                   "Procedi al pagamento"
                 )}
               </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Navigation />
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 pb-20">
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-4xl mx-auto">
+          <CardHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(-1)}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <ShoppingBag className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Nuovo Ordine</CardTitle>
+            <CardDescription>
+              Compila il form per creare il tuo ordine personalizzato
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* ... rest of form content remains the same ... */}
             </form>
           </CardContent>
         </Card>
