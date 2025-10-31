@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star, Calendar as CalendarIcon } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DeliveryCalendar } from "@/components/deliverer/DeliveryCalendar";
 
 interface Deliverer {
   id: string;
@@ -869,9 +870,9 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs per organizzare ordini: In Corso, Aperti, Chiusi */}
+        {/* Tabs per organizzare ordini: In Corso, Aperti, Chiusi, Calendario */}
         <Tabs defaultValue="in-corso" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="in-corso">
               🚚 In Corso ({openOrders.length})
             </TabsTrigger>
@@ -880,6 +881,10 @@ const DelivererDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="chiusi">
               ✅ Chiusi ({closedOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="calendario">
+              <CalendarIcon className="h-4 w-4 mr-1" />
+              Calendario
             </TabsTrigger>
           </TabsList>
 
@@ -1049,6 +1054,14 @@ const DelivererDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tab: Calendario - Vista calendario con tutte le consegne */}
+          <TabsContent value="calendario">
+            <DeliveryCalendar 
+              orders={[...openOrders, ...closedOrders]}
+              onOrderClick={(order) => navigate(`/deliverer-order/${order.id}`)}
+            />
           </TabsContent>
         </Tabs>
       </div>
