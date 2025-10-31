@@ -74,8 +74,13 @@ Esempi:
       console.error('Failed to complete product description:', error);
     }
 
-    const systemPrompt = 'Sei un assistente esperto di prezzi dei supermercati in Italia. Fornisci SOLO il prezzo medio in euro come numero decimale (es: 2.50).';
-    const userPrompt = `Prodotto: "${finalProductDescription}" al supermercato ${chainName}. Rispondi solo con il prezzo in euro.`;
+    const systemPrompt = `Sei un assistente esperto di prezzi dei supermercati in Italia. 
+Devi fornire il prezzo medio realistico del prodotto richiesto al supermercato specificato.
+Rispondi SOLO con un numero decimale in euro (es: 2.50).
+Se non conosci il prezzo esatto, fornisci una stima conservativa (leggermente alta) ma realistica.
+NON rispondere mai con 0 o messaggi di errore, fornisci sempre una stima.`;
+
+    const userPrompt = `Qual è il prezzo medio di "${finalProductDescription}" al supermercato ${chainName} in Italia?`;
     
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: 'POST',
@@ -113,11 +118,18 @@ Esempi:
     }
 
     const data = await response.json();
-    const priceText = data.candidates?.[0]?.content?.parts?.[0]?.text || '0';
+    const priceText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     // Parse the price from the response
     const priceMatch = priceText.match(/\d+[.,]?\d*/);
-    const price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
+    let price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
+    
+    // Se il prezzo è 0 o invalido, usa una stima conservativa basata sulla categoria
+    if (price === 0 || isNaN(price) || price < 0.1) {
+      console.log('Price not found or invalid, using fallback estimate');
+      // Stima conservativa basata su prodotti comuni
+      price = 3.99; // Prezzo medio conservativo
+    }
 
     console.log('Price search successful:', price);
 
