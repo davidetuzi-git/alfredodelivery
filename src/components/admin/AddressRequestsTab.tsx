@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,9 @@ export const AddressRequestsTab = ({ onUpdate }: AddressRequestsTabProps) => {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  useState(() => {
+  useEffect(() => {
     loadRequests();
-  });
+  }, []);
 
   const loadRequests = async () => {
     const { data, error } = await supabase
