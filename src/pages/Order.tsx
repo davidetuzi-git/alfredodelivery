@@ -105,6 +105,7 @@ const Order = () => {
   const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
   const [selectedStoreCoords, setSelectedStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
 
   // Set store coordinates when component loads if store is already selected
   useEffect(() => {
@@ -395,15 +396,63 @@ const Order = () => {
     e.preventDefault();
     
     const validItems = items.filter(item => item.name.trim() !== "");
+    const errors = new Set<string>();
+    const errorMessages: string[] = [];
     
-    if (!name || !phone || !address || !streetNumber || !store || !deliveryDate || !timeSlot || validItems.length === 0) {
+    // Validate each field
+    if (!name.trim()) {
+      errors.add('name');
+      errorMessages.push('Nome e cognome');
+    }
+    if (!phone.trim()) {
+      errors.add('phone');
+      errorMessages.push('Telefono');
+    }
+    if (!address.trim()) {
+      errors.add('address');
+      errorMessages.push('Indirizzo di consegna');
+    }
+    if (!streetNumber.trim()) {
+      errors.add('streetNumber');
+      errorMessages.push('Numero civico');
+    }
+    if (!store) {
+      errors.add('store');
+      errorMessages.push('Supermercato');
+    }
+    if (!deliveryDate) {
+      errors.add('deliveryDate');
+      errorMessages.push('Data di consegna');
+    }
+    if (!timeSlot) {
+      errors.add('timeSlot');
+      errorMessages.push('Fascia oraria');
+    }
+    if (validItems.length === 0) {
+      errors.add('items');
+      errorMessages.push('Almeno un prodotto');
+    }
+    
+    if (errors.size > 0) {
+      setFieldErrors(errors);
       toast({
-        title: "Errore",
-        description: "Compila tutti i campi obbligatori e aggiungi almeno un prodotto",
+        title: "Campi mancanti",
+        description: `Compila: ${errorMessages.join(', ')}`,
         variant: "destructive",
       });
+      
+      // Scroll to first error
+      const firstError = Array.from(errors)[0];
+      const element = document.getElementById(firstError);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
       return;
     }
+    
+    // Clear errors if validation passed
+    setFieldErrors(new Set());
 
     // Check if there are items without prices
     const itemsWithoutPrice = validItems.filter(item => item.price === null || item.price === undefined);
@@ -558,7 +607,15 @@ const Order = () => {
                   id="name"
                   placeholder="Mario Rossi"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (fieldErrors.has('name')) {
+                      const newErrors = new Set(fieldErrors);
+                      newErrors.delete('name');
+                      setFieldErrors(newErrors);
+                    }
+                  }}
+                  className={cn(fieldErrors.has('name') && "border-destructive animate-shake")}
                   required
                 />
               </div>
@@ -570,22 +627,37 @@ const Order = () => {
                   type="tel"
                   placeholder="333 123 4567"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (fieldErrors.has('phone')) {
+                      const newErrors = new Set(fieldErrors);
+                      newErrors.delete('phone');
+                      setFieldErrors(newErrors);
+                    }
+                  }}
+                  className={cn(fieldErrors.has('phone') && "border-destructive animate-shake")}
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="address">Indirizzo di consegna</Label>
-                <AddressAutocomplete
-                  value={address}
-                  onSelect={(addr, lat, lon) => {
-                    setAddress(addr);
-                    setAddressCoords({ lat, lon });
-                  }}
-                  placeholder="Via, Piazza, Corso... (senza numero civico)"
-                  required
-                />
+                <div className={cn(fieldErrors.has('address') && "animate-shake")}>
+                  <AddressAutocomplete
+                    value={address}
+                    onSelect={(addr, lat, lon) => {
+                      setAddress(addr);
+                      setAddressCoords({ lat, lon });
+                      if (fieldErrors.has('address')) {
+                        const newErrors = new Set(fieldErrors);
+                        newErrors.delete('address');
+                        setFieldErrors(newErrors);
+                      }
+                    }}
+                    placeholder="Via, Piazza, Corso... (senza numero civico)"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -595,7 +667,15 @@ const Order = () => {
                     id="streetNumber"
                     placeholder="Es: 123"
                     value={streetNumber}
-                    onChange={(e) => setStreetNumber(e.target.value)}
+                    onChange={(e) => {
+                      setStreetNumber(e.target.value);
+                      if (fieldErrors.has('streetNumber')) {
+                        const newErrors = new Set(fieldErrors);
+                        newErrors.delete('streetNumber');
+                        setFieldErrors(newErrors);
+                      }
+                    }}
+                    className={cn(fieldErrors.has('streetNumber') && "border-destructive animate-shake")}
                     required
                   />
                 </div>
@@ -621,6 +701,12 @@ const Order = () => {
                     <TabsContent value="list" className="mt-4">
                       <Select value={store} onValueChange={async (value) => {
                         setStore(value);
+                        
+                        if (fieldErrors.has('store')) {
+                          const newErrors = new Set(fieldErrors);
+                          newErrors.delete('store');
+                          setFieldErrors(newErrors);
+                        }
                         
                         // Find store coordinates
                         const selectedStore = stores.find(s => `${s.name} - ${s.address}` === value);
@@ -650,7 +736,7 @@ const Order = () => {
                           setStoreVoucherInfo(null);
                         }
                       }}>
-                        <SelectTrigger id="store">
+                        <SelectTrigger id="store" className={cn(fieldErrors.has('store') && "border-destructive animate-shake")}>
                           <SelectValue placeholder="Seleziona un supermercato" />
                         </SelectTrigger>
                         <SelectContent>
@@ -756,10 +842,12 @@ const Order = () => {
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      id="deliveryDate"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !deliveryDate && "text-muted-foreground"
+                        !deliveryDate && "text-muted-foreground",
+                        fieldErrors.has('deliveryDate') && "border-destructive animate-shake"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -773,6 +861,11 @@ const Order = () => {
                       onSelect={(date) => {
                         setDeliveryDate(date);
                         setCalendarOpen(false);
+                        if (fieldErrors.has('deliveryDate')) {
+                          const newErrors = new Set(fieldErrors);
+                          newErrors.delete('deliveryDate');
+                          setFieldErrors(newErrors);
+                        }
                       }}
                       disabled={(date) => date < new Date()}
                       initialFocus
@@ -784,8 +877,15 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="timeSlot">Fascia oraria</Label>
-                <Select value={timeSlot} onValueChange={setTimeSlot}>
-                  <SelectTrigger id="timeSlot">
+                <Select value={timeSlot} onValueChange={(value) => {
+                  setTimeSlot(value);
+                  if (fieldErrors.has('timeSlot')) {
+                    const newErrors = new Set(fieldErrors);
+                    newErrors.delete('timeSlot');
+                    setFieldErrors(newErrors);
+                  }
+                }}>
+                  <SelectTrigger id="timeSlot" className={cn(fieldErrors.has('timeSlot') && "border-destructive animate-shake")}>
                     <SelectValue placeholder="Seleziona una fascia oraria" />
                   </SelectTrigger>
                   <SelectContent>
@@ -798,9 +898,9 @@ const Order = () => {
                 </Select>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3" id="items">
                 <div className="flex items-center justify-between">
-                  <Label>Lista della spesa</Label>
+                  <Label className={cn(fieldErrors.has('items') && "text-destructive")}>Lista della spesa</Label>
                   {items.length > 0 && items.some(item => item.name.trim() !== "") && (
                     <Button
                       type="button"
@@ -821,9 +921,12 @@ const Order = () => {
                     </Button>
                   )}
                 </div>
+                {fieldErrors.has('items') && (
+                  <p className="text-sm text-destructive">Aggiungi almeno un prodotto</p>
+                )}
                 
                 {items.map((item, index) => (
-                  <div key={index} className="space-y-2 p-4 border rounded-lg bg-card">
+                  <div key={index} className={cn("space-y-2 p-4 border rounded-lg bg-card", fieldErrors.has('items') && "border-destructive animate-shake")}>
                     <div className="flex gap-2 items-start">
                       <div className="flex-[6] min-w-0">
                         <div className="space-y-1">
@@ -834,7 +937,14 @@ const Order = () => {
                             id={`item-name-${index}`}
                             placeholder="Es: Latte 1L"
                             value={item.name}
-                            onChange={(e) => updateItemName(index, e.target.value)}
+                            onChange={(e) => {
+                              updateItemName(index, e.target.value);
+                              if (fieldErrors.has('items') && e.target.value.trim()) {
+                                const newErrors = new Set(fieldErrors);
+                                newErrors.delete('items');
+                                setFieldErrors(newErrors);
+                              }
+                            }}
                             onBlur={() => fetchPrice(index, item.name)}
                             required
                             className="w-full"
