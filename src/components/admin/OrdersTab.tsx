@@ -91,19 +91,27 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
   };
 
   const filterByStatus = (status: string) => {
+    const now = new Date();
     if (status === "all") return orders;
     if (status === "scheduled") return orders.filter(o => o.delivery_status === "confirmed");
     if (status === "in_transit") return orders.filter(o => o.delivery_status === "in_transit");
     if (status === "delivered") return orders.filter(o => o.delivery_status === "delivered");
+    if (status === "expired") {
+      // Ordini scaduti: data passata e nessun deliverer assegnato
+      return orders.filter(o => {
+        const deliveryDate = new Date(o.delivery_date);
+        return deliveryDate < now && o.deliverer_id === null && o.delivery_status === "confirmed";
+      });
+    }
     return orders;
   };
 
   return (
     <Tabs defaultValue="all" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="all">Tutti ({orders.length})</TabsTrigger>
         <TabsTrigger value="scheduled">
-          Programmati ({orders.filter(o => o.delivery_status === "confirmed").length})
+          Programmati ({orders.filter(o => o.delivery_status === "confirmed" && new Date(o.delivery_date) >= new Date()).length})
         </TabsTrigger>
         <TabsTrigger value="in_transit">
           In Consegna ({orders.filter(o => o.delivery_status === "in_transit").length})
@@ -111,9 +119,12 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
         <TabsTrigger value="delivered">
           Consegnati ({orders.filter(o => o.delivery_status === "delivered").length})
         </TabsTrigger>
+        <TabsTrigger value="expired">
+          Scaduti ({orders.filter(o => new Date(o.delivery_date) < new Date() && o.deliverer_id === null && o.delivery_status === "confirmed").length})
+        </TabsTrigger>
       </TabsList>
 
-      {["all", "scheduled", "in_transit", "delivered"].map((tabValue) => (
+      {["all", "scheduled", "in_transit", "delivered", "expired"].map((tabValue) => (
         <TabsContent key={tabValue} value={tabValue} className="space-y-4">
           {filterByStatus(tabValue).length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nessun ordine in questa categoria</p>

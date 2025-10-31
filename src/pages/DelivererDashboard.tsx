@@ -282,10 +282,17 @@ const DelivererDashboard = () => {
     }
 
     if (data) {
-      // Filtra ordini entro 10km usando la funzione calculate_distance
+      const now = new Date();
+      // Filtra ordini entro 10km e con data di consegna futura
       const ordersInRange: Order[] = [];
       
       for (const order of data) {
+        // Verifica se la data di consegna è passata
+        const deliveryDate = new Date(order.delivery_date);
+        if (deliveryDate < now) {
+          continue; // Salta ordini con data passata
+        }
+
         if (order.latitude && order.longitude) {
           const { data: distanceData } = await supabase
             .rpc('calculate_distance', {
