@@ -41,11 +41,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Order location not set");
     }
 
-    // Find available deliverers within 7km
+    // Find deliverers who are marked as available (or inactive but could be activated)
+    // Status check is now done based on time slots, not global status
     const { data: deliverers, error: deliverersError } = await supabase
       .from("deliverers")
       .select("*")
-      .eq("status", "available")
+      .in("status", ["available", "busy"])
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 
@@ -55,12 +56,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Found ${deliverers?.length || 0} deliverers`);
 
-    // Filter deliverers by distance
+    // Filter deliverers by distance and time slot availability
     const nearbyDeliverers: any[] = [];
+    const orderDate = new Date(order.delivery_date).toISOString().split('T')[0];
     
     for (const deliverer of deliverers || []) {
       if (!deliverer.latitude || !deliverer.longitude) continue;
 
+      // Check distance
       const { data: distance } = await supabase.rpc("calculate_distance", {
         lat1: order.latitude,
         lon1: order.longitude,
@@ -69,9 +72,27 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const maxDistance = deliverer.operating_radius_km || 7;
-      console.log(`Deliverer ${deliverer.name}: distance=${distance}km, max=${maxDistance}km, telegram=${deliverer.telegram_chat_id || 'none'}, willAdd=${!!(distance && distance <= maxDistance)}`);
       
-      if (distance !== null && distance !== undefined && distance <= maxDistance) {
+      if (distance === null || distance === undefined || distance > maxDistance) {
+        console.log(`Deliverer ${deliverer.name}: too far (${distance}km > ${maxDistance}km)`);
+        continue;
+      }
+
+      // Check if deliverer is available in the specific time slot
+      const { data: conflictingOrders } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("deliverer_id", deliverer.id)
+        .gte("delivery_date", orderDate + "T00:00:00Z")
+        .lte("delivery_date", orderDate + "T23:59:59Z")
+        .eq("time_slot", order.time_slot)
+        .in("delivery_status", ["confirmed", "assigned", "at_store", "shopping_complete", "on_the_way"]);
+
+      const hasConflict = conflictingOrders && conflictingOrders.length > 0;
+      
+      console.log(`Deliverer ${deliverer.name}: distance=${distance}km, hasConflict=${hasConflict}, telegram=${deliverer.telegram_chat_id || 'none'}`);
+      
+      if (!hasConflict) {
         nearbyDeliverers.push(deliverer);
       }
     }

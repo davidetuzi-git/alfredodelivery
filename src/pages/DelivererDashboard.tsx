@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star } from "lucide-react";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star, Calendar as CalendarIcon } from "lucide-react";
+import { DeliveryCalendar } from "@/components/deliverer/DeliveryCalendar";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -848,9 +849,13 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs per organizzare ordini: In Corso, Aperti, Chiusi */}
-        <Tabs defaultValue="in-corso" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        {/* Tabs per organizzare ordini: Calendario, In Corso, Aperti, Chiusi */}
+        <Tabs defaultValue="calendario" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="calendario">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Calendario
+            </TabsTrigger>
             <TabsTrigger value="in-corso">
               🚚 In Corso ({openOrders.length})
             </TabsTrigger>
@@ -861,6 +866,14 @@ const DelivererDashboard = () => {
               ✅ Chiusi ({closedOrders.length})
             </TabsTrigger>
           </TabsList>
+
+          {/* Tab: Calendario - Vista calendario con tutte le consegne */}
+          <TabsContent value="calendario" className="space-y-6">
+            <DeliveryCalendar 
+              orders={[...openOrders, ...closedOrders]} 
+              onOrderClick={(order) => navigate(`/deliverer-order/${order.id}`)}
+            />
+          </TabsContent>
 
           {/* Tab: In Corso - Ordini assegnati e in lavorazione */}
           <TabsContent value="in-corso" className="space-y-6">
