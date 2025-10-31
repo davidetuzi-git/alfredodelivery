@@ -26,6 +26,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DelivererAuth from "./pages/DelivererAuth";
 import DelivererDashboard from "./pages/DelivererDashboard";
 import DelivererOrderDetail from "./pages/DelivererOrderDetail";
+import DelivererProfile from "./pages/DelivererProfile";
 import MyOrders from "./pages/MyOrders";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,8 @@ const App = () => (
           <Route path="/deliverer-auth" element={<DelivererAuth />} />
           <Route path="/deliverer/dashboard" element={<DelivererDashboard />} />
           <Route path="/deliverer-dashboard" element={<DelivererDashboard />} />
+          <Route path="/deliverer/profile" element={<DelivererProfile />} />
+          <Route path="/deliverer-profile" element={<DelivererProfile />} />
           <Route path="/deliverer-order/:orderId" element={<DelivererOrderDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
