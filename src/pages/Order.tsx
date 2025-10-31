@@ -33,6 +33,7 @@ interface ShoppingItem {
   estimateReasoning?: string;
   originalName?: string;
   imageUrl?: string;
+  notes?: string;
 }
 
 const Order = () => {
@@ -189,7 +190,7 @@ const Order = () => {
   ];
 
   const addItem = () => {
-    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null, notes: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -205,6 +206,12 @@ const Order = () => {
   const updateItemQuantity = (index: number, quantity: number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], quantity: Math.max(1, quantity) };
+    setItems(newItems);
+  };
+
+  const updateItemNotes = (index: number, notes: string) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], notes };
     setItems(newItems);
   };
 
@@ -816,11 +823,15 @@ const Order = () => {
                 </div>
                 
                 {items.map((item, index) => (
-                  <div key={index} className="space-y-2">
+                  <div key={index} className="space-y-2 p-4 border rounded-lg bg-card">
                     <div className="flex gap-2 items-start">
                       <div className="flex-[6] min-w-0">
                         <div className="space-y-1">
+                          <Label htmlFor={`item-name-${index}`} className="text-xs text-muted-foreground">
+                            Prodotto *
+                          </Label>
                           <Input
+                            id={`item-name-${index}`}
                             placeholder="Es: Latte 1L"
                             value={item.name}
                             onChange={(e) => updateItemName(index, e.target.value)}
@@ -836,7 +847,11 @@ const Order = () => {
                         </div>
                       </div>
                       <div className="w-16 flex-shrink-0">
+                        <Label htmlFor={`item-qty-${index}`} className="text-xs text-muted-foreground">
+                          Qtà
+                        </Label>
                         <Input
+                          id={`item-qty-${index}`}
                           type="number"
                           min="1"
                           value={item.quantity}
@@ -845,7 +860,7 @@ const Order = () => {
                           placeholder="Qtà"
                         />
                       </div>
-                      <div className="w-20 flex-shrink-0 text-right font-medium flex items-center justify-end gap-2">
+                      <div className="w-20 flex-shrink-0 text-right font-medium flex items-center justify-end gap-2 pt-6">
                         {item.loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : item.price !== null ? (
@@ -867,10 +882,25 @@ const Order = () => {
                           variant="ghost" 
                           size="icon"
                           onClick={() => removeItem(index)}
+                          className="mt-6"
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
+                    </div>
+                    
+                    {/* Campo Note (opzionale) */}
+                    <div className="pt-2">
+                      <Label htmlFor={`item-notes-${index}`} className="text-xs text-muted-foreground">
+                        Note (opzionale)
+                      </Label>
+                      <Input
+                        id={`item-notes-${index}`}
+                        placeholder="Es: Bio, senza lattosio, marca specifica..."
+                        value={item.notes || ""}
+                        onChange={(e) => updateItemNotes(index, e.target.value)}
+                        className="w-full text-sm"
+                      />
                     </div>
                   </div>
                 ))}

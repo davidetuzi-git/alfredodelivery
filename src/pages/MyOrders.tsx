@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, X } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -36,7 +36,7 @@ interface Order {
   created_at: string;
   deliverer_name: string | null;
   deliverer_phone: string | null;
-  items: any[];
+  items: any;
 }
 
 const MyOrders = () => {
@@ -152,7 +152,6 @@ const MyOrders = () => {
 
   const calculateSubtotal = (order: Order) => {
     return order.total_amount - order.delivery_fee + order.discount + order.voucher_discount;
-  };
   };
 
   const activeOrders = orders.filter(
@@ -334,7 +333,6 @@ const MyOrders = () => {
                     <CardContent>
                       <OrderStatusTracker 
                         currentStatus={selectedOrder.delivery_status}
-                        statusHistory={[]}
                       />
                     </CardContent>
                   </Card>
@@ -422,7 +420,7 @@ const MyOrders = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    {selectedOrder.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
                       <div className="space-y-2">
                         {selectedOrder.items.map((item: any, index: number) => (
                           <div key={index} className="flex justify-between items-center py-2 border-b last:border-0">
