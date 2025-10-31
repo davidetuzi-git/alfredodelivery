@@ -28,6 +28,7 @@ import DelivererDashboard from "./pages/DelivererDashboard";
 import DelivererOrderDetail from "./pages/DelivererOrderDetail";
 import DelivererProfile from "./pages/DelivererProfile";
 import MyOrders from "./pages/MyOrders";
+import FAQ from "./pages/FAQ";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
           <Route path="/confronta" element={<CompareStores />} />
           <Route path="/segnala-supermercato" element={<ReportStore />} />
           <Route path="/come-funziona" element={<HowItWorksPage />} />
+          <Route path="/faq" element={<FAQ />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/deliverer/auth" element={<DelivererAuth />} />

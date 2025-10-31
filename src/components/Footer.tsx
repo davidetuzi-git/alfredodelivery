@@ -42,7 +42,7 @@ export const Footer = () => {
               <li><a href="#" className="hover:text-secondary transition-colors">Diventa Alfredo</a></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Requisiti</a></li>
               <li><a href="#" className="hover:text-secondary transition-colors">Guadagni</a></li>
-              <li><a href="#" className="hover:text-secondary transition-colors">FAQ</a></li>
+              <li><Link to="/faq" className="hover:text-secondary transition-colors">FAQ</Link></li>
             </ul>
           </div>
 
