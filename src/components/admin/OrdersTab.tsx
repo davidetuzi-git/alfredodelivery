@@ -59,6 +59,8 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
         deliverer_id: deliverer.id,
         deliverer_name: deliverer.name,
         deliverer_phone: deliverer.phone,
+        delivery_status: 'assigned',
+        status: 'assigned'
       })
       .eq("id", orderId);
 
