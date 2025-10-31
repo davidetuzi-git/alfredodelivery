@@ -4,14 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Session } from "@supabase/supabase-js";
 
 const PayPalSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   
   useEffect(() => {
     const processPayment = async () => {
+      // Check authentication first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setStatus('error');
+        toast({
+          title: "Autenticazione richiesta",
+          description: "Devi effettuare l'accesso per completare l'ordine",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+      
+      setSession(session);
+
       const token = searchParams.get('token');
       
       if (!token) {
@@ -45,9 +63,10 @@ const PayPalSuccess = () => {
         if (codeError) throw codeError;
         const pickupCode = codeData;
 
-        // Save order
+        // Save order with user_id
         const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
           pickup_code: pickupCode,
+          user_id: session.user.id,
           customer_name: orderData.orderData.name,
           customer_phone: orderData.orderData.phone,
           delivery_address: orderData.orderData.address,

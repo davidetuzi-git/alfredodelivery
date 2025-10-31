@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +8,12 @@ import { Navigation } from "@/components/Navigation";
 import { CreditCard, ArrowLeft, Lock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 const CardPayment = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [session, setSession] = useState<Session | null>(null);
   const [processing, setProcessing] = useState(false);
   
   const [cardNumber, setCardNumber] = useState("");
@@ -24,6 +26,26 @@ const CardPayment = () => {
   const deliveryFee = orderData.deliveryFee || 3.99;
   const discount = orderData.discount || 4.99;
   const finalTotal = subtotal + deliveryFee - discount;
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Autenticazione richiesta",
+          description: "Devi effettuare l'accesso per completare l'ordine",
+          variant: "destructive",
+        });
+        navigate("/auth", { state: { returnTo: "/checkout" } });
+        return;
+      }
+      
+      setSession(session);
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   const handleBackToCheckout = () => {
     navigate("/checkout", { state: orderData });
@@ -107,9 +129,10 @@ const CardPayment = () => {
 
       const pickupCode = codeData;
 
-      // Save order
+      // Save order with user_id
       const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
         pickup_code: pickupCode,
+        user_id: session?.user.id,
         customer_name: orderData.orderData.name,
         customer_phone: orderData.orderData.phone,
         delivery_address: orderData.orderData.address,
