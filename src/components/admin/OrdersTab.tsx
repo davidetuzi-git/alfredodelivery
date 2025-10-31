@@ -64,7 +64,29 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
       return;
     }
 
-    toast.success(`Ordine assegnato a ${deliverer.name}`);
+    // Send notification to deliverer
+    try {
+      const { error: notifyError } = await supabase.functions.invoke(
+        "notify-manual-assignment",
+        {
+          body: {
+            orderId,
+            delivererId,
+          },
+        }
+      );
+
+      if (notifyError) {
+        console.error("Error sending notification:", notifyError);
+        toast.warning(`Ordine assegnato a ${deliverer.name}, ma notifica non inviata`);
+      } else {
+        toast.success(`Ordine assegnato a ${deliverer.name} e notificato su Telegram`);
+      }
+    } catch (notifyError) {
+      console.error("Error sending notification:", notifyError);
+      toast.warning(`Ordine assegnato a ${deliverer.name}, ma notifica non inviata`);
+    }
+
     onOrderUpdate();
   };
 
