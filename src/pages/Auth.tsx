@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, ArrowLeft } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -143,20 +143,30 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/20 via-background to-primary/10 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <ShoppingCart className="w-6 h-6 text-primary" />
-          </div>
-          <CardTitle className="text-2xl">
-            {isLogin ? "Accedi" : "Registrati"}
-          </CardTitle>
-          <CardDescription>
-            {isLogin
-              ? "Inserisci le tue credenziali per accedere"
-              : "Crea un account per iniziare a ordinare"}
-          </CardDescription>
-        </CardHeader>
+      <div className="w-full max-w-md space-y-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/")}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Torna alla Home
+        </Button>
+        
+        <Card className="w-full">
+          <CardHeader className="space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <ShoppingCart className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">
+              {isLogin ? "Accedi" : "Registrati"}
+            </CardTitle>
+            <CardDescription>
+              {isLogin
+                ? "Inserisci le tue credenziali per accedere"
+                : "Crea un account per iniziare a ordinare"}
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (
@@ -221,6 +231,7 @@ const Auth = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };
