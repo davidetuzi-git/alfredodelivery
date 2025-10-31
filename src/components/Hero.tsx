@@ -47,7 +47,7 @@ export const Hero = () => {
             <h1 className="leading-tight">
               La tua spesa,{" "}
               <span className="bg-gradient-to-r from-primary via-primary-glow to-secondary bg-clip-text text-transparent">
-                consegnata con cura
+                consegnata con cura, comodamente a casa tua
               </span>
             </h1>
             
