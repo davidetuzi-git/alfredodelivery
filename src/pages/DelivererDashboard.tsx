@@ -271,7 +271,7 @@ const DelivererDashboard = () => {
       .select('*')
       .eq('deliverer_id', delivererData.id)
       .in('delivery_status', ['assigned', 'at_store', 'shopping_complete', 'on_the_way'])
-      .order('created_at', { ascending: false });
+      .order('delivery_date', { ascending: true }); // Ordina per scadenza, più vicini in alto
 
     if (openOrdersData) {
       setOpenOrders(openOrdersData);
@@ -495,13 +495,26 @@ const DelivererDashboard = () => {
 
       if (delivererError) throw delivererError;
 
-      toast.success("Ordine accettato! Ora puoi vedere tutti i dettagli");
+      // Rimuovi l'ordine dagli ordini disponibili
+      setAvailableOrders(prev => prev.filter(o => o.id !== orderId));
       
-      // Ricarica i dati
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await loadDelivererData(session.user.id);
+      // Aggiungi l'ordine accettato agli ordini aperti immediatamente
+      const { data: acceptedOrder } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      
+      if (acceptedOrder) {
+        setOpenOrders(prev => [acceptedOrder, ...prev].sort((a, b) => 
+          new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime()
+        ));
       }
+      
+      // Aggiorna il deliverer con il nuovo conteggio ordini
+      setDeliverer(prev => prev ? { ...prev, current_orders: prev.current_orders + 1 } : null);
+
+      toast.success("Ordine accettato! Ora puoi vedere tutti i dettagli");
       
       // Naviga ai dettagli dell'ordine
       navigate(`/deliverer-order/${orderId}`);
