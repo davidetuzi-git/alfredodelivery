@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, ShoppingCart, Clock, Search, User, LogOut } from "lucide-react";
+import { Home, ShoppingCart, Clock, Search, User, LogOut, Package } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export const Header = () => {
@@ -96,6 +96,10 @@ export const Header = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/i-miei-ordini")}>
+                  <Package className="mr-2 h-4 w-4" />
+                  I miei ordini
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/profilo")}>
                   <User className="mr-2 h-4 w-4" />
                   Profilo
