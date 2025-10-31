@@ -25,12 +25,20 @@ interface Deliverer {
   zone: string | null;
   latitude: number | null;
   longitude: number | null;
+  base_address: string | null;
   operating_radius_km: number | null;
   telegram_chat_id: string | null;
   avatar_url: string | null;
   rating: number | null;
   total_deliveries: number | null;
   on_time_deliveries: number | null;
+}
+
+interface AddressChangeRequest {
+  id: string;
+  status: string;
+  requested_address: string;
+  created_at: string;
 }
 
 interface DeliveryNotification {
@@ -83,6 +91,8 @@ const DelivererDashboard = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [acceptingOrder, setAcceptingOrder] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [addressChangeRequest, setAddressChangeRequest] = useState<AddressChangeRequest | null>(null);
+  const [submittingAddressRequest, setSubmittingAddressRequest] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -241,6 +251,20 @@ const DelivererDashboard = () => {
       setTelegramChatId(delivererData.telegram_chat_id);
     }
 
+    // Carica richieste di modifica indirizzo in sospeso
+    const { data: requestData } = await supabase
+      .from('deliverer_address_requests')
+      .select('*')
+      .eq('deliverer_id', delivererData.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (requestData) {
+      setAddressChangeRequest(requestData);
+    }
+
     // Carica ordini aperti (in corso) già assegnati al fattorino
     const { data: openOrdersData } = await supabase
       .from('orders')
@@ -312,37 +336,42 @@ const DelivererDashboard = () => {
     }
   };
 
-  const handleSaveBaseAddress = async () => {
-    if (!baseLatitude || !baseLongitude || !deliverer) {
+  const handleRequestAddressChange = async () => {
+    if (!baseLatitude || !baseLongitude || !deliverer || !baseAddress) {
       toast.error("Seleziona un indirizzo dalla lista");
       return;
     }
 
-    setSavingAddress(true);
+    setSubmittingAddressRequest(true);
     try {
       const { error } = await supabase
-        .from('deliverers')
-        .update({
-          latitude: baseLatitude,
-          longitude: baseLongitude,
-          operating_radius_km: 10,
-        })
-        .eq('id', deliverer.id);
+        .from('deliverer_address_requests')
+        .insert({
+          deliverer_id: deliverer.id,
+          requested_address: baseAddress,
+          requested_latitude: baseLatitude,
+          requested_longitude: baseLongitude,
+        });
 
       if (error) throw error;
 
-      toast.success("Indirizzo base salvato! Riceverai notifiche per ordini entro 10km");
+      toast.success("Richiesta di modifica inviata! Attendi l'approvazione dell'admin");
       
       // Ricarica i dati
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         await loadDelivererData(session.user.id);
       }
+
+      // Reset form
+      setBaseAddress("");
+      setBaseLatitude(null);
+      setBaseLongitude(null);
     } catch (error: any) {
-      console.error("Error saving address:", error);
-      toast.error("Errore nel salvataggio dell'indirizzo");
+      console.error("Error submitting address request:", error);
+      toast.error("Errore nell'invio della richiesta");
     } finally {
-      setSavingAddress(false);
+      setSubmittingAddressRequest(false);
     }
   };
 
@@ -746,26 +775,62 @@ const DelivererDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Indirizzo Base & Telegram
+              Indirizzo Base
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {deliverer.latitude && deliverer.longitude ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                  <MapPin className="h-5 w-5 text-green-600" />
-                  <div>
+            {deliverer.base_address ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                  <MapPin className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  <div className="flex-1">
                     <p className="font-medium text-green-800 dark:text-green-200">
-                      Indirizzo base configurato
+                      Indirizzo configurato
                     </p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      Riceverai notifiche {deliverer.telegram_chat_id ? 'Telegram' : 'in-app'} per ordini entro {deliverer.operating_radius_km || 10} km
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      {deliverer.base_address}
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      Raggio operativo: {deliverer.operating_radius_km || 10} km
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Coordinate: {deliverer.latitude.toFixed(6)}, {deliverer.longitude.toFixed(6)}
-                </p>
+
+                {addressChangeRequest ? (
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <p className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                      📋 Richiesta di modifica in attesa
+                    </p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Nuovo indirizzo: {addressChangeRequest.requested_address}
+                    </p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                      In attesa di approvazione admin
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-3 border-t">
+                    <p className="text-sm font-medium">Richiedi modifica indirizzo</p>
+                    <AddressAutocomplete
+                      value={baseAddress}
+                      onSelect={(address, lat, lon) => {
+                        setBaseAddress(address);
+                        setBaseLatitude(lat);
+                        setBaseLongitude(lon);
+                      }}
+                      placeholder="Nuovo indirizzo base"
+                    />
+                    <Button 
+                      onClick={handleRequestAddressChange}
+                      disabled={!baseLatitude || !baseLongitude || submittingAddressRequest}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {submittingAddressRequest ? "Invio..." : "Richiedi Modifica"}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -776,36 +841,34 @@ const DelivererDashboard = () => {
                       Configura il tuo indirizzo base
                     </p>
                     <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                      Riceverai notifiche in-app per ordini entro 10 km dal tuo indirizzo
+                      Riceverai notifiche per ordini entro 10 km dal tuo indirizzo
                     </p>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="base-address">Inserisci il tuo indirizzo base</Label>
+                  <AddressAutocomplete
+                    value={baseAddress}
+                    onSelect={(address, lat, lon) => {
+                      setBaseAddress(address);
+                      setBaseLatitude(lat);
+                      setBaseLongitude(lon);
+                    }}
+                    placeholder="Via Roma 1, Milano, MI"
+                  />
+                </div>
+
+                <Button 
+                  onClick={handleRequestAddressChange}
+                  disabled={!baseLatitude || !baseLongitude || submittingAddressRequest}
+                  className="w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {submittingAddressRequest ? "Invio..." : "Richiedi Configurazione"}
+                </Button>
               </div>
             )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="base-address">
-                {deliverer.latitude ? "Aggiorna indirizzo base" : "Inserisci il tuo indirizzo base"}
-              </Label>
-              <AddressAutocomplete
-                value={baseAddress}
-                onSelect={(address, lat, lon) => {
-                  setBaseAddress(address);
-                  setBaseLatitude(lat);
-                  setBaseLongitude(lon);
-                }}
-                placeholder="Via Roma 1, Milano, MI"
-              />
-            </div>
-
-            <Button 
-              onClick={handleSaveBaseAddress}
-              disabled={!baseLatitude || !baseLongitude || savingAddress}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingAddress ? "Salvataggio..." : "Salva Indirizzo Base"}
-            </Button>
 
             <div className="mt-6 pt-6 border-t">
               <div className="flex items-center gap-2 mb-3">

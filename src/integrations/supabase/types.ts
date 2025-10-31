@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      deliverer_address_requests: {
+        Row: {
+          created_at: string
+          deliverer_id: string
+          id: string
+          notes: string | null
+          requested_address: string
+          requested_latitude: number
+          requested_longitude: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          deliverer_id: string
+          id?: string
+          notes?: string | null
+          requested_address: string
+          requested_latitude: number
+          requested_longitude: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          deliverer_id?: string
+          id?: string
+          notes?: string | null
+          requested_address?: string
+          requested_latitude?: number
+          requested_longitude?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliverer_address_requests_deliverer_id_fkey"
+            columns: ["deliverer_id"]
+            isOneToOne: false
+            referencedRelation: "deliverers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliverer_auth_tokens: {
         Row: {
           created_at: string
@@ -101,6 +148,7 @@ export type Database = {
       deliverers: {
         Row: {
           avatar_url: string | null
+          base_address: string | null
           created_at: string
           current_orders: number
           email: string | null
@@ -122,6 +170,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          base_address?: string | null
           created_at?: string
           current_orders?: number
           email?: string | null
@@ -143,6 +192,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          base_address?: string | null
           created_at?: string
           current_orders?: number
           email?: string | null
