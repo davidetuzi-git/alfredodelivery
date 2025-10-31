@@ -50,6 +50,11 @@ const OrderTracking = () => {
     if (pickupCodeFromState) {
       loadOrder(pickupCodeFromState);
     }
+    
+    // Check if notifications are already enabled
+    if ("Notification" in window && Notification.permission === "granted") {
+      setNotificationsEnabled(true);
+    }
   }, [pickupCodeFromState]);
 
   useEffect(() => {
@@ -188,7 +193,16 @@ const OrderTracking = () => {
   };
 
   const requestNotificationPermission = async () => {
-    if ("Notification" in window) {
+    if (!("Notification" in window)) {
+      toast({
+        title: "Non supportato",
+        description: "Il tuo browser non supporta le notifiche",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         setNotificationsEnabled(true);
@@ -196,7 +210,20 @@ const OrderTracking = () => {
           title: "Notifiche attivate",
           description: "Riceverai aggiornamenti sullo stato dell'ordine",
         });
+      } else if (permission === "denied") {
+        toast({
+          title: "Permesso negato",
+          description: "Hai negato il permesso per le notifiche. Puoi abilitarlo dalle impostazioni del browser.",
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile richiedere il permesso per le notifiche",
+        variant: "destructive",
+      });
     }
   };
 
