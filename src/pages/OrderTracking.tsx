@@ -476,13 +476,24 @@ const OrderTracking = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
                   <Package className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Supermercato</p>
                     <p className="font-semibold text-sm">{order.store_name}</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Totale ordine */}
+            <div className="pt-4 border-t border-dashed border-muted">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Totale ordine</p>
+                  <p className="text-sm text-muted-foreground">Include spesa, consegna e costi di servizio</p>
+                </div>
+                <p className="text-3xl font-bold text-primary">€{order.total_amount.toFixed(2)}</p>
               </div>
             </div>
 
