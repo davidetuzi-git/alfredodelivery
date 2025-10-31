@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +52,7 @@ const Profile = () => {
   };
   
   const menuItems = [
+    { icon: ShoppingBag, label: "I miei ordini", action: () => navigate("/i-miei-ordini") },
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => {} },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => {} },

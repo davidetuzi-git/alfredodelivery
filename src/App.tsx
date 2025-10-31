@@ -26,6 +26,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DelivererAuth from "./pages/DelivererAuth";
 import DelivererDashboard from "./pages/DelivererDashboard";
 import DelivererOrderDetail from "./pages/DelivererOrderDetail";
+import MyOrders from "./pages/MyOrders";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/tracking" element={<OrderTracking />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/profilo" element={<Profile />} />
+          <Route path="/i-miei-ordini" element={<MyOrders />} />
           <Route path="/dati-personali" element={<PersonalData />} />
           <Route path="/prezzi" element={<PriceSearch />} />
           <Route path="/confronta" element={<CompareStores />} />

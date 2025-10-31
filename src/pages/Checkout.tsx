@@ -198,9 +198,10 @@ const Checkout = () => {
 
       const pickupCode = codeData;
 
-      // Save order
+      // Save order with user_id
       const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
         pickup_code: pickupCode,
+        user_id: session?.user.id,
         customer_name: orderData.orderData.name,
         customer_phone: orderData.orderData.phone,
         delivery_address: orderData.orderData.address,
