@@ -92,13 +92,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (response === "accept") {
-      // Assign order to this deliverer
+      // Assign order to this deliverer and update status
       const { error: updateError } = await supabase
         .from("orders")
         .update({
           deliverer_id: notification.deliverers.id,
           deliverer_name: notification.deliverers.name,
           deliverer_phone: notification.deliverers.phone,
+          delivery_status: 'assigned',
+          status: 'assigned'
         })
         .eq("id", notification.order_id);
 
