@@ -25,6 +25,7 @@ interface Order {
   deliverer_name: string | null;
   deliverer_phone: string | null;
   created_at: string;
+  pickup_code: string;
 }
 
 interface Deliverer {

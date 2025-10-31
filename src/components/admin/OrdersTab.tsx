@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { User, Phone, MapPin, Calendar, ShoppingBag, Package, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { User, Phone, MapPin, Calendar, ShoppingBag, Package, Eye, Search } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ interface Order {
   deliverer_name: string | null;
   deliverer_phone: string | null;
   created_at: string;
+  pickup_code: string;
 }
 
 interface Deliverer {
@@ -45,6 +47,7 @@ interface OrdersTabProps {
 export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const assignDeliverer = async (orderId: string, delivererId: string) => {
     const deliverer = deliverers.find(d => d.id === delivererId);
@@ -114,42 +117,71 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
 
   const filterByStatus = (status: string) => {
     const now = new Date();
-    if (status === "all") return orders;
-    if (status === "scheduled") return orders.filter(o => o.delivery_status === "confirmed");
-    if (status === "in_transit") return orders.filter(o => o.delivery_status === "in_transit");
-    if (status === "delivered") return orders.filter(o => o.delivery_status === "delivered");
-    if (status === "expired") {
-      // Ordini scaduti: data passata e nessun deliverer assegnato
-      return orders.filter(o => {
+    let filteredOrders = orders;
+    
+    // Apply status filter
+    if (status === "scheduled") filteredOrders = orders.filter(o => o.delivery_status === "confirmed");
+    else if (status === "in_transit") filteredOrders = orders.filter(o => o.delivery_status === "in_transit");
+    else if (status === "delivered") filteredOrders = orders.filter(o => o.delivery_status === "delivered");
+    else if (status === "expired") {
+      filteredOrders = orders.filter(o => {
         const deliveryDate = new Date(o.delivery_date);
         return deliveryDate < now && o.deliverer_id === null && o.delivery_status === "confirmed";
       });
     }
-    return orders;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filteredOrders = filteredOrders.filter(order => 
+        order.pickup_code.toLowerCase().includes(query) ||
+        order.customer_name.toLowerCase().includes(query) ||
+        order.customer_phone.includes(query) ||
+        order.delivery_address.toLowerCase().includes(query) ||
+        order.store_name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filteredOrders;
   };
 
   return (
-    <Tabs defaultValue="all" className="w-full">
-      <TabsList className="grid w-full grid-cols-5">
-        <TabsTrigger value="all">Tutti ({orders.length})</TabsTrigger>
-        <TabsTrigger value="scheduled">
-          Programmati ({orders.filter(o => o.delivery_status === "confirmed" && new Date(o.delivery_date) >= new Date()).length})
-        </TabsTrigger>
-        <TabsTrigger value="in_transit">
-          In Consegna ({orders.filter(o => o.delivery_status === "in_transit").length})
-        </TabsTrigger>
-        <TabsTrigger value="delivered">
-          Consegnati ({orders.filter(o => o.delivery_status === "delivered").length})
-        </TabsTrigger>
-        <TabsTrigger value="expired">
-          Scaduti ({orders.filter(o => new Date(o.delivery_date) < new Date() && o.deliverer_id === null && o.delivery_status === "confirmed").length})
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      {/* Barra di ricerca */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Cerca ordine per codice pickup, cliente, telefono, indirizzo o negozio..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="all">Tutti ({filterByStatus("all").length})</TabsTrigger>
+          <TabsTrigger value="scheduled">
+            Programmati ({filterByStatus("scheduled").length})
+          </TabsTrigger>
+          <TabsTrigger value="in_transit">
+            In Consegna ({filterByStatus("in_transit").length})
+          </TabsTrigger>
+          <TabsTrigger value="delivered">
+            Consegnati ({filterByStatus("delivered").length})
+          </TabsTrigger>
+          <TabsTrigger value="expired">
+            Scaduti ({filterByStatus("expired").length})
+          </TabsTrigger>
+        </TabsList>
 
       {["all", "scheduled", "in_transit", "delivered", "expired"].map((tabValue) => (
         <TabsContent key={tabValue} value={tabValue} className="space-y-4">
           {filterByStatus(tabValue).length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Nessun ordine in questa categoria</p>
+            <p className="text-center text-muted-foreground py-8">
+              {searchQuery ? "Nessun ordine trovato con questa ricerca" : "Nessun ordine in questa categoria"}
+            </p>
           ) : (
             filterByStatus(tabValue).map((order) => (
               <Card key={order.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
@@ -165,7 +197,7 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
                             {getStatusLabel(order.delivery_status)}
                           </Badge>
                           <p className="text-xs text-muted-foreground mt-1">
-                            #{order.id.slice(0, 8)}
+                            #{order.pickup_code}
                           </p>
                         </div>
                         <p className="text-xl font-bold">€{order.total_amount}</p>
@@ -259,5 +291,6 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
         onOpenChange={setDialogOpen} 
       />
     </Tabs>
+    </div>
   );
 };
