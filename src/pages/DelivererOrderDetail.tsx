@@ -8,6 +8,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation } from "lucide-react";
 import OrderChat from "@/components/OrderChat";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface OrderItem {
   name: string;
@@ -40,6 +50,7 @@ const DelivererOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [sharingLocation, setSharingLocation] = useState(false);
   const [delivererName, setDelivererName] = useState<string>("");
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -114,11 +125,14 @@ const DelivererOrderDetail = () => {
     }
   };
 
-  const toggleLocationSharing = () => {
+  const toggleLocationSharing = (fromPrompt: boolean = false) => {
     if (!sharingLocation) {
       if ('geolocation' in navigator) {
         setSharingLocation(true);
         toast.success("Condivisione posizione attivata");
+        if (fromPrompt) {
+          setShowLocationPrompt(false);
+        }
       } else {
         toast.error("Geolocalizzazione non supportata");
       }
@@ -220,6 +234,11 @@ const DelivererOrderDetail = () => {
         }
         
         toast.success("Stato aggiornato: Spesa completata");
+        
+        // Mostra popup per condivisione posizione se non è già attiva
+        if (!sharingLocation) {
+          setShowLocationPrompt(true);
+        }
       }
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -390,7 +409,7 @@ const DelivererOrderDetail = () => {
 
         <div className="mb-4">
           <Button
-            onClick={toggleLocationSharing}
+            onClick={() => toggleLocationSharing(false)}
             variant={sharingLocation ? "default" : "outline"}
             className="w-full"
             size="lg"
@@ -418,6 +437,33 @@ const DelivererOrderDetail = () => {
           <CheckCircle2 className="h-5 w-5 mr-2" />
           {allChecked ? 'Completa Consegna' : `Spunta tutti gli articoli (${checkedCount}/${totalItems})`}
         </Button>
+
+        <AlertDialog open={showLocationPrompt} onOpenChange={setShowLocationPrompt}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-primary" />
+                Condividi la tua posizione
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Hai completato la spesa! 🎉</p>
+                <p>
+                  Attiva ora la condivisione della posizione per permettere al cliente 
+                  di seguire in tempo reale il tuo percorso di consegna.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowLocationPrompt(false)}>
+                Non ora
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => toggleLocationSharing(true)}>
+                <Navigation className="h-4 w-4 mr-2" />
+                Attiva condivisione
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
