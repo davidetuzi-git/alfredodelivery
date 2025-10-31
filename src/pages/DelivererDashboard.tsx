@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Truck, LogOut, Phone, Mail, Power, Star, Calendar as CalendarIcon, User, Upload } from "lucide-react";
 import { DeliveryCalendar } from "@/components/deliverer/DeliveryCalendar";
@@ -237,10 +244,22 @@ const DelivererDashboard = () => {
       setOpenOrders(openOrdersData);
     }
 
-    // Calcola automaticamente lo stato "busy" se ci sono consegne in corso
+    // Calcola automaticamente lo stato "busy" SOLO se ci sono consegne in corso OGGI
     let finalStatus = delivererData.status;
-    if (openOrdersData && openOrdersData.length > 0) {
-      // Se ha ordini in corso, forzalo a "busy"
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Filtra ordini che sono effettivamente in corso oggi
+    const ordersInProgressToday = openOrdersData?.filter(order => {
+      const deliveryDate = new Date(order.delivery_date);
+      deliveryDate.setHours(0, 0, 0, 0);
+      return deliveryDate.getTime() === today.getTime();
+    }) || [];
+
+    if (ordersInProgressToday.length > 0) {
+      // Se ha ordini in corso OGGI, forzalo a "busy"
       finalStatus = 'busy';
       
       // Aggiorna il database solo se lo stato non è già "busy"
@@ -251,7 +270,7 @@ const DelivererDashboard = () => {
           .eq('id', delivererData.id);
       }
     } else if (delivererData.status === 'busy') {
-      // Se non ha ordini in corso ma è segnato come busy, 
+      // Se non ha ordini in corso oggi ma è segnato come busy, 
       // ripristina a "available" automaticamente
       finalStatus = 'available';
       await supabase
@@ -368,9 +387,19 @@ const DelivererDashboard = () => {
   const updateAvailabilityStatus = async (newStatus: 'available' | 'inactive') => {
     if (!deliverer) return;
     
-    // Non permettere il cambio di stato se il fattorino ha ordini in corso
-    if (openOrders.length > 0) {
-      toast.error("Non puoi cambiare stato mentre hai consegne in corso. Completa prima le tue consegne.");
+    // Controlla ordini in corso OGGI
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const ordersInProgressToday = openOrders.filter(order => {
+      const deliveryDate = new Date(order.delivery_date);
+      deliveryDate.setHours(0, 0, 0, 0);
+      return deliveryDate.getTime() === today.getTime();
+    });
+
+    // Non permettere il cambio di stato se il fattorino ha ordini in corso OGGI
+    if (ordersInProgressToday.length > 0) {
+      toast.error("Non puoi cambiare stato mentre hai consegne in corso oggi. Completa prima le tue consegne.");
       return;
     }
     
@@ -524,65 +553,76 @@ const DelivererDashboard = () => {
             <Truck className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Dashboard Fattorino</h1>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="h-4 w-4 mr-2" />
-            Esci
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Menu a tendina per lo stato */}
+            <div className="flex items-center gap-2">
+              <Power className="h-4 w-4 text-muted-foreground" />
+              <Select
+                value={deliverer.status}
+                onValueChange={(value: 'available' | 'inactive') => updateAvailabilityStatus(value)}
+                disabled={updatingStatus || deliverer.status === 'busy'}
+              >
+                <SelectTrigger className="w-[180px] bg-background">
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${getStatusColor(deliverer.status)}`} />
+                      <span>{getStatusLabel(deliverer.status)}</span>
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="available">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      <span>Disponibile</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="inactive">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-gray-500" />
+                      <span>Non Attivo</span>
+                    </div>
+                  </SelectItem>
+                  {deliverer.status === 'busy' && (
+                    <SelectItem value="busy" disabled>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                        <span>Occupato (auto)</span>
+                      </div>
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleLogout} variant="outline">
+              <LogOut className="h-4 w-4 mr-2" />
+              Esci
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 mb-6">
-          {/* Card Disponibilità */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Power className="h-5 w-5" />
-                Disponibilità
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center mb-4">
-                <Badge className={`${getStatusColor(deliverer.status)} text-lg py-2 px-4`}>
-                  {getStatusLabel(deliverer.status)}
-                </Badge>
-                {deliverer.status === 'busy' && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Hai {openOrders.length} consegna/e in corso
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Button
-                  onClick={() => updateAvailabilityStatus('available')}
-                  disabled={updatingStatus || deliverer.status === 'available' || deliverer.status === 'busy'}
-                  className="w-full bg-green-500 hover:bg-green-600"
-                  variant={deliverer.status === 'available' ? 'default' : 'outline'}
-                >
-                  ✅ Disponibile
-                </Button>
-                
-                <Button
-                  onClick={() => updateAvailabilityStatus('inactive')}
-                  disabled={updatingStatus || deliverer.status === 'inactive' || deliverer.status === 'busy'}
-                  className="w-full bg-gray-500 hover:bg-gray-600"
-                  variant={deliverer.status === 'inactive' ? 'default' : 'outline'}
-                >
-                  🔴 Non Attivo
-                </Button>
-              </div>
-              
-              <div className="text-xs text-muted-foreground space-y-1 mt-4 p-3 bg-muted/50 rounded-lg">
-                <p><strong>Disponibile:</strong> Ricevi nuove consegne</p>
-                <p><strong>Occupato:</strong> Hai consegne in corso (automatico)</p>
-                <p><strong>Non Attivo:</strong> Fuori servizio</p>
-                {deliverer.status === 'busy' && (
-                  <p className="text-orange-600 font-semibold mt-2">
-                    ⚠️ Completa le consegne in corso per cambiare stato
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2 mb-6">
+          {deliverer.status === 'busy' && (
+            <Card className="md:col-span-2 border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Power className="h-4 w-4 text-yellow-600" />
+                  <span className="font-semibold text-yellow-700 dark:text-yellow-500">
+                    Hai {openOrders.filter(order => {
+                      const deliveryDate = new Date(order.delivery_date);
+                      deliveryDate.setHours(0, 0, 0, 0);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return deliveryDate.getTime() === today.getTime();
+                    }).length} consegna/e in corso oggi
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Completa le consegne per cambiare stato
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="md:col-span-2">
             <CardHeader>
