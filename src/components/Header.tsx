@@ -17,18 +17,39 @@ import { toast } from "@/hooks/use-toast";
 export const Header = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const loadProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, full_name')
+      .eq('id', userId)
+      .single();
+    
+    if (data) {
+      setProfile(data);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -37,6 +58,28 @@ export const Header = () => {
       description: "Arrivederci!",
     });
     navigate("/");
+  };
+
+  const getDisplayName = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    if (profile?.full_name) {
+      return profile.full_name;
+    }
+    if (user?.user_metadata?.name) {
+      return user.user_metadata.name;
+    }
+    return "Utente";
+  };
+
+  const getInitials = () => {
+    const name = getDisplayName();
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
   };
 
   const navItems = [
@@ -75,20 +118,23 @@ export const Header = () => {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Button 
+                  variant="ghost" 
+                  className="relative h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 hover:shadow-lg"
+                >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
+                    <AvatarImage src={user.user_metadata?.avatar_url} alt={getDisplayName()} />
                     <AvatarFallback className="bg-primary/10 text-primary">
-                      {user.email?.charAt(0).toUpperCase()}
+                      {getInitials()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-56 bg-background" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.user_metadata?.name || "Utente"}
+                      {getDisplayName()}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
