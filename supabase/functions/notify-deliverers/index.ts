@@ -180,6 +180,15 @@ C'è una nuova consegna disponibile nella tua zona:
           
           if (telegramData.ok) {
             console.log("Telegram message sent to", deliverer.name);
+            
+            // Save the message_id so we can edit it later
+            await supabase
+              .from("delivery_notifications")
+              .update({
+                telegram_message_id: telegramData.result.message_id.toString(),
+                telegram_chat_id: deliverer.telegram_chat_id
+              })
+              .eq("id", notification.id);
           } else {
             console.error("Error sending Telegram to", deliverer.name, telegramData);
           }

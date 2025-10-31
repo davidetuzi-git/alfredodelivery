@@ -223,6 +223,8 @@ export type Database = {
           responded_at: string | null
           sent_at: string
           status: string
+          telegram_chat_id: string | null
+          telegram_message_id: string | null
         }
         Insert: {
           created_at?: string
@@ -232,6 +234,8 @@ export type Database = {
           responded_at?: string | null
           sent_at?: string
           status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
         }
         Update: {
           created_at?: string
@@ -241,6 +245,8 @@ export type Database = {
           responded_at?: string | null
           sent_at?: string
           status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
         }
         Relationships: [
           {

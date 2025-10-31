@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -123,15 +125,69 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("id", notification.deliverers.id);
 
       // Reject all other pending notifications for this order
-      await supabase
+      const { data: allNotifications } = await supabase
         .from("delivery_notifications")
-        .update({
-          status: "expired",
-          responded_at: new Date().toISOString(),
-        })
+        .select("*")
         .eq("order_id", notification.order_id)
-        .eq("status", "sent")
-        .neq("id", notification_id);
+        .eq("status", "sent");
+
+      // Update all notifications to expired and remove buttons from Telegram messages
+      for (const notif of allNotifications || []) {
+        if (notif.id !== notification_id) {
+          // Update notification status
+          await supabase
+            .from("delivery_notifications")
+            .update({
+              status: "expired",
+              responded_at: new Date().toISOString(),
+            })
+            .eq("id", notif.id);
+
+          // Remove buttons from Telegram message
+          if (notif.telegram_chat_id && notif.telegram_message_id) {
+            try {
+              await fetch(
+                `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: notif.telegram_chat_id,
+                    message_id: parseInt(notif.telegram_message_id),
+                    reply_markup: {
+                      inline_keyboard: []
+                    }
+                  }),
+                }
+              );
+            } catch (error) {
+              console.error("Failed to remove Telegram buttons:", error);
+            }
+          }
+        }
+      }
+
+      // Also remove buttons from the accepted notification's message
+      if (notification.telegram_chat_id && notification.telegram_message_id) {
+        try {
+          await fetch(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: notification.telegram_chat_id,
+                message_id: parseInt(notification.telegram_message_id),
+                reply_markup: {
+                  inline_keyboard: []
+                }
+              }),
+            }
+          );
+        } catch (error) {
+          console.error("Failed to remove Telegram buttons:", error);
+        }
+      }
 
       // Redirect to deliverer auth page
       return new Response(null, {
@@ -150,6 +206,28 @@ const handler = async (req: Request): Promise<Response> => {
           responded_at: new Date().toISOString(),
         })
         .eq("id", notification_id);
+
+      // Remove buttons from the rejected notification's Telegram message
+      if (notification.telegram_chat_id && notification.telegram_message_id) {
+        try {
+          await fetch(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: notification.telegram_chat_id,
+                message_id: parseInt(notification.telegram_message_id),
+                reply_markup: {
+                  inline_keyboard: []
+                }
+              }),
+            }
+          );
+        } catch (error) {
+          console.error("Failed to remove Telegram buttons:", error);
+        }
+      }
 
       return new Response(
         `
