@@ -21,6 +21,14 @@ export const Hero = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleOrderClick = () => {
+    if (!user) {
+      navigate("/auth");
+    } else {
+      navigate("/ordina");
+    }
+  };
+
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden">
       {/* Background gradient */}
@@ -54,7 +62,7 @@ export const Hero = () => {
                   Accedi
                 </Button>
               )}
-              <Button variant="secondary" size="lg" className="group" onClick={() => navigate("/ordina")}>
+              <Button variant="secondary" size="lg" className="group" onClick={handleOrderClick}>
                 <ShoppingCart className="group-hover:rotate-12 transition-transform" />
                 Ordina subito
               </Button>

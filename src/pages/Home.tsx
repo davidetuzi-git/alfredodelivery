@@ -10,10 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Home = () => {
   const navigate = useNavigate();
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     const checkOnboarding = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
       if (session) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -29,6 +31,14 @@ const Home = () => {
 
     checkOnboarding();
   }, [navigate]);
+
+  const handleOrderClick = () => {
+    if (!session) {
+      navigate("/auth");
+    } else {
+      navigate("/ordina");
+    }
+  };
 
   const orderHistory = [
     { id: 1, store: "Esselunga", date: "15 Gen 2025", items: 12, total: "€45.80", status: "Consegnato" },
@@ -85,7 +95,7 @@ const Home = () => {
           </div>
 
           <Button 
-            onClick={() => navigate("/ordina")}
+            onClick={handleOrderClick}
             className="w-full h-12 text-lg"
           >
             Nuovo Ordine Rapido
