@@ -7,11 +7,20 @@ import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 
 const Home = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
   const [userName, setUserName] = useState<string>("Utente");
+  const [orders, setOrders] = useState<any[]>([]);
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalSaved: 0,
+    activeVouchers: 0
+  });
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -31,6 +40,9 @@ const Home = () => {
           
           if (!profile.onboarding_completed) {
             navigate("/onboarding");
+          } else {
+            // Carica dati reali solo se l'onboarding è completato
+            await loadUserData(session.user.id);
           }
         }
       }
@@ -38,6 +50,54 @@ const Home = () => {
 
     checkOnboarding();
   }, [navigate]);
+
+  const loadUserData = async (userId: string) => {
+    // Carica ordini dell'utente
+    const { data: userOrders } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (userOrders) {
+      setOrders(userOrders);
+    }
+
+    // Calcola statistiche
+    const { data: allOrders } = await supabase
+      .from("orders")
+      .select("total_amount, discount, voucher_discount")
+      .eq("user_id", userId);
+
+    if (allOrders) {
+      const totalOrders = allOrders.length;
+      const totalSaved = allOrders.reduce((sum, order) => 
+        sum + (order.discount || 0) + (order.voucher_discount || 0), 0
+      );
+      
+      setStats({
+        totalOrders,
+        totalSaved: Math.round(totalSaved * 100) / 100,
+        activeVouchers: 0 // Sarà aggiornato dopo
+      });
+    }
+
+    // Carica voucher attivi
+    const { data: activeVouchers } = await supabase
+      .from("vouchers")
+      .select("*")
+      .eq("active", true)
+      .gte("valid_until", new Date().toISOString())
+      .lte("valid_from", new Date().toISOString())
+      .order("valid_until", { ascending: true })
+      .limit(3);
+
+    if (activeVouchers) {
+      setVouchers(activeVouchers);
+      setStats(prev => ({ ...prev, activeVouchers: activeVouchers.length }));
+    }
+  };
 
   const handleOrderClick = () => {
     if (!session) {
@@ -47,17 +107,42 @@ const Home = () => {
     }
   };
 
-  const orderHistory = [
-    { id: 1, store: "Esselunga", date: "15 Gen 2025", items: 12, total: "€45.80", status: "Consegnato" },
-    { id: 2, store: "Carrefour", date: "10 Gen 2025", items: 8, total: "€32.50", status: "Consegnato" },
-    { id: 3, store: "Coop", date: "5 Gen 2025", items: 15, total: "€58.20", status: "Consegnato" },
-  ];
+  const handleUseVoucher = (voucherCode: string) => {
+    navigate("/ordina", { state: { voucherCode } });
+  };
 
-  const offers = [
-    { id: 1, title: "Sconto 20% su frutta fresca", store: "Esselunga", expires: "3 giorni" },
-    { id: 2, title: "2x1 sui prodotti per la casa", store: "Carrefour", expires: "1 settimana" },
-    { id: 3, title: "Cashback 5€ sul prossimo ordine", store: "Coop", expires: "2 giorni" },
-  ];
+  const getStatusLabel = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'confirmed': 'Confermato',
+      'assigned': 'Assegnato',
+      'at_store': 'Al supermercato',
+      'shopping_complete': 'Spesa completata',
+      'on_the_way': 'In consegna',
+      'delivered': 'Consegnato',
+      'cancelled': 'Cancellato'
+    };
+    return statusMap[status] || status;
+  };
+
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (status === 'delivered') return 'default';
+    if (status === 'cancelled') return 'destructive';
+    return 'secondary';
+  };
+
+  const calculateDaysUntilExpiry = (validUntil: string) => {
+    const now = new Date();
+    const expiry = new Date(validUntil);
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Oggi";
+    if (diffDays === 1) return "1 giorno";
+    if (diffDays < 7) return `${diffDays} giorni`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return "1 settimana";
+    return `${weeks} settimane`;
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -81,21 +166,21 @@ const Home = () => {
             <Card className="bg-card/50 backdrop-blur">
               <CardContent className="p-4 text-center">
                 <ShoppingBag className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <div className="text-2xl font-bold">24</div>
+                <div className="text-2xl font-bold">{stats.totalOrders}</div>
                 <div className="text-xs text-muted-foreground">Ordini totali</div>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur">
               <CardContent className="p-4 text-center">
                 <TrendingUp className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <div className="text-2xl font-bold">€856</div>
+                <div className="text-2xl font-bold">€{stats.totalSaved.toFixed(2)}</div>
                 <div className="text-xs text-muted-foreground">Risparmiati</div>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur">
               <CardContent className="p-4 text-center">
                 <Gift className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{stats.activeVouchers}</div>
                 <div className="text-xs text-muted-foreground">Offerte attive</div>
               </CardContent>
             </Card>
@@ -111,49 +196,93 @@ const Home = () => {
       </div>
 
       <div className="max-w-screen-xl mx-auto p-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" />
-              Offerte per te
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {offers.map((offer) => (
-              <div key={offer.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm">{offer.title}</h3>
-                  <p className="text-xs text-muted-foreground">{offer.store} • Scade tra {offer.expires}</p>
+        {vouchers.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" />
+                Offerte per te
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {vouchers.map((voucher) => (
+                <div key={voucher.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm">
+                      {voucher.discount_type === 'percentage' 
+                        ? `Sconto ${voucher.discount_value}%` 
+                        : `Sconto €${voucher.discount_value}`}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {voucher.description || `Codice: ${voucher.code}`} • Scade tra {calculateDaysUntilExpiry(voucher.valid_until)}
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="secondary"
+                    onClick={() => handleUseVoucher(voucher.code)}
+                  >
+                    Usa ora
+                  </Button>
                 </div>
-                <Button size="sm" variant="secondary">Usa ora</Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              Storico ordini
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {orderHistory.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex-1">
-                  <h3 className="font-semibold">{order.store}</h3>
-                  <p className="text-sm text-muted-foreground">{order.date} • {order.items} articoli</p>
+        {orders.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                Storico ordini
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {orders.map((order) => (
+                <div 
+                  key={order.id} 
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate('/my-orders')}
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{order.store_name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(order.created_at), "d MMM yyyy", { locale: it })} • 
+                      {Array.isArray(order.items) ? ` ${order.items.length} articoli` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold">€{order.total_amount.toFixed(2)}</div>
+                    <Badge variant={getStatusVariant(order.delivery_status)} className="text-xs">
+                      {getStatusLabel(order.delivery_status)}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold">{order.total}</div>
-                  <Badge variant="outline" className="text-xs">{order.status}</Badge>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">Vedi tutti gli ordini</Button>
-          </CardContent>
-        </Card>
+              ))}
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/my-orders')}
+              >
+                Vedi tutti gli ordini
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                Storico ordini
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground mb-4">Non hai ancora effettuato ordini</p>
+              <Button onClick={handleOrderClick}>Fai il tuo primo ordine</Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Navigation />
