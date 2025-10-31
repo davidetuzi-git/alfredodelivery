@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star, Calendar as CalendarIcon } from "lucide-react";
-import { DeliveryCalendar } from "@/components/deliverer/DeliveryCalendar";
+import { Truck, LogOut, MapPin, Phone, Mail, Save, MessageCircle, Power, Upload, Star } from "lucide-react";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -91,8 +90,8 @@ const DelivererDashboard = () => {
   useEffect(() => {
     if (!deliverer) return;
 
-    // Subscribe to real-time notifications
-    const channel = supabase
+    // Subscribe to real-time notifications for new orders
+    const notificationsChannel = supabase
       .channel('delivery-notifications')
       .on(
         'postgres_changes',
@@ -127,11 +126,32 @@ const DelivererDashboard = () => {
       )
       .subscribe();
 
+    // Subscribe to orders table changes to update available orders list
+    const ordersChannel = supabase
+      .channel('orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        async (payload) => {
+          console.log('Order changed:', payload);
+          // Reload available orders when any order changes
+          if (deliverer.latitude && deliverer.longitude) {
+            await loadAvailableOrders(deliverer.latitude, deliverer.longitude);
+          }
+        }
+      )
+      .subscribe();
+
     // Load existing pending notifications
     loadNotifications();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(notificationsChannel);
+      supabase.removeChannel(ordersChannel);
     };
   }, [deliverer]);
 
@@ -849,13 +869,9 @@ const DelivererDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs per organizzare ordini: Calendario, In Corso, Aperti, Chiusi */}
-        <Tabs defaultValue="calendario" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="calendario">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Calendario
-            </TabsTrigger>
+        {/* Tabs per organizzare ordini: In Corso, Aperti, Chiusi */}
+        <Tabs defaultValue="in-corso" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="in-corso">
               🚚 In Corso ({openOrders.length})
             </TabsTrigger>
@@ -867,19 +883,14 @@ const DelivererDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Tab: Calendario - Vista calendario con tutte le consegne */}
-          <TabsContent value="calendario" className="space-y-6">
-            <DeliveryCalendar 
-              orders={[...openOrders, ...closedOrders]} 
-              onOrderClick={(order) => navigate(`/deliverer-order/${order.id}`)}
-            />
-          </TabsContent>
-
-          {/* Tab: In Corso - Ordini assegnati e in lavorazione */}
+          {/* Tab: In Corso - Ordini accettati ma ancora da completare */}
           <TabsContent value="in-corso" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>I Tuoi Ordini in Corso</CardTitle>
+                <CardTitle>Ordini in Corso</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ordini che hai accettato e che devi ancora completare
+                </p>
               </CardHeader>
               <CardContent>
                 {openOrders.length === 0 ? (
@@ -924,17 +935,25 @@ const DelivererDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Tab: Aperti - Ordini disponibili da accettare */}
+          {/* Tab: Aperti - Ordini disponibili nella zona che potrebbero essere accettati */}
           <TabsContent value="aperti" className="space-y-6">
-            {/* Ordini disponibili nella zona */}
-            {availableOrders.length > 0 && (
-              <Card className="border-green-200 dark:border-green-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
-                    🎯 Ordini Disponibili nella Tua Zona (10km)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle>Ordini Disponibili nella Tua Zona</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ordini entro 10km che puoi accettare. Scompaiono quando vengono accettati da qualsiasi deliverer.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {availableOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nessun ordine disponibile nella tua zona al momento.
+                    <br />
+                    <span className="text-xs">
+                      Gli ordini compaiono qui finché non vengono accettati da un deliverer.
+                    </span>
+                  </p>
+                ) : (
                   <div className="space-y-4">
                     {availableOrders.map((order) => (
                       <div
@@ -972,32 +991,24 @@ const DelivererDashboard = () => {
                         </div>
                         
                         <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                          💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine
+                          💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine nella sezione "In Corso"
                         </p>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Nota se non ci sono ordini disponibili */}
-            {availableOrders.length === 0 && (
-              <Card>
-                <CardContent className="py-8">
-                  <p className="text-center text-muted-foreground">
-                    Nessun ordine disponibile nella tua zona al momento
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Tab: Chiusi - Ordini completati */}
+          {/* Tab: Chiusi - Ordini completati o annullati */}
           <TabsContent value="chiusi" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Storico Ordini Completati</CardTitle>
+                <CardTitle>Ordini Chiusi</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ordini completati, annullati o non più attivi
+                </p>
               </CardHeader>
               <CardContent>
                 {closedOrders.length === 0 ? (
