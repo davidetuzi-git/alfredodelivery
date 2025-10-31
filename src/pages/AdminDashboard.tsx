@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Package, Users, TrendingUp, Bell, MapPin } from "lucide-react";
+import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket } from "lucide-react";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { DeliverersTab } from "@/components/admin/DeliverersTab";
 import { FinanceTab } from "@/components/admin/FinanceTab";
 import { NotificationsTab } from "@/components/admin/NotificationsTab";
 import { AddressRequestsTab } from "@/components/admin/AddressRequestsTab";
+import { VouchersTab } from "@/components/admin/VouchersTab";
 
 interface Order {
   id: string;
@@ -144,7 +145,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Ordini</span>
@@ -160,6 +161,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notifiche</span>
+            </TabsTrigger>
+            <TabsTrigger value="vouchers" className="flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              <span className="hidden sm:inline">Voucher</span>
             </TabsTrigger>
             <TabsTrigger value="finance" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -185,6 +190,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="notifications">
             <NotificationsTab orders={orders} />
+          </TabsContent>
+
+          <TabsContent value="vouchers">
+            <VouchersTab />
           </TabsContent>
 
           <TabsContent value="finance">

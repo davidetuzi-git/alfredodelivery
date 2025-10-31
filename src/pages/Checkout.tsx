@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2, Ticket, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,12 +23,18 @@ const Checkout = () => {
   const [mealVoucherTypes, setMealVoucherTypes] = useState<string[]>([]);
   const [loadingStoreInfo, setLoadingStoreInfo] = useState(true);
   
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<any>(null);
+  const [checkingVoucher, setCheckingVoucher] = useState(false);
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  
   const orderData = location.state || {};
   const subtotal = orderData.total || 0;
   const deliveryFee = orderData.deliveryFee || 3.99;
   const discount = orderData.discount || 4.99;
   const itemCount = orderData.itemCount || 0;
-  const finalTotal = subtotal + deliveryFee - discount;
+  const finalTotal = subtotal + deliveryFee - discount - voucherDiscount;
   const storeName = orderData.orderData?.store || "";
 
   // Check authentication first
@@ -103,6 +110,88 @@ const Checkout = () => {
         orderFormData: orderData.orderFormData 
       } 
     });
+  };
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci un codice voucher",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCheckingVoucher(true);
+    try {
+      const { data: voucher, error } = await supabase
+        .from('vouchers')
+        .select('*')
+        .eq('code', voucherCode.toUpperCase())
+        .eq('active', true)
+        .gte('valid_until', new Date().toISOString())
+        .lte('valid_from', new Date().toISOString())
+        .single();
+
+      if (error || !voucher) {
+        toast({
+          title: "Voucher non valido",
+          description: "Il codice inserito non è valido o è scaduto",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check minimum order amount
+      if (subtotal < voucher.min_order_amount) {
+        toast({
+          title: "Ordine minimo non raggiunto",
+          description: `L'ordine minimo per questo voucher è €${voucher.min_order_amount.toFixed(2)}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check max uses
+      if (voucher.max_uses && voucher.current_uses >= voucher.max_uses) {
+        toast({
+          title: "Voucher esaurito",
+          description: "Questo voucher ha raggiunto il numero massimo di utilizzi",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Calculate discount
+      let calculatedDiscount = 0;
+      if (voucher.discount_type === 'percentage') {
+        calculatedDiscount = (subtotal * voucher.discount_value) / 100;
+      } else {
+        calculatedDiscount = voucher.discount_value;
+      }
+
+      setAppliedVoucher(voucher);
+      setVoucherDiscount(calculatedDiscount);
+      toast({
+        title: "Voucher applicato!",
+        description: `Sconto di €${calculatedDiscount.toFixed(2)} applicato`,
+      });
+    } catch (error) {
+      console.error('Error applying voucher:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile applicare il voucher",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingVoucher(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherDiscount(0);
+    setVoucherCode("");
   };
 
   const handlePayment = async () => {
@@ -198,7 +287,7 @@ const Checkout = () => {
 
       const pickupCode = codeData;
 
-      // Save order with user_id
+      // Save order with user_id and voucher info
       const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
         pickup_code: pickupCode,
         user_id: session?.user.id,
@@ -212,6 +301,8 @@ const Checkout = () => {
         total_amount: subtotal,
         delivery_fee: deliveryFee,
         discount: discount,
+        voucher_code: appliedVoucher?.code || null,
+        voucher_discount: voucherDiscount,
         payment_method: paymentMethod,
         status: 'confirmed',
         latitude: orderData.orderData.latitude,
@@ -222,6 +313,20 @@ const Checkout = () => {
 
       // Notify deliverers
       if (orderInserted) {
+        // Update voucher usage if applied
+        if (appliedVoucher) {
+          await supabase.from('vouchers').update({
+            current_uses: appliedVoucher.current_uses + 1
+          }).eq('id', appliedVoucher.id);
+
+          await supabase.from('voucher_uses').insert({
+            voucher_id: appliedVoucher.id,
+            order_id: orderInserted.id,
+            user_id: session?.user.id,
+            discount_applied: voucherDiscount
+          });
+        }
+
         supabase.functions.invoke('notify-deliverers', {
           body: { order_id: orderInserted.id }
         }).then(({ error }) => {
@@ -301,10 +406,70 @@ const Checkout = () => {
               <span className="text-muted-foreground">Sconto fedeltà</span>
               <span className="font-semibold text-green-600">-€{discount.toFixed(2)}</span>
             </div>
+            {appliedVoucher && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Ticket className="h-4 w-4" />
+                  Voucher ({appliedVoucher.code})
+                </span>
+                <span className="font-semibold text-green-600">-€{voucherDiscount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t pt-3 flex justify-between text-lg">
               <span className="font-bold">Totale</span>
               <span className="font-bold">€{finalTotal.toFixed(2)}</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Voucher Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Ticket className="h-5 w-5" />
+              Hai un codice sconto?
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!appliedVoucher ? (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Inserisci il codice"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                  onKeyPress={(e) => e.key === 'Enter' && handleApplyVoucher()}
+                  disabled={checkingVoucher}
+                  maxLength={20}
+                />
+                <Button
+                  onClick={handleApplyVoucher}
+                  disabled={checkingVoucher || !voucherCode.trim()}
+                >
+                  {checkingVoucher ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Applica"
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Check className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="font-semibold text-green-900 dark:text-green-100">
+                      Voucher applicato!
+                    </p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      {appliedVoucher.description || appliedVoucher.code}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleRemoveVoucher}>
+                  Rimuovi
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

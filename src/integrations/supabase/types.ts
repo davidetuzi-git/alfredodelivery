@@ -397,6 +397,8 @@ export type Database = {
           total_amount: number
           updated_at: string
           user_id: string | null
+          voucher_code: string | null
+          voucher_discount: number | null
         }
         Insert: {
           created_at?: string
@@ -423,6 +425,8 @@ export type Database = {
           total_amount: number
           updated_at?: string
           user_id?: string | null
+          voucher_code?: string | null
+          voucher_discount?: number | null
         }
         Update: {
           created_at?: string
@@ -449,6 +453,8 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string | null
+          voucher_code?: string | null
+          voucher_discount?: number | null
         }
         Relationships: [
           {
@@ -562,6 +568,99 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      voucher_uses: {
+        Row: {
+          discount_applied: number
+          id: string
+          order_id: string
+          used_at: string | null
+          user_id: string | null
+          voucher_id: string
+        }
+        Insert: {
+          discount_applied: number
+          id?: string
+          order_id: string
+          used_at?: string | null
+          user_id?: string | null
+          voucher_id: string
+        }
+        Update: {
+          discount_applied?: number
+          id?: string
+          order_id?: string
+          used_at?: string | null
+          user_id?: string | null
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_uses_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_uses_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vouchers: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          created_by: string | null
+          current_uses: number | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          max_uses: number | null
+          min_order_amount: number | null
+          updated_at: string | null
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          max_uses?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          valid_from?: string
+          valid_until: string
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          valid_from?: string
+          valid_until?: string
         }
         Relationships: []
       }
