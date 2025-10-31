@@ -71,16 +71,39 @@ const OrderTracking = () => {
   const loadOrder = async (code: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('pickup_code', code)
-        .single();
+      const { data, error } = await supabase.functions.invoke('track-order', {
+        body: { pickupCode: code }
+      });
 
       if (error) throw error;
 
-      if (data) {
-        setOrder(data);
+      if (data && !data.error) {
+        // Map the response to match the expected order structure
+        const orderData = {
+          id: data.id || null,
+          pickup_code: data.pickupCode,
+          store_name: data.storeName,
+          delivery_status: data.deliveryStatus,
+          delivery_date: data.deliveryDate,
+          time_slot: data.timeSlot,
+          total_amount: data.totalAmount,
+          created_at: data.createdAt,
+          status_updated_at: data.statusUpdatedAt,
+          customer_name: data.customerName || '',
+          customer_phone: data.customerPhone || '',
+          delivery_address: data.deliveryAddress || '',
+          deliverer_id: data.delivererId || null,
+          deliverer_name: data.delivererName || '',
+          deliverer_phone: data.delivererPhone || '',
+          items: data.items || [],
+          delivery_fee: data.deliveryFee || 0,
+          discount: data.discount || 0,
+          voucher_discount: data.voucherDiscount || 0,
+          latitude: data.latitude || null,
+          longitude: data.longitude || null
+        };
+        
+        setOrder(orderData);
         setPickupCode(code);
         
         // Carica feedback se esiste

@@ -41,7 +41,19 @@ const handler = async (req: Request): Promise<Response> => {
         time_slot,
         total_amount,
         created_at,
-        status_updated_at
+        status_updated_at,
+        customer_name,
+        customer_phone,
+        delivery_address,
+        deliverer_id,
+        deliverer_name,
+        deliverer_phone,
+        items,
+        delivery_fee,
+        discount,
+        voucher_discount,
+        latitude,
+        longitude
       `)
       .eq("pickup_code", pickupCode.toUpperCase())
       .single();
@@ -63,9 +75,10 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("order_id", order.id)
       .order("created_at", { ascending: true });
 
-    // Return only non-sensitive tracking information
+    // Return tracking information
     return new Response(
       JSON.stringify({
+        id: order.id,
         pickupCode: order.pickup_code,
         storeName: order.store_name,
         deliveryStatus: order.delivery_status,
@@ -74,7 +87,19 @@ const handler = async (req: Request): Promise<Response> => {
         totalAmount: order.total_amount,
         createdAt: order.created_at,
         statusUpdatedAt: order.status_updated_at,
-        statusHistory: statusHistory || []
+        statusHistory: statusHistory || [],
+        customerName: order.customer_name,
+        customerPhone: order.customer_phone,
+        deliveryAddress: order.delivery_address,
+        delivererId: order.deliverer_id,
+        delivererName: order.deliverer_name,
+        delivererPhone: order.deliverer_phone,
+        items: order.items,
+        deliveryFee: order.delivery_fee,
+        discount: order.discount,
+        voucherDiscount: order.voucher_discount,
+        latitude: order.latitude,
+        longitude: order.longitude
       }),
       {
         status: 200,
