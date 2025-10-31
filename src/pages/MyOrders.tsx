@@ -282,7 +282,7 @@ const MyOrders = () => {
               <p className="text-muted-foreground mb-6">
                 Non hai ancora effettuato nessun ordine
               </p>
-              <Button onClick={() => navigate("/order")}>
+              <Button onClick={() => navigate("/ordina")}>
                 <ShoppingBag className="h-4 w-4 mr-2" />
                 Fai il tuo primo ordine
               </Button>
