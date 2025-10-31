@@ -225,23 +225,46 @@ const DelivererDashboard = () => {
       return;
     }
 
-    setDeliverer(delivererData);
-    
-    // Carica ordini disponibili nella zona (10km)
-    if (delivererData.latitude && delivererData.longitude) {
-      await loadAvailableOrders(delivererData.latitude, delivererData.longitude);
-    }
-
     // Carica ordini aperti (in corso) già assegnati al fattorino
     const { data: openOrdersData } = await supabase
       .from('orders')
       .select('*')
       .eq('deliverer_id', delivererData.id)
       .in('delivery_status', ['assigned', 'at_store', 'shopping_complete', 'on_the_way'])
-      .order('delivery_date', { ascending: true }); // Ordina per scadenza, più vicini in alto
+      .order('delivery_date', { ascending: true });
 
     if (openOrdersData) {
       setOpenOrders(openOrdersData);
+    }
+
+    // Calcola automaticamente lo stato "busy" se ci sono consegne in corso
+    let finalStatus = delivererData.status;
+    if (openOrdersData && openOrdersData.length > 0) {
+      // Se ha ordini in corso, forzalo a "busy"
+      finalStatus = 'busy';
+      
+      // Aggiorna il database solo se lo stato non è già "busy"
+      if (delivererData.status !== 'busy') {
+        await supabase
+          .from('deliverers')
+          .update({ status: 'busy' })
+          .eq('id', delivererData.id);
+      }
+    } else if (delivererData.status === 'busy') {
+      // Se non ha ordini in corso ma è segnato come busy, 
+      // ripristina a "available" automaticamente
+      finalStatus = 'available';
+      await supabase
+        .from('deliverers')
+        .update({ status: 'available' })
+        .eq('id', delivererData.id);
+    }
+
+    setDeliverer({ ...delivererData, status: finalStatus });
+    
+    // Carica ordini disponibili nella zona (10km)
+    if (delivererData.latitude && delivererData.longitude) {
+      await loadAvailableOrders(delivererData.latitude, delivererData.longitude);
     }
 
     // Carica ordini chiusi (completati/cancellati) già assegnati al fattorino
@@ -342,8 +365,14 @@ const DelivererDashboard = () => {
     }
   };
 
-  const updateAvailabilityStatus = async (newStatus: 'available' | 'unavailable' | 'inactive') => {
+  const updateAvailabilityStatus = async (newStatus: 'available' | 'inactive') => {
     if (!deliverer) return;
+    
+    // Non permettere il cambio di stato se il fattorino ha ordini in corso
+    if (openOrders.length > 0) {
+      toast.error("Non puoi cambiare stato mentre hai consegne in corso. Completa prima le tue consegne.");
+      return;
+    }
     
     setUpdatingStatus(true);
     try {
@@ -383,11 +412,12 @@ const DelivererDashboard = () => {
 
       if (updateError) throw updateError;
 
-      // Aggiorna il numero di ordini correnti del fattorino
+      // Aggiorna il numero di ordini correnti del fattorino e imposta stato su "busy"
       const { error: delivererError } = await supabase
         .from('deliverers')
         .update({
-          current_orders: deliverer.current_orders + 1
+          current_orders: deliverer.current_orders + 1,
+          status: 'busy' // Imposta automaticamente come occupato
         })
         .eq('id', deliverer.id);
 
@@ -409,10 +439,14 @@ const DelivererDashboard = () => {
         ));
       }
       
-      // Aggiorna il deliverer con il nuovo conteggio ordini
-      setDeliverer(prev => prev ? { ...prev, current_orders: prev.current_orders + 1 } : null);
+      // Aggiorna il deliverer con il nuovo conteggio ordini e stato busy
+      setDeliverer(prev => prev ? { 
+        ...prev, 
+        current_orders: prev.current_orders + 1,
+        status: 'busy' 
+      } : null);
 
-      toast.success("Ordine accettato! Ora puoi vedere tutti i dettagli");
+      toast.success("Ordine accettato! Sei ora occupato con questa consegna");
       
       // Naviga ai dettagli dell'ordine
       navigate(`/deliverer-order/${orderId}`);
@@ -510,12 +544,17 @@ const DelivererDashboard = () => {
                 <Badge className={`${getStatusColor(deliverer.status)} text-lg py-2 px-4`}>
                   {getStatusLabel(deliverer.status)}
                 </Badge>
+                {deliverer.status === 'busy' && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Hai {openOrders.length} consegna/e in corso
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">
                 <Button
                   onClick={() => updateAvailabilityStatus('available')}
-                  disabled={updatingStatus || deliverer.status === 'available'}
+                  disabled={updatingStatus || deliverer.status === 'available' || deliverer.status === 'busy'}
                   className="w-full bg-green-500 hover:bg-green-600"
                   variant={deliverer.status === 'available' ? 'default' : 'outline'}
                 >
@@ -524,7 +563,7 @@ const DelivererDashboard = () => {
                 
                 <Button
                   onClick={() => updateAvailabilityStatus('inactive')}
-                  disabled={updatingStatus || deliverer.status === 'inactive'}
+                  disabled={updatingStatus || deliverer.status === 'inactive' || deliverer.status === 'busy'}
                   className="w-full bg-gray-500 hover:bg-gray-600"
                   variant={deliverer.status === 'inactive' ? 'default' : 'outline'}
                 >
@@ -534,7 +573,13 @@ const DelivererDashboard = () => {
               
               <div className="text-xs text-muted-foreground space-y-1 mt-4 p-3 bg-muted/50 rounded-lg">
                 <p><strong>Disponibile:</strong> Ricevi nuove consegne</p>
+                <p><strong>Occupato:</strong> Hai consegne in corso (automatico)</p>
                 <p><strong>Non Attivo:</strong> Fuori servizio</p>
+                {deliverer.status === 'busy' && (
+                  <p className="text-orange-600 font-semibold mt-2">
+                    ⚠️ Completa le consegne in corso per cambiare stato
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
