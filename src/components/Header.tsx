@@ -42,7 +42,7 @@ export const Header = () => {
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
-    { path: "/tracking", icon: Clock, label: "Ordini" },
+    { path: "/i-miei-ordini", icon: Clock, label: "Ordini" },
     { path: "/prezzi", icon: Search, label: "Prezzi" },
   ];
 

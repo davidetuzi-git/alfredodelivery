@@ -7,7 +7,7 @@ export const Navigation = () => {
   const navItems = [
     { path: "/home", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
-    { path: "/tracking", icon: Clock, label: "Ordini" },
+    { path: "/i-miei-ordini", icon: Clock, label: "Ordini" },
     { path: "/prezzi", icon: Search, label: "Prezzi" },
     { path: "/profilo", icon: User, label: "Profilo" },
   ];
