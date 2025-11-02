@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt } from "lucide-react";
+import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -21,6 +21,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ShoppingItem {
   name: string;
@@ -106,6 +108,9 @@ const Order = () => {
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
   const [selectedStoreCoords, setSelectedStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   // Set store coordinates when component loads if store is already selected
   useEffect(() => {
@@ -196,6 +201,97 @@ const Order = () => {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleImportList = async () => {
+    let textToImport = importText;
+
+    // If a file was selected, read its content
+    if (importFile) {
+      try {
+        const fileText = await importFile.text();
+        textToImport = fileText;
+      } catch (error) {
+        toast({
+          title: "Errore",
+          description: "Impossibile leggere il file",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (!textToImport.trim()) {
+      toast({
+        title: "Lista vuota",
+        description: "Inserisci o carica una lista della spesa",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse the text - split by newlines and filter empty lines
+    const lines = textToImport
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length === 0) {
+      toast({
+        title: "Lista vuota",
+        description: "Non sono stati trovati prodotti nella lista",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert lines to shopping items
+    const newItems: ShoppingItem[] = lines.map(line => {
+      // Try to extract quantity if format is like "2x latte" or "3 pane"
+      const qtyMatch = line.match(/^(\d+)\s*[x×]\s*(.+)$/i) || line.match(/^(\d+)\s+(.+)$/);
+      
+      if (qtyMatch) {
+        const quantity = parseInt(qtyMatch[1]);
+        const name = qtyMatch[2].trim();
+        return {
+          name,
+          price: null,
+          loading: false,
+          quantity: quantity > 0 ? quantity : 1,
+          suggestion: null,
+          notes: "",
+        };
+      }
+
+      return {
+        name: line,
+        price: null,
+        loading: false,
+        quantity: 1,
+        suggestion: null,
+        notes: "",
+      };
+    });
+
+    // Replace current items with imported ones
+    setItems(newItems);
+
+    // Fetch prices for all items
+    newItems.forEach((item, index) => {
+      if (item.name.trim()) {
+        fetchPrice(index, item.name);
+      }
+    });
+
+    // Close dialog and reset
+    setShowImportDialog(false);
+    setImportText("");
+    setImportFile(null);
+
+    toast({
+      title: "Lista importata",
+      description: `${newItems.length} ${newItems.length === 1 ? 'prodotto aggiunto' : 'prodotti aggiunti'}`,
+    });
   };
 
   const updateItemName = (index: number, name: string) => {
@@ -901,25 +997,36 @@ const Order = () => {
               <div className="space-y-3" id="items">
                 <div className="flex items-center justify-between">
                   <Label className={cn(fieldErrors.has('items') && "text-destructive")}>Lista della spesa</Label>
-                  {items.length > 0 && items.some(item => item.name.trim() !== "") && (
+                  <div className="flex gap-2">
                     <Button
                       type="button"
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
-                      onClick={() => {
-                        if (confirm("Sei sicuro di voler svuotare il carrello?")) {
-                          setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
-                          toast({
-                            title: "Carrello svuotato",
-                            description: "Tutti gli articoli sono stati rimossi",
-                          });
-                        }
-                      }}
+                      onClick={() => setShowImportDialog(true)}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Svuota carrello
+                      <FileText className="h-4 w-4 mr-2" />
+                      Importa lista
                     </Button>
-                  )}
+                    {items.length > 0 && items.some(item => item.name.trim() !== "") && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm("Sei sicuro di voler svuotare il carrello?")) {
+                            setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+                            toast({
+                              title: "Carrello svuotato",
+                              description: "Tutti gli articoli sono stati rimossi",
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Svuota carrello
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {fieldErrors.has('items') && (
                   <p className="text-sm text-destructive">Aggiungi almeno un prodotto</p>
@@ -1178,6 +1285,105 @@ const Order = () => {
       </div>
       
       <Navigation />
+
+      {/* Import List Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Importa lista della spesa</DialogTitle>
+            <DialogDescription>
+              Incolla la tua lista della spesa o carica un file di testo. Ogni riga sarà un prodotto.
+              <br />
+              <span className="text-xs text-muted-foreground mt-2 block">
+                Formati supportati: "Latte", "2x Pane", "3 Acqua 1.5L"
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="import-text">Incolla la tua lista</Label>
+              <Textarea
+                id="import-text"
+                placeholder={"Latte\n2x Pane\nAcqua 1.5L\nPasta 500g\n..."}
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                className="min-h-[200px] font-mono text-sm"
+              />
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">oppure</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="import-file">Carica un file</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="import-file"
+                  type="file"
+                  accept=".txt,.doc,.docx,text/plain"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImportFile(file);
+                      setImportText(""); // Clear manual text when file is selected
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                {importFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setImportFile(null);
+                      const fileInput = document.getElementById('import-file') as HTMLInputElement;
+                      if (fileInput) fileInput.value = '';
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {importFile && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  {importFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowImportDialog(false);
+                setImportText("");
+                setImportFile(null);
+              }}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              onClick={handleImportList}
+              disabled={!importText.trim() && !importFile}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
