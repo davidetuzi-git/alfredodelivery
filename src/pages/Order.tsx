@@ -61,6 +61,20 @@ const Order = () => {
       }
       
       setSession(session);
+      
+      // Load user profile data to get default address
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('address, city, postal_code')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profile?.address && !savedState?.address) {
+        // Set default address from profile if not already set
+        const fullAddress = `${profile.address}${profile.city ? ', ' + profile.city : ''}${profile.postal_code ? ', ' + profile.postal_code : ''}`;
+        setAddress(fullAddress);
+      }
+      
       setLoading(false);
     };
 
@@ -799,11 +813,76 @@ const Order = () => {
               <div className="space-y-2">
                 <Label htmlFor="store">Supermercato</Label>
                 {address && addressCoords ? (
-                  <Tabs defaultValue="list" className="w-full">
+                  <Tabs defaultValue="map" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="list">Lista</TabsTrigger>
                       <TabsTrigger value="map">Mappa</TabsTrigger>
+                      <TabsTrigger value="list">Lista</TabsTrigger>
                     </TabsList>
+                    <TabsContent value="map" className="mt-4">
+                      <SupermarketMap 
+                        onSelectStore={async (storeName) => {
+                          setStore(storeName);
+                          
+                          if (fieldErrors.has('store')) {
+                            const newErrors = new Set(fieldErrors);
+                            newErrors.delete('store');
+                            setFieldErrors(newErrors);
+                          }
+                          
+                          // Find store coordinates
+                          const selectedStore = stores.find(s => `${s.name} - ${s.address}` === storeName);
+                          if (selectedStore) {
+                            setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
+                          }
+                          
+                          // Check meal voucher acceptance
+                          const storeNameOnly = storeName.split(' - ')[0].trim();
+                          try {
+                            const { data } = await supabase
+                              .from('supermarkets')
+                              .select('accepts_meal_vouchers, meal_voucher_types')
+                              .ilike('name', storeNameOnly)
+                              .limit(1)
+                              .single();
+                            
+                            if (data) {
+                              setStoreVoucherInfo({
+                                accepts: data.accepts_meal_vouchers,
+                                types: data.meal_voucher_types as string[] || []
+                              });
+                            } else {
+                              setStoreVoucherInfo(null);
+                            }
+                          } catch (error) {
+                            setStoreVoucherInfo(null);
+                          }
+                        }} 
+                        deliveryAddress={address} 
+                        onStoresUpdate={handleStoresUpdate} 
+                      />
+                      {store && (
+                        <>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Selezionato: <strong>{store}</strong>
+                          </p>
+                          {storeVoucherInfo && (
+                            <div className="mt-1">
+                              {storeVoucherInfo.accepts ? (
+                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <Receipt className="h-3 w-3" />
+                                  Accetta buoni pasto: {storeVoucherInfo.types.join(', ')}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3" />
+                                  Non accetta buoni pasto
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </TabsContent>
                     <TabsContent value="list" className="mt-4">
                       <Select value={store} onValueChange={async (value) => {
                         setStore(value);
@@ -874,65 +953,6 @@ const Order = () => {
                             </p>
                           )}
                         </div>
-                      )}
-                    </TabsContent>
-                    <TabsContent value="map" className="mt-4">
-                      <SupermarketMap 
-                        onSelectStore={async (storeName) => {
-                          setStore(storeName);
-                          
-                          // Find store coordinates
-                          const selectedStore = stores.find(s => `${s.name} - ${s.address}` === storeName);
-                          if (selectedStore) {
-                            setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
-                          }
-                          
-                          // Check meal voucher acceptance
-                          const storeNameOnly = storeName.split(' - ')[0].trim();
-                          try {
-                            const { data } = await supabase
-                              .from('supermarkets')
-                              .select('accepts_meal_vouchers, meal_voucher_types')
-                              .ilike('name', storeNameOnly)
-                              .limit(1)
-                              .single();
-                            
-                            if (data) {
-                              setStoreVoucherInfo({
-                                accepts: data.accepts_meal_vouchers,
-                                types: data.meal_voucher_types as string[] || []
-                              });
-                            } else {
-                              setStoreVoucherInfo(null);
-                            }
-                          } catch (error) {
-                            setStoreVoucherInfo(null);
-                          }
-                        }} 
-                        deliveryAddress={address} 
-                        onStoresUpdate={handleStoresUpdate} 
-                      />
-                      {store && (
-                        <>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Selezionato: <strong>{store}</strong>
-                          </p>
-                          {storeVoucherInfo && (
-                            <div className="mt-1">
-                              {storeVoucherInfo.accepts ? (
-                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                                  <Receipt className="h-3 w-3" />
-                                  Accetta buoni pasto: {storeVoucherInfo.types.join(', ')}
-                                </p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Non accetta buoni pasto
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </>
                       )}
                     </TabsContent>
                   </Tabs>
