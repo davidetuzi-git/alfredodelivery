@@ -140,13 +140,62 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
       if (response.ok) {
         const data = await response.json();
         const aiResponse = data.choices[0].message.content.trim();
-        console.log(`  AI: ${aiResponse}`);
+        console.log(`  AI Prezzo: ${aiResponse}`);
 
         const priceMatch = aiResponse.match(/(\d+[.,]\d{1,2})/);
         if (priceMatch) {
           const foundPrice = parseFloat(priceMatch[1].replace(',', '.'));
           if (foundPrice >= 0.10 && foundPrice <= 500) {
             console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
+            
+            // COMPLETAMENTO NOME PRODOTTO
+            console.log('\n🏷️ Completamento nome prodotto...');
+            let completedProductName = product;
+            
+            try {
+              const completionPrompt = `Prodotto: "${product}"
+Catena: ${chainName}
+
+Completa il nome del prodotto in modo preciso e professionale.
+REGOLE:
+- Se il prodotto è generico (es: "pasta"), suggerisci un formato comune (es: "Pasta di semola 500g")
+- Includi peso/formato tipico se manca (es: 1kg, 500g, 1L)
+- Mantieni il nome semplice ma completo
+- NON inventare marche specifiche
+- Prodotti sono standardizzati in tutta Italia
+
+Esempi:
+"latte" → "Latte fresco intero 1L"
+"pane" → "Pane tipo 00 400g"
+"pasta" → "Pasta di semola 500g"
+
+Rispondi SOLO con il nome completo del prodotto (max 50 caratteri)`;
+
+              const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  messages: [{ role: 'user', content: completionPrompt }],
+                  temperature: 0.3,
+                  max_tokens: 50,
+                }),
+              });
+
+              if (completionResponse.ok) {
+                const completionData = await completionResponse.json();
+                const suggestedName = completionData.choices[0].message.content.trim();
+                if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
+                  completedProductName = suggestedName;
+                  console.log(`✓ Nome completato: ${completedProductName}`);
+                }
+              }
+            } catch (e) {
+              console.log('⚠️ Completamento nome fallito, uso nome originale');
+            }
             
             // Salva in cache
             await supabase
@@ -167,7 +216,8 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
                 price: foundPrice,
                 priceInfo: `€${foundPrice.toFixed(2)}`,
                 cached: false,
-                estimated: true
+                estimated: true,
+                completedProduct: completedProductName
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
