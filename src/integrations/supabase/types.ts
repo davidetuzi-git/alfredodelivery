@@ -554,6 +554,7 @@ export type Database = {
           phone_verification_expires_at: string | null
           phone_verified: boolean | null
           postal_code: string | null
+          preferred_store: string | null
           updated_at: string
         }
         Insert: {
@@ -574,6 +575,7 @@ export type Database = {
           phone_verification_expires_at?: string | null
           phone_verified?: boolean | null
           postal_code?: string | null
+          preferred_store?: string | null
           updated_at?: string
         }
         Update: {
@@ -594,6 +596,7 @@ export type Database = {
           phone_verification_expires_at?: string | null
           phone_verified?: boolean | null
           postal_code?: string | null
+          preferred_store?: string | null
           updated_at?: string
         }
         Relationships: []

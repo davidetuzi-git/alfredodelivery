@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { stores } from "@/components/SupermarketMap";
 
 interface ProfileData {
   first_name: string;
@@ -16,6 +18,7 @@ interface ProfileData {
   allergies: string;
   dietary_preferences: string;
   delivery_notes: string;
+  preferred_store: string;
 }
 
 const PersonalData = () => {
@@ -29,7 +32,8 @@ const PersonalData = () => {
     phone: "",
     allergies: "",
     dietary_preferences: "",
-    delivery_notes: ""
+    delivery_notes: "",
+    preferred_store: ""
   });
 
   useEffect(() => {
@@ -72,7 +76,8 @@ const PersonalData = () => {
           phone: profile.phone || "",
           allergies: profile.allergies || "",
           dietary_preferences: profile.dietary_preferences || "",
-          delivery_notes: profile.delivery_notes || ""
+          delivery_notes: profile.delivery_notes || "",
+          preferred_store: profile.preferred_store || ""
         });
       }
     } catch (error) {
@@ -178,6 +183,32 @@ const PersonalData = () => {
                 value={profileData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="preferred_store">Supermercato preferito</Label>
+              <Select 
+                value={profileData.preferred_store} 
+                onValueChange={(value) => updateField('preferred_store', value)}
+              >
+                <SelectTrigger id="preferred_store">
+                  <SelectValue placeholder="Nessun supermercato preferito" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessuno</SelectItem>
+                  {stores.map((store) => {
+                    const storeName = `${store.name} - ${store.address}`;
+                    return (
+                      <SelectItem key={storeName} value={storeName}>
+                        {storeName}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Quando fai un ordine, questo negozio verrà selezionato automaticamente
+              </p>
             </div>
           </CardContent>
         </Card>
