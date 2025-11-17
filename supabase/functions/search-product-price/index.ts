@@ -200,6 +200,7 @@ Rispondi SOLO con il nome (max 60 caratteri)`;
               if (completionResponse.ok) {
                 const completionData = await completionResponse.json();
                 const suggestedName = completionData.choices[0].message.content.trim();
+                console.log(`  AI Completamento risposta: "${suggestedName}"`);
                 
                 if (suggestedName.startsWith('ALTERNATIVA|')) {
                   productAvailable = false;
@@ -210,9 +211,11 @@ Rispondi SOLO con il nome (max 60 caratteri)`;
                   completedProductName = suggestedName;
                   console.log(`✓ Nome completato: ${completedProductName}`);
                 }
+              } else {
+                console.log(`✗ Errore completamento: ${completionResponse.status}`);
               }
             } catch (e) {
-              console.log('⚠️ Completamento nome fallito, uso nome originale');
+              console.log('⚠️ Completamento nome fallito:', e);
             }
             
             // GENERAZIONE IMMAGINE PRODOTTO
@@ -270,17 +273,21 @@ Alta qualità, realistica, professionale.`;
                 onConflict: 'product_name,store_name,store_address'
               });
 
+            const responseData = { 
+              price: foundPrice,
+              priceInfo: `€${foundPrice.toFixed(2)}`,
+              cached: false,
+              estimated: true,
+              completedProduct: completedProductName,
+              productAvailable,
+              suggestedAlternative,
+              imageUrl: productImageUrl
+            };
+            
+            console.log('📦 Response finale:', JSON.stringify(responseData));
+            
             return new Response(
-              JSON.stringify({ 
-                price: foundPrice,
-                priceInfo: `€${foundPrice.toFixed(2)}`,
-                cached: false,
-                estimated: true,
-                completedProduct: completedProductName,
-                productAvailable,
-                suggestedAlternative,
-                imageUrl: productImageUrl
-              }),
+              JSON.stringify(responseData),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }

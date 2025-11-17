@@ -361,6 +361,8 @@ const Order = () => {
       });
 
       if (!error && data?.price !== undefined) {
+        console.log('📦 Dati ricevuti dalla funzione:', data);
+        
         setItems(prevItems => {
           const updatedItems = [...prevItems];
           const updateData: any = { 
@@ -375,6 +377,7 @@ const Order = () => {
           // If product was completed by AI, show it
           if (data.completedProduct && data.completedProduct !== productName.trim()) {
             updateData.completedName = data.completedProduct;
+            console.log('✓ Nome completato salvato:', data.completedProduct);
           }
           
           // If product is not available, show warning
@@ -382,6 +385,7 @@ const Order = () => {
             updateData.suggestion = `⚠️ Prodotto non disponibile. Alternativa: ${data.suggestedAlternative}`;
           }
           
+          console.log('💾 Update data finale:', updateData);
           updatedItems[index] = { ...updatedItems[index], ...updateData };
           return updatedItems;
         });
