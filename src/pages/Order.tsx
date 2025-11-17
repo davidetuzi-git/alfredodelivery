@@ -374,10 +374,12 @@ const Order = () => {
             suggestedAlternative: data.suggestedAlternative || null
           };
           
-          // If product was completed by AI, show it
-          if (data.completedProduct && data.completedProduct !== productName.trim()) {
+          // If product was completed by AI, show it (always, even if similar to original)
+          if (data.completedProduct && data.completedProduct.trim().length > 0) {
             updateData.completedName = data.completedProduct;
             console.log('✓ Nome completato salvato:', data.completedProduct);
+          } else {
+            console.log('⚠️ Nessun nome completato ricevuto');
           }
           
           // If product is not available, show warning
