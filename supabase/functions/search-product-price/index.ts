@@ -127,10 +127,13 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-pro', // Modello più potente per ricerca accurata
-          messages: [{ role: 'user', content: searchPrompt }],
-          temperature: 0.3,
-          max_tokens: 30,
+          model: 'google/gemini-2.5-pro',
+          messages: [{ 
+            role: 'user', 
+            content: searchPrompt 
+          }],
+          temperature: 0.2,
+          max_tokens: 100,
         }),
         signal: controller.signal,
       });

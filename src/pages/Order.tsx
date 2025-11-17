@@ -30,12 +30,12 @@ interface ShoppingItem {
   loading: boolean;
   quantity: number;
   suggestion: string | null;
+  completedName?: string;
   isEstimated?: boolean;
   estimateConfidence?: string;
   estimateReasoning?: string;
   originalName?: string;
   imageUrl?: string;
-  notes?: string;
 }
 
 const Order = () => {
@@ -222,7 +222,7 @@ const Order = () => {
   ];
 
   const addItem = () => {
-    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null, notes: "" }]);
+    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   };
 
   const removeItem = (index: number) => {
@@ -285,7 +285,6 @@ const Order = () => {
           loading: false,
           quantity: quantity > 0 ? quantity : 1,
           suggestion: null,
-          notes: "",
         };
       }
 
@@ -295,7 +294,6 @@ const Order = () => {
         loading: false,
         quantity: 1,
         suggestion: null,
-        notes: "",
       };
     });
 
@@ -332,11 +330,6 @@ const Order = () => {
     setItems(newItems);
   };
 
-  const updateItemNotes = (index: number, notes: string) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], notes };
-    setItems(newItems);
-  };
 
   const fetchPrice = async (index: number, productName: string) => {
     if (!productName.trim() || !store) return;
@@ -360,19 +353,14 @@ const Order = () => {
           const updatedItems = [...prevItems];
           const updateData: any = { 
             price: data.price, 
-            loading: false, 
-            suggestion: null,
-            imageUrl: data.imageUrl || null
+            loading: false,
+            imageUrl: data.imageUrl || null,
+            isEstimated: data.estimated || false
           };
           
-          // If product was completed by AI, show it in blue
+          // If product was completed by AI, show it
           if (data.completedProduct && data.completedProduct !== productName.trim()) {
-            updateData.suggestion = `Selezionato: ${data.completedProduct}`;
-          }
-          
-          // Show cache info if available
-          if (data.cached) {
-            updateData.suggestion = (updateData.suggestion ? updateData.suggestion + ' - ' : '') + `Cache (${data.cacheAge})`;
+            updateData.completedName = data.completedProduct;
           }
           
           updatedItems[index] = { ...updatedItems[index], ...updateData };
@@ -1166,9 +1154,9 @@ const Order = () => {
                             required
                             className="w-full"
                           />
-                          {item.suggestion && (
-                            <p className="text-xs text-blue-600 dark:text-blue-400">
-                              {item.suggestion}
+                          {item.completedName && (
+                            <p className="text-[0.7rem] italic text-blue-600 dark:text-blue-400 mt-0.5">
+                              {item.completedName}
                             </p>
                           )}
                         </div>
@@ -1214,20 +1202,6 @@ const Order = () => {
                           <X className="h-4 w-4" />
                         </Button>
                       )}
-                    </div>
-                    
-                    {/* Campo Note (opzionale) */}
-                    <div className="pt-2">
-                      <Label htmlFor={`item-notes-${index}`} className="text-xs text-muted-foreground">
-                        Note (opzionale)
-                      </Label>
-                      <Input
-                        id={`item-notes-${index}`}
-                        placeholder="Es: Bio, senza lattosio, marca specifica..."
-                        value={item.notes || ""}
-                        onChange={(e) => updateItemNotes(index, e.target.value)}
-                        className="w-full text-sm"
-                      />
                     </div>
                   </div>
                 ))}
