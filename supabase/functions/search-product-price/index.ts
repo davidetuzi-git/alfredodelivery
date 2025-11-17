@@ -81,23 +81,38 @@ serve(async (req) => {
       );
     }
 
-    console.log('\n💡 Ricerca AI prezzo SPECIFICO per negozio e zona...');
+    console.log('\n💡 Ricerca AI con CASCATA GEOGRAFICA...');
     
-    const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName} a ${city || 'Italia'}.
-Indirizzo completo negozio: ${storeAddress}
+    const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName}.
+Negozio: ${storeAddress}
+Città: ${city || 'Italia'}
 
-ISTRUZIONI OBBLIGATORIE:
-1. Cerca il prezzo REALE per questo SPECIFICO negozio o punto vendita ${chainName} in zona ${city}
-2. Verifica su:
-   - Sito ufficiale ${chainName} (sezione "Volantino" o "Offerte" per ${city})
-   - Comparatori prezzi italiani che mostrano prezzi per località (Everli, Doveconviene, ecc.)
-   - App/siti che mostrano prezzi reali per supermercati in ${city}
-3. Se NON trovi il prezzo ESATTO per ${city}, cerca prezzi per ${chainName} in città vicine o nella stessa regione
-4. SOLO se non trovi prezzi regionali, stima un prezzo realistico basandoti su:
-   - Prezzi medi ${chainName} in Italia per prodotti simili
-   - Range di prezzo tipico per quel tipo di prodotto
-5. DEVI SEMPRE rispondere con un numero (es: 2.99)
-6. Il prezzo deve essere realistico per ${chainName} in Italia
+STRATEGIA DI RICERCA OBBLIGATORIA (in ordine):
+
+1️⃣ CERCA PRIMA: Prezzo ${chainName} a ${city}
+   - Volantino digitale ${chainName} zona ${city}
+   - Offerte ${chainName} punto vendita a ${city}
+   
+2️⃣ SE NON TROVI: Prezzo ${chainName} in provincia di ${city}
+   - Volantini ${chainName} città limitrofe
+   - Prezzi ${chainName} nella provincia
+   
+3️⃣ SE NON TROVI: Prezzo ${chainName} nel capoluogo di regione
+   - Verifica il capoluogo della regione dove si trova ${city}
+   - Cerca volantini ${chainName} del capoluogo regionale
+
+4️⃣ SE ${chainName} NON È CATENA FAMOSA: Usa catena simile
+   - Identifica la catena più simile a ${chainName} (es: Eurospin→MD, Conad→Coop, Lidl→Penny)
+   - Cerca prezzi della catena simile con stessa strategia geografica
+
+5️⃣ FALLBACK FINALE: Stima realistica
+   - Basati su range prezzi tipici per quel prodotto in Italia
+   - Considera il tipo di catena (discount, premium, normale)
+
+REGOLE:
+- DEVI SEMPRE rispondere con un numero (es: 2.99)
+- Preferisci prezzi reali da volantini/siti ufficiali
+- Se stimi, usa prezzi ragionevoli per il tipo di prodotto
 
 Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
 
