@@ -65,7 +65,7 @@ const Order = () => {
       // Load user profile data to prefill form fields
       const { data: profile } = await supabase
         .from('profiles')
-        .select('first_name, last_name, phone, address, city, postal_code')
+        .select('first_name, last_name, phone, address, city, postal_code, preferred_store')
         .eq('id', session.user.id)
         .single();
       
@@ -84,6 +84,16 @@ const Order = () => {
         if (!savedState?.address && profile.address) {
           const fullAddress = `${profile.address}${profile.city ? ', ' + profile.city : ''}${profile.postal_code ? ', ' + profile.postal_code : ''}`;
           setAddress(fullAddress);
+        }
+        
+        // Pre-fill preferred store if not already set
+        if (!savedState?.store && profile.preferred_store) {
+          setStore(profile.preferred_store);
+          // Also set the coordinates for the preferred store
+          const selectedStore = stores.find(s => `${s.name} - ${s.address}` === profile.preferred_store);
+          if (selectedStore) {
+            setSelectedStoreCoords({ lat: selectedStore.lat, lng: selectedStore.lng });
+          }
         }
       }
       

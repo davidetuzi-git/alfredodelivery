@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle2, User, Phone, MapPin } from "lucide-react";
+import { CheckCircle2, User, Phone, MapPin, Store } from "lucide-react";
+import { stores } from "@/components/SupermarketMap";
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ const Onboarding = () => {
     address: "",
     city: "",
     postal_code: "",
+    preferred_store: "",
   });
 
   useEffect(() => {
@@ -94,8 +97,10 @@ const Onboarding = () => {
       <Card className="w-full max-w-lg">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            {step === 3 ? (
+            {step === 4 ? (
               <CheckCircle2 className="w-6 h-6 text-primary" />
+            ) : step === 3 ? (
+              <Store className="w-6 h-6 text-primary" />
             ) : (
               <User className="w-6 h-6 text-primary" />
             )}
@@ -104,16 +109,18 @@ const Onboarding = () => {
             <CardTitle className="text-2xl">
               {step === 1 && "Benvenuto su ALFREDO!"}
               {step === 2 && "Dove consegniamo?"}
-              {step === 3 && "Tutto pronto!"}
+              {step === 3 && "Negozio preferito"}
+              {step === 4 && "Tutto pronto!"}
             </CardTitle>
             <CardDescription>
               {step === 1 && "Iniziamo con le tue informazioni personali"}
               {step === 2 && "Inserisci l'indirizzo di consegna"}
-              {step === 3 && "Il tuo account è configurato"}
+              {step === 3 && "Scegli il tuo supermercato preferito (opzionale)"}
+              {step === 4 && "Il tuo account è configurato"}
             </CardDescription>
           </div>
           <div className="flex gap-2 justify-center">
-            {[1, 2, 3].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
                 className={`h-2 w-12 rounded-full transition-colors ${
@@ -212,6 +219,43 @@ const Onboarding = () => {
           )}
 
           {step === 3 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="preferred_store">Supermercato preferito</Label>
+                <Select 
+                  value={formData.preferred_store} 
+                  onValueChange={(value) => handleInputChange("preferred_store", value)}
+                >
+                  <SelectTrigger id="preferred_store">
+                    <SelectValue placeholder="Seleziona un supermercato (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((store) => {
+                      const storeName = `${store.name} - ${store.address}`;
+                      return (
+                        <SelectItem key={storeName} value={storeName}>
+                          {storeName}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Puoi selezionare il tuo supermercato preferito ora o modificarlo in seguito dalle impostazioni
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={() => setStep(2)} variant="outline" className="w-full" size="lg">
+                  Indietro
+                </Button>
+                <Button onClick={nextStep} className="w-full" size="lg">
+                  Continua
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
             <div className="space-y-4 text-center">
               <div className="p-6 bg-primary/5 rounded-lg">
                 <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-primary" />
