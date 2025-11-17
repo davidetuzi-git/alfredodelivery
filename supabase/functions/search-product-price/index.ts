@@ -75,13 +75,25 @@ serve(async (req) => {
       );
     }
 
-    console.log('\n💡 Ricerca AI (timeout 5s)...');
+    console.log('\n💡 Ricerca AI prezzo (OBBLIGATORIO)...');
     
-    const searchPrompt = `Prezzo di "${product}" da ${chainName}: solo il numero (es: 2.99) o NON TROVATO`;
+    const searchPrompt = `Trova il prezzo di "${product}" da ${chainName} in Italia.
+
+REGOLE OBBLIGATORIE:
+1. Cerca il prezzo REALE su siti ufficiali, volantini, comparatori
+2. Se NON trovi il prezzo esatto, DEVI stimare un prezzo realistico basandoti su:
+   - Prezzi di prodotti simili dello stesso supermercato
+   - Prezzi medi di mercato per quel tipo di prodotto
+   - Categoria del prodotto (es: frutta/verdura €1-3/kg, pasta €0.50-2, carne €8-15/kg)
+3. DEVI SEMPRE rispondere con un numero (es: 2.99)
+4. NON rispondere MAI con "NON TROVATO" o testi
+5. Il prezzo deve essere realistico per il mercato italiano
+
+Rispondi SOLO con il numero del prezzo (es: 2.99)`;
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondi max
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 secondi per modello più potente
       
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -90,10 +102,10 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
+          model: 'google/gemini-2.5-pro',
           messages: [{ role: 'user', content: searchPrompt }],
-          temperature: 0,
-          max_tokens: 20,
+          temperature: 0.3,
+          max_tokens: 30,
         }),
         signal: controller.signal,
       });
@@ -109,7 +121,7 @@ serve(async (req) => {
         if (priceMatch) {
           const foundPrice = parseFloat(priceMatch[1].replace(',', '.'));
           if (foundPrice >= 0.10 && foundPrice <= 500) {
-            console.log(`✓ Prezzo: €${foundPrice}`);
+            console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
             
             // Salva in cache
             await supabase
@@ -119,7 +131,7 @@ serve(async (req) => {
                 store_name: normalizedStore,
                 store_address: normalizedAddress,
                 price: foundPrice,
-                source: 'ai',
+                source: 'ai_estimate',
                 updated_at: new Date().toISOString(),
               }, {
                 onConflict: 'product_name,store_name,store_address'
@@ -129,7 +141,8 @@ serve(async (req) => {
               JSON.stringify({ 
                 price: foundPrice,
                 priceInfo: `€${foundPrice.toFixed(2)}`,
-                cached: false
+                cached: false,
+                estimated: true
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
@@ -141,13 +154,19 @@ serve(async (req) => {
       console.error('Errore/Timeout AI:', errorMsg);
     }
 
-    console.log('❌ Non trovato');
+    // Fallback: prezzo medio stimato per categoria prodotto
+    console.log('⚠️ Usando stima fallback');
+    const fallbackPrice = 2.99; // Prezzo medio generico
+    
     return new Response(
       JSON.stringify({ 
-        error: 'Prezzo non trovato',
-        notFound: true
+        price: fallbackPrice,
+        priceInfo: `€${fallbackPrice.toFixed(2)}`,
+        cached: false,
+        estimated: true,
+        fallback: true
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
