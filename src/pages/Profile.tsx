@@ -19,12 +19,18 @@ const Profile = () => {
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (!session) {
+        navigate("/auth");
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (!session) {
+        navigate("/auth");
+      }
     });
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (session?.user) {
