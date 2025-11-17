@@ -111,8 +111,17 @@ NON rispondere mai con 0 o messaggi di errore, fornisci sempre una stima.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
+      
+      // Handle specific error cases
+      if (response.status === 503) {
+        return new Response(
+          JSON.stringify({ error: 'Il servizio AI è temporaneamente sovraccarico. Riprova tra qualche secondo.' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'AI service error' }),
+        JSON.stringify({ error: 'Errore del servizio AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

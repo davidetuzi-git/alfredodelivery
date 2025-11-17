@@ -348,6 +348,16 @@ const Order = () => {
           return updatedItems;
         });
       } else {
+        // Show error message if available
+        if (error || data?.error) {
+          const errorMessage = data?.error || 'Impossibile recuperare il prezzo';
+          toast({
+            title: "Errore ricerca prezzo",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+        
         setItems(prevItems => {
           const updatedItems = [...prevItems];
           updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: null };
