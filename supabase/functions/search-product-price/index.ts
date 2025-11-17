@@ -37,16 +37,16 @@ serve(async (req) => {
     console.log(`Prodotto: ${product}`);
     console.log(`Catena: ${chainName}`);
 
-    // FASE 1: Cache (7 giorni, qualsiasi punto vendita della stessa catena)
+    // FASE 1: Cache (30 giorni, qualsiasi punto vendita della stessa catena)
     console.log('\n🔍 Cache...');
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: cachedPrice } = await supabase
       .from('product_prices')
       .select('*')
       .ilike('product_name', normalizedProduct)
       .ilike('store_name', normalizedStore)
-      .gte('created_at', sevenDaysAgo)
+      .gte('created_at', thirtyDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -75,21 +75,14 @@ serve(async (req) => {
       );
     }
 
-    console.log('\n💡 Ricerca AI...');
+    console.log('\n💡 Ricerca AI (timeout 5s)...');
     
-    const searchPrompt = `Trova il prezzo REALE di "${product}" da ${chainName} in Italia.
-
-REGOLE:
-1. Cerca su siti ufficiali, volantini digitali, comparatori italiani
-2. SOLO prezzi verificabili da ${chainName}
-3. Rispondi con il numero (es: 2.99) oppure "NON TROVATO"
-4. NON inventare
-
-Esempi:
-€2,99 → 2.99
-Non trovi → NON TROVATO`;
+    const searchPrompt = `Prezzo di "${product}" da ${chainName}: solo il numero (es: 2.99) o NON TROVATO`;
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondi max
+      
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -97,12 +90,15 @@ Non trovi → NON TROVATO`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-2.5-flash-lite',
           messages: [{ role: 'user', content: searchPrompt }],
-          temperature: 0.1,
-          max_tokens: 50,
+          temperature: 0,
+          max_tokens: 20,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -141,7 +137,8 @@ Non trovi → NON TROVATO`;
         }
       }
     } catch (error) {
-      console.error('Errore AI:', error);
+      const errorMsg = error instanceof Error && error.name === 'AbortError' ? 'Timeout' : String(error);
+      console.error('Errore/Timeout AI:', errorMsg);
     }
 
     console.log('❌ Non trovato');
