@@ -55,11 +55,9 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
         );
         const data = await response.json();
         setSuggestions(data || []);
-        setOpen(data && data.length > 0);
-        // Mantieni il focus sull'input
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 0);
+        if (data && data.length > 0) {
+          setOpen(true);
+        }
       } catch (error) {
         console.error('Error fetching address suggestions:', error);
         setSuggestions([]);
@@ -78,10 +76,10 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
   const handleSelect = (suggestion: AddressSuggestion) => {
     const lat = parseFloat(suggestion.lat);
     const lon = parseFloat(suggestion.lon);
+    setSuggestions([]);
+    setOpen(false);
     setInputValue(suggestion.display_name);
     onSelect(suggestion.display_name, lat, lon);
-    setOpen(false);
-    setSuggestions([]);
   };
 
   return (
@@ -97,11 +95,6 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
             placeholder={placeholder || "Inizia a digitare un indirizzo..."}
             required={required}
             className="w-full"
-            onFocus={() => {
-              if (suggestions.length > 0 && inputValue.length >= 3) {
-                setOpen(true);
-              }
-            }}
           />
           {loading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
