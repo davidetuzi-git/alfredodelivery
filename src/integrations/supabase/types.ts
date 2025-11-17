@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       deliverer_address_requests: {
         Row: {
           created_at: string
@@ -473,6 +509,7 @@ export type Database = {
           price: number
           product_name: string
           source: string | null
+          store_address: string | null
           store_name: string
           updated_at: string
         }
@@ -482,6 +519,7 @@ export type Database = {
           price: number
           product_name: string
           source?: string | null
+          store_address?: string | null
           store_name: string
           updated_at?: string
         }
@@ -491,6 +529,7 @@ export type Database = {
           price?: number
           product_name?: string
           source?: string | null
+          store_address?: string | null
           store_name?: string
           updated_at?: string
         }

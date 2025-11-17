@@ -26,15 +26,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Extract chain name
-    const chainName = storeName.split(' - ')[0].trim();
+    // Extract chain name and address
+    const storeNameParts = storeName.split(' - ');
+    const chainName = storeNameParts[0].trim();
+    const storeAddress = storeNameParts.length > 1 ? storeNameParts.slice(1).join(' - ').trim() : '';
+    
     const normalizedProduct = product.trim().toLowerCase();
     const normalizedStore = chainName.toLowerCase();
+    const normalizedAddress = storeAddress.toLowerCase();
 
-    console.log(`Searching price for product: ${product} at ${chainName}`);
+    console.log(`=== SEARCHING PRICE ===`);
+    console.log(`Product: ${product}`);
+    console.log(`Store: ${chainName}`);
+    console.log(`Address: ${storeAddress}`);
 
-    // Step 1: Check cache (< 4 days old)
-    console.log('Checking price cache...');
+    // ==== FASE 1: Database Cache (stesso negozio, stesso indirizzo, < 4 giorni) ====
+    console.log('\n🔍 FASE 1: Checking database cache...');
     const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: cachedPrice, error: cacheError } = await supabase
@@ -42,47 +49,49 @@ serve(async (req) => {
       .select('*')
       .ilike('product_name', normalizedProduct)
       .ilike('store_name', normalizedStore)
+      .ilike('store_address', normalizedAddress)
       .gte('created_at', fourDaysAgo)
       .single();
 
     if (cachedPrice && !cacheError) {
-      console.log('Found cached price:', cachedPrice.price);
+      const cacheAgeDays = Math.floor((Date.now() - new Date(cachedPrice.created_at).getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`✓ FOUND in cache: €${cachedPrice.price} (${cacheAgeDays} giorni fa)`);
+      
       return new Response(
         JSON.stringify({ 
           price: cachedPrice.price,
-          priceInfo: `€${cachedPrice.price}`,
+          priceInfo: `€${cachedPrice.price.toFixed(2)}`,
           completedProduct: null,
           imageUrl: null,
           cached: true,
-          cacheAge: Math.floor((Date.now() - new Date(cachedPrice.created_at).getTime()) / (1000 * 60 * 60 * 24)) + ' giorni'
+          source: 'database_cache',
+          cacheAge: `${cacheAgeDays} ${cacheAgeDays === 1 ? 'giorno' : 'giorni'}`
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('No cached price found, searching online...');
+    console.log('✗ Not found in cache');
 
-    // Step 2: Search real prices online using AI
+    // ==== FASE 2 & 3: AI Search + Google Search ====
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!GOOGLE_AI_API_KEY) {
       console.error('GOOGLE_AI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Prezzo non trovato', notFound: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Helper function to retry with exponential backoff
-    const retryWithBackoff = async (fn: () => Promise<Response>, maxRetries = 3) => {
+    // Helper: retry with exponential backoff
+    const retryWithBackoff = async (fn: () => Promise<Response>, maxRetries = 2) => {
       for (let i = 0; i < maxRetries; i++) {
         try {
           const response = await fn();
-          if (response.ok || response.status !== 503) {
-            return response;
-          }
+          if (response.ok || response.status !== 503) return response;
           if (i < maxRetries - 1) {
             const waitTime = Math.pow(2, i) * 1000;
-            console.log(`API overloaded, retrying in ${waitTime}ms...`);
+            console.log(`  API overloaded, retry in ${waitTime}ms...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         } catch (error) {
@@ -94,223 +103,181 @@ serve(async (req) => {
 
     // Complete product description
     let finalProductDescription = product;
-    
-    const completionPrompt = `Completa la descrizione del prodotto "${product}" per il supermercato "${chainName}" in Italia. 
-Aggiungi dettagli realistici come: tipo specifico, formato esatto, marca comune italiana.
-Rispondi SOLO con la descrizione completa del prodotto, nient'altro.
-Esempi:
-- "latte" → "Latte intero UHT Granarolo 1L"
-- "pasta" → "Pasta penne rigate Barilla 500g"
-- "acqua" → "Acqua minerale naturale Levissima 1.5L"`;
-
     try {
       const completionResponse = await retryWithBackoff(() => 
         fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: completionPrompt }] }],
+            contents: [{ parts: [{ text: `Completa: "${product}" → descrizione specifica con marca e formato. Solo la descrizione, nulla altro.` }] }],
           }),
         })
       );
 
       if (completionResponse.ok) {
-        const completionData = await completionResponse.json();
-        finalProductDescription = completionData.candidates[0].content.parts[0].text.trim();
-        console.log('Completed product description:', finalProductDescription);
+        const data = await completionResponse.json();
+        finalProductDescription = data.candidates[0].content.parts[0].text.trim();
+        console.log(`  Completed: ${finalProductDescription}`);
       }
     } catch (error) {
-      console.error('Failed to complete product description:', error);
+      console.error('  Failed to complete description:', error);
     }
 
-    // Search for REAL price online
-    const systemPrompt = `Sei un assistente esperto che cerca prezzi REALI dei supermercati italiani online.
-IMPORTANTE: Devi cercare il prezzo REALE e ATTUALE del prodotto nel supermercato specificato.
-- Cerca sui siti web ufficiali del supermercato
-- Cerca su volantini online
-- Cerca su comparatori di prezzi italiani
-- Se NON trovi un prezzo REALE e VERIFICABILE, rispondi ESATTAMENTE con: "PREZZO NON TROVATO"
-- NON inventare, NON stimare, NON indovinare il prezzo
-- Rispondi SOLO con il numero (es: 2.50) oppure "PREZZO NON TROVATO"`;
-
-    const userPrompt = `Cerca il prezzo REALE e ATTUALE di "${finalProductDescription}" al supermercato ${chainName} in Italia. Controlla il sito ufficiale, volantini online e comparatori di prezzi.`;
+    console.log('\n🤖 FASE 2: AI Search (official websites, flyers)...');
     
-    let response;
+    const aiPrompt = `Trova il prezzo REALE di "${finalProductDescription}" presso ${chainName} ${storeAddress ? 'a ' + storeAddress : ''}, Italia.
+
+Cerca su:
+1. Sito ufficiale ${chainName}
+2. Volantini online ${chainName}
+3. Comparatori prezzi italiani (Trovaprezzi, Altroconsumo, ecc.)
+
+RISPOSTA:
+- Se trovi prezzo VERIFICABILE → scrivi SOLO il numero (es: "2.50")
+- Se NON trovi → scrivi "NON TROVATO"
+
+NON stimare, NON inventare!`;
+
+    let foundPrice = null;
+    let source = null;
+
     try {
-      response = await retryWithBackoff(() =>
+      const aiResponse = await retryWithBackoff(() =>
         fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }],
+            contents: [{ parts: [{ text: aiPrompt }] }],
           }),
         })
       );
+
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        const aiText = (aiData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        console.log(`  AI response: ${aiText}`);
+        
+        if (!aiText.toUpperCase().includes('NON TROVATO')) {
+          const priceMatch = aiText.match(/\d+[.,]?\d*/);
+          if (priceMatch) {
+            const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
+            if (parsedPrice > 0.1 && parsedPrice < 999) {
+              foundPrice = parsedPrice;
+              source = 'ai_search';
+              console.log(`✓ AI FOUND: €${foundPrice}`);
+            }
+          }
+        }
+      }
     } catch (error) {
-      console.error('Failed to get price after retries, using fallback');
-      // Return a conservative estimate
-      return new Response(
-        JSON.stringify({ 
-          price: 3.99,
-          priceInfo: `€3.99`,
-          completedProduct: finalProductDescription !== product ? finalProductDescription : null,
-          imageUrl: null,
-          isEstimated: true,
-          estimateReason: 'Servizio AI temporaneamente non disponibile'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('  AI search error:', error);
     }
 
-    if (response.status === 429) {
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded, please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // ==== FASE 3: Google Search (se AI non ha trovato) ====
+    if (!foundPrice) {
+      console.log('\n🔍 FASE 3: Google Search...');
+      
+      const googlePrompt = `Cerca su Google il prezzo di "${finalProductDescription}" presso ${chainName} ${storeAddress}.
+
+Query Google da usare: "${finalProductDescription} prezzo ${chainName} ${storeAddress || 'Italia'}"
+
+Analizza risultati e:
+- Se trovi prezzo ATTENDIBILE → numero (es: "3.20")
+- Se NON trovi → "NON TROVATO"
+
+Fonti attendibili: siti ufficiali, comparatori, volantini.
+NON inventare!`;
+
+      try {
+        const googleResponse = await retryWithBackoff(() =>
+          fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: googlePrompt }] }],
+            }),
+          })
+        );
+
+        if (googleResponse.ok) {
+          const googleData = await googleResponse.json();
+          const googleText = (googleData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+          console.log(`  Google search result: ${googleText}`);
+          
+          if (!googleText.toUpperCase().includes('NON TROVATO')) {
+            const priceMatch = googleText.match(/\d+[.,]?\d*/);
+            if (priceMatch) {
+              const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
+              if (parsedPrice > 0.1 && parsedPrice < 999) {
+                foundPrice = parsedPrice;
+                source = 'google_search';
+                console.log(`✓ GOOGLE FOUND: €${foundPrice}`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('  Google search error:', error);
+      }
     }
 
-    if (response.status === 402) {
-      return new Response(
-        JSON.stringify({ error: 'Payment required, please add funds to your Lovable AI workspace.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Prezzo non trovato - errore servizio AI' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    const priceText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    console.log('AI response:', priceText);
-    
-    // Check if AI says price not found
-    if (priceText.toUpperCase().includes('PREZZO NON TROVATO') || priceText.toUpperCase().includes('NON TROVATO')) {
-      console.log('Price not found by AI');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Prezzo non trovato',
-          message: `Non sono riuscito a trovare il prezzo di "${finalProductDescription}" presso ${chainName}. Prova con un prodotto più specifico o un altro supermercato.`
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Parse the price from the response
-    const priceMatch = priceText.match(/\d+[.,]?\d*/);
-    let price = priceMatch ? parseFloat(priceMatch[0].replace(',', '.')) : 0;
-    
-    // Se il prezzo è 0 o invalido, restituisci errore
-    if (price === 0 || isNaN(price) || price < 0.1) {
-      console.log('Invalid price received from AI');
+    // ==== FASE 4: Prezzo Non Trovato ====
+    if (!foundPrice) {
+      console.log('\n✗ FASE 4: PREZZO NON TROVATO');
       return new Response(
         JSON.stringify({ 
           error: 'Prezzo non trovato',
-          message: `Non sono riuscito a trovare un prezzo valido per "${finalProductDescription}" presso ${chainName}.`
+          notFound: true,
+          message: `Impossibile trovare il prezzo di "${finalProductDescription}" presso ${chainName}${storeAddress ? ' a ' + storeAddress : ''}.`
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Price found:', price);
-
-    // Step 3: Save to cache
+    // ==== SUCCESS: Save to cache ====
+    console.log(`\n💾 Saving to cache: €${foundPrice} (source: ${source})`);
     try {
       await supabase.from('product_prices').upsert({
         product_name: normalizedProduct,
         store_name: normalizedStore,
-        price: price,
-        source: 'ai_search',
+        store_address: normalizedAddress,
+        price: foundPrice,
+        source: source,
         updated_at: new Date().toISOString()
       });
-      console.log('Price saved to cache');
-    } catch (cacheError) {
-      console.error('Failed to cache price:', cacheError);
-    }
-
-    // Step 4: Cleanup old prices in background (async, non-blocking)
-    (async () => {
-      try {
-        await supabase.rpc('cleanup_old_prices');
-        console.log('Old prices cleanup completed');
-      } catch (err) {
-        console.error('Cleanup failed:', err);
-      }
-    })();
-
-    // Generate product image URL using Lovable AI Gateway
-    let imageUrl = null;
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    console.log('Attempting to generate product image...');
-    console.log('LOVABLE_API_KEY exists:', !!LOVABLE_API_KEY);
-    
-    if (LOVABLE_API_KEY) {
-      try {
-        const imagePrompt = `Professional product photo of "${finalProductDescription}" on white background, high quality, commercial photography style, centered, well-lit, detailed, 800x800px`;
-        
-        console.log('Sending image generation request...');
-        const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image-preview",
-            messages: [
-              {
-                role: "user",
-                content: imagePrompt
-              }
-            ],
-            modalities: ["image", "text"]
-          })
-        });
-
-        console.log('Image generation response status:', imageResponse.status);
-        
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          console.log('Product image generated successfully:', !!imageUrl);
-        } else {
-          const errorText = await imageResponse.text();
-          console.error('Image generation failed:', imageResponse.status, errorText);
+      
+      // Cleanup old prices (async, non-blocking)
+      (async () => {
+        try {
+          await supabase.rpc('cleanup_old_prices');
+          console.log('✓ Old prices cleaned up');
+        } catch (err) {
+          console.error('Cleanup error:', err);
         }
-      } catch (imageError) {
-        console.error('Error generating product image:', imageError);
-        // Continue without image if generation fails
-      }
-    } else {
-      console.log('LOVABLE_API_KEY not configured, skipping image generation');
+      })();
+      
+    } catch (cacheErr) {
+      console.error('Failed to save to cache:', cacheErr);
     }
 
     return new Response(
       JSON.stringify({ 
-        price, 
-        priceInfo: `€${price.toFixed(2)}`,
+        price: foundPrice,
+        priceInfo: `€${foundPrice.toFixed(2)}`,
         completedProduct: finalProductDescription !== product ? finalProductDescription : null,
-        imageUrl: imageUrl,
-        cached: false
+        imageUrl: null,
+        cached: false,
+        source: source
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error('Error in search-product-price function:', error);
+    console.error('\n❌ ERROR:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Errore nella ricerca del prezzo',
+        notFound: true,
         message: error instanceof Error ? error.message : 'Unknown error'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

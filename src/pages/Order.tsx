@@ -589,11 +589,50 @@ const Order = () => {
     // Clear errors if validation passed
     setFieldErrors(new Set());
 
-    // Check if there are items without prices
+    // Check if there are items without prices (NOT FOUND)
     const itemsWithoutPrice = validItems.filter(item => item.price === null || item.price === undefined);
+    const notFoundPercentage = (itemsWithoutPrice.length / validItems.length) * 100;
+    
+    console.log(`Items without price: ${itemsWithoutPrice.length}/${validItems.length} (${notFoundPercentage.toFixed(1)}%)`);
+    
+    // CRITICAL: If > 5% of items have no price, block order and notify admin
+    if (notFoundPercentage > 5) {
+      console.error(`BLOCKING ORDER: ${notFoundPercentage.toFixed(1)}% items without price (threshold: 5%)`);
+      
+      // Send urgent notification to admin
+      try {
+        await supabase.from('admin_notifications').insert({
+          type: 'urgent_price_not_found',
+          title: 'URGENTE: Troppi prezzi non trovati',
+          message: `Ordine bloccato: ${itemsWithoutPrice.length}/${validItems.length} prodotti (${notFoundPercentage.toFixed(1)}%) senza prezzo presso ${store}`,
+          data: {
+            storeName: store,
+            storeAddress: address,
+            itemsWithoutPrice: itemsWithoutPrice.map(item => item.name),
+            totalItems: validItems.length,
+            percentage: notFoundPercentage,
+            userId: session?.user?.id,
+            userEmail: session?.user?.email
+          },
+          status: 'pending'
+        });
+        console.log('✓ Admin notification sent');
+      } catch (notifyError) {
+        console.error('Failed to notify admin:', notifyError);
+      }
+      
+      toast({
+        title: "Ordine non completabile",
+        description: `Troppi prodotti senza prezzo (${itemsWithoutPrice.length}/${validItems.length}). Un amministratore è stato notificato e ti contatterà a breve.`,
+        variant: "destructive",
+      });
+      
+      return; // BLOCK ORDER
+    }
     
     let finalItems = validItems;
     
+    // If there are some items without price (but < 5%), try to estimate
     if (itemsWithoutPrice.length > 0) {
       toast({
         title: "Stima prezzi in corso...",
