@@ -34,6 +34,27 @@ serve(async (req) => {
 
     console.log(`Searching price for product: ${product} at ${chainName}`);
 
+    // Helper function to retry with exponential backoff
+    const retryWithBackoff = async (fn: () => Promise<Response>, maxRetries = 3) => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const response = await fn();
+          if (response.ok || response.status !== 503) {
+            return response;
+          }
+          // If 503, wait before retry
+          if (i < maxRetries - 1) {
+            const waitTime = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+            console.log(`API overloaded, retrying in ${waitTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        } catch (error) {
+          if (i === maxRetries - 1) throw error;
+        }
+      }
+      throw new Error('Max retries exceeded');
+    };
+
     // Complete product description with AI
     let finalProductDescription = product;
     let wasCompleted = false;
@@ -52,17 +73,19 @@ Esempi:
 - "acqua" → "Acqua minerale naturale Levissima 1.5L"`;
 
     try {
-      const completionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: completionPrompt }]
-          }],
-        }),
-      });
+      const completionResponse = await retryWithBackoff(() => 
+        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: completionPrompt }]
+            }],
+          }),
+        })
+      );
 
       if (completionResponse.ok) {
         const completionData = await completionResponse.json();
@@ -71,7 +94,8 @@ Esempi:
         console.log('Completed product description:', finalProductDescription);
       }
     } catch (error) {
-      console.error('Failed to complete product description:', error);
+      console.error('Failed to complete product description after retries:', error);
+      // Continue with original product name
     }
 
     const systemPrompt = `Sei un assistente esperto di prezzi dei supermercati in Italia. 
@@ -82,17 +106,36 @@ NON rispondere mai con 0 o messaggi di errore, fornisci sempre una stima.`;
 
     const userPrompt = `Qual è il prezzo medio di "${finalProductDescription}" al supermercato ${chainName} in Italia?`;
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-        }],
-      }),
-    });
+    let response;
+    try {
+      response = await retryWithBackoff(() =>
+        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }],
+          }),
+        })
+      );
+    } catch (error) {
+      console.error('Failed to get price after retries, using fallback');
+      // Return a conservative estimate
+      return new Response(
+        JSON.stringify({ 
+          price: 3.99,
+          priceInfo: `€3.99`,
+          completedProduct: finalProductDescription !== product ? finalProductDescription : null,
+          imageUrl: null,
+          isEstimated: true,
+          estimateReason: 'Servizio AI temporaneamente non disponibile'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (response.status === 429) {
       return new Response(
