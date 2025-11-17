@@ -75,8 +75,10 @@ serve(async (req) => {
 
     // ==== FASE 2 & 3: AI Search + Google Search ====
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
-    if (!GOOGLE_AI_API_KEY) {
-      console.error('GOOGLE_AI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    
+    if (!GOOGLE_AI_API_KEY && !LOVABLE_API_KEY) {
+      console.error('No AI API keys configured');
       return new Response(
         JSON.stringify({ error: 'Prezzo non trovato', notFound: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -101,22 +103,63 @@ serve(async (req) => {
       throw new Error('Max retries exceeded');
     };
 
+    // Helper: Call Lovable AI as backup
+    const callLovableAI = async (prompt: string) => {
+      if (!LOVABLE_API_KEY) throw new Error('Lovable API key not available');
+      
+      console.log('  🔄 Using Lovable AI backup...');
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Lovable AI error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || '';
+    };
+
     // Complete product description
     let finalProductDescription = product;
     try {
-      const completionResponse = await retryWithBackoff(() => 
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Completa: "${product}" → descrizione specifica con marca e formato. Solo la descrizione, nulla altro.` }] }],
-          }),
-        })
-      );
+      let completionText = '';
+      
+      if (GOOGLE_AI_API_KEY) {
+        try {
+          const completionResponse = await retryWithBackoff(() => 
+            fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: `Completa: "${product}" → descrizione specifica con marca e formato. Solo la descrizione, nulla altro.` }] }],
+              }),
+            })
+          );
 
-      if (completionResponse.ok) {
-        const data = await completionResponse.json();
-        finalProductDescription = data.candidates[0].content.parts[0].text.trim();
+          if (completionResponse.ok) {
+            const data = await completionResponse.json();
+            completionText = data.candidates[0].content.parts[0].text.trim();
+          }
+        } catch (googleError) {
+          console.log('  Google AI failed, trying Lovable AI backup...');
+          completionText = await callLovableAI(`Completa: "${product}" → descrizione specifica con marca e formato. Solo la descrizione, nulla altro.`);
+        }
+      } else {
+        completionText = await callLovableAI(`Completa: "${product}" → descrizione specifica con marca e formato. Solo la descrizione, nulla altro.`);
+      }
+
+      if (completionText) {
+        finalProductDescription = completionText.trim();
         console.log(`  Completed: ${finalProductDescription}`);
       }
     } catch (error) {
@@ -142,30 +185,42 @@ NON stimare, NON inventare!`;
     let source = null;
 
     try {
-      const aiResponse = await retryWithBackoff(() =>
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: aiPrompt }] }],
-          }),
-        })
-      );
+      let aiText = '';
+      
+      if (GOOGLE_AI_API_KEY) {
+        try {
+          const aiResponse = await retryWithBackoff(() =>
+            fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: aiPrompt }] }],
+              }),
+            })
+          );
 
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        const aiText = (aiData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-        console.log(`  AI response: ${aiText}`);
-        
-        if (!aiText.toUpperCase().includes('NON TROVATO')) {
-          const priceMatch = aiText.match(/\d+[.,]?\d*/);
-          if (priceMatch) {
-            const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
-            if (parsedPrice > 0.1 && parsedPrice < 999) {
-              foundPrice = parsedPrice;
-              source = 'ai_search';
-              console.log(`✓ AI FOUND: €${foundPrice}`);
-            }
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            aiText = (aiData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+          }
+        } catch (googleError) {
+          console.log('  Google AI failed, trying Lovable AI backup...');
+          aiText = await callLovableAI(aiPrompt);
+        }
+      } else {
+        aiText = await callLovableAI(aiPrompt);
+      }
+
+      console.log(`  AI response: ${aiText}`);
+      
+      if (aiText && !aiText.toUpperCase().includes('NON TROVATO')) {
+        const priceMatch = aiText.match(/\d+[.,]?\d*/);
+        if (priceMatch) {
+          const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
+          if (parsedPrice > 0.1 && parsedPrice < 999) {
+            foundPrice = parsedPrice;
+            source = 'ai_search';
+            console.log(`✓ AI FOUND: €${foundPrice}`);
           }
         }
       }
@@ -189,30 +244,42 @@ Fonti attendibili: siti ufficiali, comparatori, volantini.
 NON inventare!`;
 
       try {
-        const googleResponse = await retryWithBackoff(() =>
-          fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: googlePrompt }] }],
-            }),
-          })
-        );
+        let googleText = '';
+        
+        if (GOOGLE_AI_API_KEY) {
+          try {
+            const googleResponse = await retryWithBackoff(() =>
+              fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: googlePrompt }] }],
+                }),
+              })
+            );
 
-        if (googleResponse.ok) {
-          const googleData = await googleResponse.json();
-          const googleText = (googleData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-          console.log(`  Google search result: ${googleText}`);
-          
-          if (!googleText.toUpperCase().includes('NON TROVATO')) {
-            const priceMatch = googleText.match(/\d+[.,]?\d*/);
-            if (priceMatch) {
-              const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
-              if (parsedPrice > 0.1 && parsedPrice < 999) {
-                foundPrice = parsedPrice;
-                source = 'google_search';
-                console.log(`✓ GOOGLE FOUND: €${foundPrice}`);
-              }
+            if (googleResponse.ok) {
+              const googleData = await googleResponse.json();
+              googleText = (googleData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+            }
+          } catch (googleError) {
+            console.log('  Google AI failed, trying Lovable AI backup...');
+            googleText = await callLovableAI(googlePrompt);
+          }
+        } else {
+          googleText = await callLovableAI(googlePrompt);
+        }
+
+        console.log(`  Google search result: ${googleText}`);
+        
+        if (googleText && !googleText.toUpperCase().includes('NON TROVATO')) {
+          const priceMatch = googleText.match(/\d+[.,]?\d*/);
+          if (priceMatch) {
+            const parsedPrice = parseFloat(priceMatch[0].replace(',', '.'));
+            if (parsedPrice > 0.1 && parsedPrice < 999) {
+              foundPrice = parsedPrice;
+              source = 'google_search';
+              console.log(`✓ GOOGLE FOUND: €${foundPrice}`);
             }
           }
         }
