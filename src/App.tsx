@@ -14,6 +14,8 @@ import OrderTracking from "./pages/OrderTracking";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import PersonalData from "./pages/PersonalData";
+import SavedAddresses from "./pages/SavedAddresses";
+import SavedPaymentMethods from "./pages/SavedPaymentMethods";
 import PriceSearch from "./pages/PriceSearch";
 import CompareStores from "./pages/CompareStores";
 import Auth from "./pages/Auth";
@@ -53,6 +55,8 @@ const App = () => (
           <Route path="/profilo" element={<Profile />} />
           <Route path="/i-miei-ordini" element={<MyOrders />} />
           <Route path="/dati-personali" element={<PersonalData />} />
+          <Route path="/indirizzi-salvati" element={<SavedAddresses />} />
+          <Route path="/metodi-pagamento" element={<SavedPaymentMethods />} />
           <Route path="/prezzi" element={<PriceSearch />} />
           <Route path="/confronta" element={<CompareStores />} />
           <Route path="/segnala-supermercato" element={<ReportStore />} />

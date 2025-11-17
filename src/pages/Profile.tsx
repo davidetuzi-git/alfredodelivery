@@ -54,8 +54,8 @@ const Profile = () => {
   const menuItems = [
     { icon: ShoppingBag, label: "I miei ordini", action: () => navigate("/i-miei-ordini") },
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
-    { icon: MapPin, label: "Indirizzi salvati", action: () => {} },
-    { icon: CreditCard, label: "Metodi di pagamento", action: () => {} },
+    { icon: MapPin, label: "Indirizzi salvati", action: () => navigate("/indirizzi-salvati") },
+    { icon: CreditCard, label: "Metodi di pagamento", action: () => navigate("/metodi-pagamento") },
     { icon: Store, label: "Segnala supermercato", action: () => navigate("/segnala-supermercato") },
     { icon: Bell, label: "Notifiche", action: () => {} },
     { icon: Settings, label: "Impostazioni", action: () => {} },

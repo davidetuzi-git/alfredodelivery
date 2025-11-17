@@ -539,6 +539,7 @@ export type Database = {
         Row: {
           address: string | null
           allergies: string | null
+          avatar_url: string | null
           city: string | null
           created_at: string
           delivery_notes: string | null
@@ -549,12 +550,16 @@ export type Database = {
           last_name: string | null
           onboarding_completed: boolean
           phone: string | null
+          phone_verification_code: string | null
+          phone_verification_expires_at: string | null
+          phone_verified: boolean | null
           postal_code: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           allergies?: string | null
+          avatar_url?: string | null
           city?: string | null
           created_at?: string
           delivery_notes?: string | null
@@ -565,12 +570,16 @@ export type Database = {
           last_name?: string | null
           onboarding_completed?: boolean
           phone?: string | null
+          phone_verification_code?: string | null
+          phone_verification_expires_at?: string | null
+          phone_verified?: boolean | null
           postal_code?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           allergies?: string | null
+          avatar_url?: string | null
           city?: string | null
           created_at?: string
           delivery_notes?: string | null
@@ -581,8 +590,86 @@ export type Database = {
           last_name?: string | null
           onboarding_completed?: boolean
           phone?: string | null
+          phone_verification_code?: string | null
+          phone_verification_expires_at?: string | null
+          phone_verified?: boolean | null
           postal_code?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_addresses: {
+        Row: {
+          address: string
+          city: string | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          label: string
+          latitude: number | null
+          longitude: number | null
+          postal_code: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label: string
+          latitude?: number | null
+          longitude?: number | null
+          postal_code?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          latitude?: number | null
+          longitude?: number | null
+          postal_code?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_payment_methods: {
+        Row: {
+          card_last_four: string | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          label: string
+          payment_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          card_last_four?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label: string
+          payment_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          card_last_four?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          payment_type?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
