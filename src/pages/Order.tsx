@@ -1007,12 +1007,18 @@ const Order = () => {
               <div className="space-y-3" id="items">
                 <div className="flex items-center justify-between">
                   <Label className={cn(fieldErrors.has('items') && "text-destructive")}>Lista della spesa</Label>
+                  {!store && (
+                    <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800">
+                      Seleziona prima un supermercato
+                    </Badge>
+                  )}
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setShowImportDialog(true)}
+                      disabled={!store}
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Importa lista
@@ -1042,6 +1048,14 @@ const Order = () => {
                   <p className="text-sm text-destructive">Aggiungi almeno un prodotto</p>
                 )}
                 
+                {!store ? (
+                  <div className="p-4 bg-muted/50 border border-border rounded-lg">
+                    <p className="text-sm text-muted-foreground text-center">
+                      👆 Prima seleziona un supermercato per compilare la lista della spesa
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 {items.map((item, index) => (
                   <div key={index} className={cn("space-y-2 p-4 border rounded-lg bg-card", fieldErrors.has('items') && "border-destructive animate-shake")}>
                     <div className="flex gap-2 items-start">
@@ -1136,6 +1150,8 @@ const Order = () => {
                   <Plus className="h-4 w-4 mr-1" />
                   Aggiungi prodotto
                 </Button>
+                  </>
+                )}
                 
                 {total > 0 && (
                   <div className="space-y-4">
