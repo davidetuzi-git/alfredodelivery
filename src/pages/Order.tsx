@@ -62,17 +62,29 @@ const Order = () => {
       
       setSession(session);
       
-      // Load user profile data to get default address
+      // Load user profile data to prefill form fields
       const { data: profile } = await supabase
         .from('profiles')
-        .select('address, city, postal_code')
+        .select('first_name, last_name, phone, address, city, postal_code')
         .eq('id', session.user.id)
         .single();
       
-      if (profile?.address && !savedState?.address) {
-        // Set default address from profile if not already set
-        const fullAddress = `${profile.address}${profile.city ? ', ' + profile.city : ''}${profile.postal_code ? ', ' + profile.postal_code : ''}`;
-        setAddress(fullAddress);
+      if (profile) {
+        // Pre-fill name if not already set
+        if (!savedState?.name && profile.first_name && profile.last_name) {
+          setName(`${profile.first_name} ${profile.last_name}`);
+        }
+        
+        // Pre-fill phone if not already set
+        if (!savedState?.phone && profile.phone) {
+          setPhone(profile.phone);
+        }
+        
+        // Pre-fill address if not already set
+        if (!savedState?.address && profile.address) {
+          const fullAddress = `${profile.address}${profile.city ? ', ' + profile.city : ''}${profile.postal_code ? ', ' + profile.postal_code : ''}`;
+          setAddress(fullAddress);
+        }
       }
       
       setLoading(false);
