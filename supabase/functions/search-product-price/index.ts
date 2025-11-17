@@ -57,33 +57,31 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    let foundPrice = 2.99; // Fallback default
+    let priceFromCache = false;
+    
     if (cachedPrice) {
       console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
-      return new Response(
-        JSON.stringify({ 
-          price: cachedPrice.price,
-          priceInfo: `€${cachedPrice.price.toFixed(2)}`,
-          cached: true
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      foundPrice = cachedPrice.price;
+      priceFromCache = true;
+    } else {
+      console.log('✗ Non in cache');
     }
 
-    console.log('✗ Non in cache');
-
-    // FASE 2: Ricerca AI
+    // FASE 2: Ricerca AI solo se non in cache
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'Prezzo non trovato', notFound: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (!priceFromCache) {
+      if (!LOVABLE_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: 'Prezzo non trovato', notFound: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    console.log('\n💡 Ricerca AI con CASCATA GEOGRAFICA...');
-    
-    const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName}.
+      console.log('\n💡 Ricerca AI con CASCATA GEOGRAFICA...');
+      
+      const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName}.
 Negozio: ${storeAddress}
 Città: ${city || 'Italia'}
 
@@ -116,58 +114,66 @@ REGOLE:
 
 Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 secondi per modello più potente
-      
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
-          messages: [{ 
-            role: 'user', 
-            content: searchPrompt 
-          }],
-          temperature: 0.2,
-          max_tokens: 100,
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content.trim();
-        console.log(`  AI Prezzo: ${aiResponse}`);
-
-        const priceMatch = aiResponse.match(/(\d+[.,]\d{1,2})/);
-        let foundPrice = 2.99; // Fallback default
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         
-        if (priceMatch) {
-          const parsedPrice = parseFloat(priceMatch[1].replace(',', '.'));
-          if (parsedPrice >= 0.10 && parsedPrice <= 500) {
-            foundPrice = parsedPrice;
-            console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-pro',
+            messages: [{ 
+              role: 'user', 
+              content: searchPrompt 
+            }],
+            temperature: 0.2,
+            max_tokens: 100,
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const aiResponse = data.choices[0].message.content.trim();
+          console.log(`  AI Prezzo: ${aiResponse}`);
+
+          const priceMatch = aiResponse.match(/(\d+[.,]\d{1,2})/);
+          
+          if (priceMatch) {
+            const parsedPrice = parseFloat(priceMatch[1].replace(',', '.'));
+            if (parsedPrice >= 0.10 && parsedPrice <= 500) {
+              foundPrice = parsedPrice;
+              console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
+            } else {
+              console.log(`⚠️ Prezzo fuori range, uso fallback: €${foundPrice}`);
+            }
           } else {
-            console.log(`⚠️ Prezzo fuori range, uso fallback: €${foundPrice}`);
+            console.log(`⚠️ Nessun prezzo valido nella risposta, uso fallback: €${foundPrice}`);
           }
-        } else {
-          console.log(`⚠️ Nessun prezzo valido nella risposta, uso fallback: €${foundPrice}`);
         }
+      } catch (error) {
+        const errorMsg = error instanceof Error && error.name === 'AbortError' ? 'Timeout' : String(error);
+        console.error('Errore/Timeout AI:', errorMsg);
+      }
+    }
         
-        // COMPLETAMENTO NOME PRODOTTO - SEMPRE ESEGUITO
-        console.log('\n🏷️ Completamento nome prodotto con brand...');
-        let completedProductName = product;
-        let productAvailable = true;
-        let suggestedAlternative = null;
-        
-        try {
-          const completionPrompt = `Prodotto: "${product}"
+    // COMPLETAMENTO NOME PRODOTTO - SEMPRE ESEGUITO (anche con cache)
+    console.log('\n🏷️ Completamento nome prodotto con brand...');
+    let completedProductName = product;
+    let productAvailable = true;
+    let suggestedAlternative = null;
+    
+    if (!LOVABLE_API_KEY) {
+      console.log('⚠️ LOVABLE_API_KEY non disponibile, skip completamento nome');
+    } else {
+      try {
+        const completionPrompt = `Prodotto: "${product}"
 Catena: ${chainName}
 Città: ${city || 'Italia'}
 
@@ -192,32 +198,33 @@ Esempi:
 
 Rispondi SOLO con il nome (max 60 caratteri)`;
 
-          const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [{ role: 'user', content: completionPrompt }],
-              temperature: 0.3,
-              max_tokens: 80,
-            }),
-          });
+        const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: completionPrompt }],
+            temperature: 0.3,
+            max_tokens: 80,
+          }),
+        });
 
-          if (completionResponse.ok) {
-            const completionData = await completionResponse.json();
-            const suggestedName = completionData.choices[0].message.content.trim();
-            console.log(`  AI Completamento risposta: "${suggestedName}"`);
+        if (completionResponse.ok) {
+          const completionData = await completionResponse.json();
+          const suggestedName = completionData.choices[0].message.content.trim();
+          console.log(`  AI Completamento risposta: "${suggestedName}"`);
+          
+          if (suggestedName.startsWith('ALTERNATIVA|')) {
+            productAvailable = false;
+            suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
+            completedProductName = suggestedAlternative;
+            console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
             
-            if (suggestedName.startsWith('ALTERNATIVA|')) {
-              productAvailable = false;
-              suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
-              completedProductName = suggestedAlternative;
-              console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
-              
-              // CERCA IL PREZZO DEL PRODOTTO ALTERNATIVO
+            // CERCA IL PREZZO DEL PRODOTTO ALTERNATIVO solo se non era in cache
+            if (!priceFromCache) {
               console.log(`\n💰 Ricerca prezzo del prodotto alternativo...`);
               const alternativePricePrompt = `Trova il prezzo di "${suggestedAlternative}" presso ${chainName}.
 Negozio: ${storeAddress}
@@ -280,23 +287,28 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
               } catch (e) {
                 console.log('⚠️ Ricerca prezzo alternativa fallita:', e);
               }
-            } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
-              completedProductName = suggestedName;
-              console.log(`✓ Nome completato: ${completedProductName}`);
             }
-          } else {
-            console.log(`✗ Errore completamento: ${completionResponse.status}`);
+          } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
+            completedProductName = suggestedName;
+            console.log(`✓ Nome completato: ${completedProductName}`);
           }
-        } catch (e) {
-          console.log('⚠️ Completamento nome fallito:', e);
+        } else {
+          console.log(`✗ Errore completamento: ${completionResponse.status}`);
         }
+      } catch (e) {
+        console.log('⚠️ Completamento nome fallito:', e);
+      }
+    }
         
-        // GENERAZIONE IMMAGINE - SEMPRE ESEGUITA
-        console.log('\n📸 Generazione immagine prodotto...');
-        let productImageUrl = null;
-        
-        try {
-          const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
+    // GENERAZIONE IMMAGINE - SEMPRE ESEGUITA
+    console.log('\n📸 Generazione immagine prodotto...');
+    let productImageUrl = null;
+    
+    if (!LOVABLE_API_KEY) {
+      console.log('⚠️ LOVABLE_API_KEY non disponibile, skip generazione immagine');
+    } else {
+      try {
+        const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
 Stile: foto realistica di prodotto su sfondo bianco, come nei cataloghi di supermercato.
 Dettagli: packaging del prodotto visibile, etichetta leggibile se possibile, illuminazione professionale.
 ${chainName === 'Eurospin' ? 'Include marchio Eurospin se applicabile.' : ''}
@@ -304,83 +316,66 @@ ${chainName === 'Lidl' ? 'Include marchio Lidl/Combino se applicabile.' : ''}
 ${chainName === 'Conad' ? 'Include marchio Conad se applicabile.' : ''}
 Alta qualità, realistica, professionale.`;
 
-          const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-image',
-              messages: [{
-                role: 'user',
-                content: imagePrompt
-              }],
-              modalities: ['image', 'text']
-            }),
-          });
+        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image',
+            messages: [{
+              role: 'user',
+              content: imagePrompt
+            }],
+            modalities: ['image', 'text']
+          }),
+        });
 
-          if (imageResponse.ok) {
-            const imageData = await imageResponse.json();
-            const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-            if (generatedImage) {
-              productImageUrl = generatedImage;
-              console.log('✓ Immagine generata');
-            }
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          if (generatedImage) {
+            productImageUrl = generatedImage;
+            console.log('✓ Immagine generata');
           }
-        } catch (e) {
-          console.log('⚠️ Generazione immagine fallita');
         }
-        
-        // Salva in cache
-        await supabase
-          .from('product_prices')
-          .upsert({
-            product_name: normalizedProduct,
-            store_name: normalizedStore,
-            store_address: normalizedAddress,
-            price: foundPrice,
-            source: 'ai_estimate',
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'product_name,store_name,store_address'
-          });
-
-        const responseData = { 
-          price: foundPrice,
-          priceInfo: `€${foundPrice.toFixed(2)}`,
-          cached: false,
-          estimated: true,
-          completedProduct: completedProductName,
-          productAvailable,
-          suggestedAlternative,
-          imageUrl: productImageUrl
-        };
-        
-        console.log('📦 Response finale:', JSON.stringify(responseData));
-        
-        return new Response(
-          JSON.stringify(responseData),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      } catch (e) {
+        console.log('⚠️ Generazione immagine fallita');
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error && error.name === 'AbortError' ? 'Timeout' : String(error);
-      console.error('Errore/Timeout AI:', errorMsg);
+    }
+        
+    // Salva in cache solo se non era già in cache
+    if (!priceFromCache) {
+      await supabase
+        .from('product_prices')
+        .upsert({
+          product_name: normalizedProduct,
+          store_name: normalizedStore,
+          store_address: normalizedAddress,
+          price: foundPrice,
+          source: 'ai_estimate',
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'product_name,store_name,store_address'
+        });
     }
 
-    // Fallback: prezzo medio stimato per categoria prodotto
-    console.log('⚠️ Usando stima fallback');
-    const fallbackPrice = 2.99; // Prezzo medio generico
+    const responseData = { 
+      price: foundPrice,
+      priceInfo: `€${foundPrice.toFixed(2)}`,
+      cached: priceFromCache,
+      estimated: !priceFromCache,
+      completedProduct: completedProductName,
+      productAvailable,
+      suggestedAlternative,
+      imageUrl: productImageUrl
+    };
+    
+    console.log('📦 Response finale:', JSON.stringify(responseData));
     
     return new Response(
-      JSON.stringify({ 
-        price: fallbackPrice,
-        priceInfo: `€${fallbackPrice.toFixed(2)}`,
-        cached: false,
-        estimated: true,
-        fallback: true
-      }),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
