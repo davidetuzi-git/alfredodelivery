@@ -31,6 +31,8 @@ interface ShoppingItem {
   quantity: number;
   suggestion: string | null;
   completedName?: string;
+  productAvailable?: boolean;
+  suggestedAlternative?: string | null;
   isEstimated?: boolean;
   estimateConfidence?: string;
   estimateReasoning?: string;
@@ -365,12 +367,19 @@ const Order = () => {
             price: data.price, 
             loading: false,
             imageUrl: data.imageUrl || null,
-            isEstimated: data.estimated || false
+            isEstimated: data.estimated || false,
+            productAvailable: data.productAvailable !== false,
+            suggestedAlternative: data.suggestedAlternative || null
           };
           
           // If product was completed by AI, show it
           if (data.completedProduct && data.completedProduct !== productName.trim()) {
             updateData.completedName = data.completedProduct;
+          }
+          
+          // If product is not available, show warning
+          if (data.productAvailable === false && data.suggestedAlternative) {
+            updateData.suggestion = `⚠️ Prodotto non disponibile. Alternativa: ${data.suggestedAlternative}`;
           }
           
           updatedItems[index] = { ...updatedItems[index], ...updateData };
@@ -1167,6 +1176,11 @@ const Order = () => {
                           {item.completedName && (
                             <p className="text-[0.7rem] italic text-blue-600 dark:text-blue-400 mt-0.5">
                               {item.completedName}
+                            </p>
+                          )}
+                          {item.suggestion && (
+                            <p className="text-[0.7rem] text-amber-600 dark:text-amber-400 mt-0.5">
+                              {item.suggestion}
                             </p>
                           )}
                         </div>
