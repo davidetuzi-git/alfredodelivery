@@ -216,6 +216,70 @@ Rispondi SOLO con il nome (max 60 caratteri)`;
               suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
               completedProductName = suggestedAlternative;
               console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
+              
+              // CERCA IL PREZZO DEL PRODOTTO ALTERNATIVO
+              console.log(`\n💰 Ricerca prezzo del prodotto alternativo...`);
+              const alternativePricePrompt = `Trova il prezzo di "${suggestedAlternative}" presso ${chainName}.
+Negozio: ${storeAddress}
+Città: ${city || 'Italia'}
+
+STRATEGIA DI RICERCA OBBLIGATORIA (in ordine):
+
+1️⃣ CERCA PRIMA: Prezzo ${chainName} a ${city}
+   - Volantino digitale ${chainName} zona ${city}
+   - Offerte ${chainName} punto vendita a ${city}
+   
+2️⃣ SE NON TROVI: Prezzo ${chainName} in provincia di ${city}
+   - Volantini ${chainName} città limitrofe
+   - Prezzi ${chainName} nella provincia
+   
+3️⃣ SE NON TROVI: Prezzo ${chainName} nel capoluogo di regione
+   - Verifica il capoluogo della regione dove si trova ${city}
+   - Cerca volantini ${chainName} del capoluogo regionale
+
+4️⃣ FALLBACK FINALE: Stima realistica
+   - Basati su range prezzi tipici per quel prodotto in Italia
+   - Considera il tipo di catena (discount, premium, normale)
+
+REGOLE:
+- DEVI SEMPRE rispondere con un numero (es: 2.99)
+- Preferisci prezzi reali da volantini/siti ufficiali
+- Se stimi, usa prezzi ragionevoli per il tipo di prodotto
+
+Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
+
+              try {
+                const alternativePriceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-pro',
+                    messages: [{ role: 'user', content: alternativePricePrompt }],
+                    temperature: 0.2,
+                    max_tokens: 100,
+                  }),
+                });
+
+                if (alternativePriceResponse.ok) {
+                  const alternativePriceData = await alternativePriceResponse.json();
+                  const alternativePriceStr = alternativePriceData.choices[0].message.content.trim();
+                  console.log(`  AI Prezzo alternativa: ${alternativePriceStr}`);
+
+                  const alternativePriceMatch = alternativePriceStr.match(/(\d+[.,]\d{1,2})/);
+                  if (alternativePriceMatch) {
+                    const parsedAlternativePrice = parseFloat(alternativePriceMatch[1].replace(',', '.'));
+                    if (parsedAlternativePrice >= 0.10 && parsedAlternativePrice <= 500) {
+                      foundPrice = parsedAlternativePrice;
+                      console.log(`✓ Prezzo alternativa trovato: €${foundPrice}`);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.log('⚠️ Ricerca prezzo alternativa fallita:', e);
+              }
             } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
               completedProductName = suggestedName;
               console.log(`✓ Nome completato: ${completedProductName}`);
