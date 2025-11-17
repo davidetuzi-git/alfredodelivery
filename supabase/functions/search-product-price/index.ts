@@ -146,21 +146,30 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
         console.log(`  AI Prezzo: ${aiResponse}`);
 
         const priceMatch = aiResponse.match(/(\d+[.,]\d{1,2})/);
+        let foundPrice = 2.99; // Fallback default
+        
         if (priceMatch) {
-          const foundPrice = parseFloat(priceMatch[1].replace(',', '.'));
-          if (foundPrice >= 0.10 && foundPrice <= 500) {
+          const parsedPrice = parseFloat(priceMatch[1].replace(',', '.'));
+          if (parsedPrice >= 0.10 && parsedPrice <= 500) {
+            foundPrice = parsedPrice;
             console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
-            
-            // COMPLETAMENTO NOME PRODOTTO CON BRAND E VERIFICA DISPONIBILITÀ
-            console.log('\n🏷️ Completamento nome prodotto con brand...');
-            let completedProductName = product;
-            let productAvailable = true;
-            let suggestedAlternative = null;
-            
-            try {
-              const completionPrompt = `Prodotto: "${product}"
+          } else {
+            console.log(`⚠️ Prezzo fuori range, uso fallback: €${foundPrice}`);
+          }
+        } else {
+          console.log(`⚠️ Nessun prezzo valido nella risposta, uso fallback: €${foundPrice}`);
+        }
+        
+        // COMPLETAMENTO NOME PRODOTTO - SEMPRE ESEGUITO
+        console.log('\n🏷️ Completamento nome prodotto con brand...');
+        let completedProductName = product;
+        let productAvailable = true;
+        let suggestedAlternative = null;
+        
+        try {
+          const completionPrompt = `Prodotto: "${product}"
 Catena: ${chainName}
-Città: ${city}
+Città: ${city || 'Italia'}
 
 ANALIZZA E COMPLETA:
 1. Verifica se "${product}" è venduto da ${chainName}
@@ -183,47 +192,47 @@ Esempi:
 
 Rispondi SOLO con il nome (max 60 caratteri)`;
 
-              const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  model: 'google/gemini-2.5-flash',
-                  messages: [{ role: 'user', content: completionPrompt }],
-                  temperature: 0.3,
-                  max_tokens: 80,
-                }),
-              });
+          const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [{ role: 'user', content: completionPrompt }],
+              temperature: 0.3,
+              max_tokens: 80,
+            }),
+          });
 
-              if (completionResponse.ok) {
-                const completionData = await completionResponse.json();
-                const suggestedName = completionData.choices[0].message.content.trim();
-                console.log(`  AI Completamento risposta: "${suggestedName}"`);
-                
-                if (suggestedName.startsWith('ALTERNATIVA|')) {
-                  productAvailable = false;
-                  suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
-                  completedProductName = suggestedAlternative;
-                  console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
-                } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
-                  completedProductName = suggestedName;
-                  console.log(`✓ Nome completato: ${completedProductName}`);
-                }
-              } else {
-                console.log(`✗ Errore completamento: ${completionResponse.status}`);
-              }
-            } catch (e) {
-              console.log('⚠️ Completamento nome fallito:', e);
+          if (completionResponse.ok) {
+            const completionData = await completionResponse.json();
+            const suggestedName = completionData.choices[0].message.content.trim();
+            console.log(`  AI Completamento risposta: "${suggestedName}"`);
+            
+            if (suggestedName.startsWith('ALTERNATIVA|')) {
+              productAvailable = false;
+              suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
+              completedProductName = suggestedAlternative;
+              console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
+            } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
+              completedProductName = suggestedName;
+              console.log(`✓ Nome completato: ${completedProductName}`);
             }
-            
-            // GENERAZIONE IMMAGINE PRODOTTO
-            console.log('\n📸 Generazione immagine prodotto...');
-            let productImageUrl = null;
-            
-            try {
-              const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
+          } else {
+            console.log(`✗ Errore completamento: ${completionResponse.status}`);
+          }
+        } catch (e) {
+          console.log('⚠️ Completamento nome fallito:', e);
+        }
+        
+        // GENERAZIONE IMMAGINE - SEMPRE ESEGUITA
+        console.log('\n📸 Generazione immagine prodotto...');
+        let productImageUrl = null;
+        
+        try {
+          const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
 Stile: foto realistica di prodotto su sfondo bianco, come nei cataloghi di supermercato.
 Dettagli: packaging del prodotto visibile, etichetta leggibile se possibile, illuminazione professionale.
 ${chainName === 'Eurospin' ? 'Include marchio Eurospin se applicabile.' : ''}
@@ -231,67 +240,65 @@ ${chainName === 'Lidl' ? 'Include marchio Lidl/Combino se applicabile.' : ''}
 ${chainName === 'Conad' ? 'Include marchio Conad se applicabile.' : ''}
 Alta qualità, realistica, professionale.`;
 
-              const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  model: 'google/gemini-2.5-flash-image',
-                  messages: [{
-                    role: 'user',
-                    content: imagePrompt
-                  }],
-                  modalities: ['image', 'text']
-                }),
-              });
+          const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-image',
+              messages: [{
+                role: 'user',
+                content: imagePrompt
+              }],
+              modalities: ['image', 'text']
+            }),
+          });
 
-              if (imageResponse.ok) {
-                const imageData = await imageResponse.json();
-                const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-                if (generatedImage) {
-                  productImageUrl = generatedImage;
-                  console.log('✓ Immagine generata');
-                }
-              }
-            } catch (e) {
-              console.log('⚠️ Generazione immagine fallita');
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+            if (generatedImage) {
+              productImageUrl = generatedImage;
+              console.log('✓ Immagine generata');
             }
-            
-            // Salva in cache
-            await supabase
-              .from('product_prices')
-              .upsert({
-                product_name: normalizedProduct,
-                store_name: normalizedStore,
-                store_address: normalizedAddress,
-                price: foundPrice,
-                source: 'ai_estimate',
-                updated_at: new Date().toISOString(),
-              }, {
-                onConflict: 'product_name,store_name,store_address'
-              });
-
-            const responseData = { 
-              price: foundPrice,
-              priceInfo: `€${foundPrice.toFixed(2)}`,
-              cached: false,
-              estimated: true,
-              completedProduct: completedProductName,
-              productAvailable,
-              suggestedAlternative,
-              imageUrl: productImageUrl
-            };
-            
-            console.log('📦 Response finale:', JSON.stringify(responseData));
-            
-            return new Response(
-              JSON.stringify(responseData),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
           }
+        } catch (e) {
+          console.log('⚠️ Generazione immagine fallita');
         }
+        
+        // Salva in cache
+        await supabase
+          .from('product_prices')
+          .upsert({
+            product_name: normalizedProduct,
+            store_name: normalizedStore,
+            store_address: normalizedAddress,
+            price: foundPrice,
+            source: 'ai_estimate',
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'product_name,store_name,store_address'
+          });
+
+        const responseData = { 
+          price: foundPrice,
+          priceInfo: `€${foundPrice.toFixed(2)}`,
+          cached: false,
+          estimated: true,
+          completedProduct: completedProductName,
+          productAvailable,
+          suggestedAlternative,
+          imageUrl: productImageUrl
+        };
+        
+        console.log('📦 Response finale:', JSON.stringify(responseData));
+        
+        return new Response(
+          JSON.stringify(responseData),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     } catch (error) {
       const errorMsg = error instanceof Error && error.name === 'AbortError' ? 'Timeout' : String(error);
