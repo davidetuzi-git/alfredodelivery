@@ -151,28 +151,37 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
           if (foundPrice >= 0.10 && foundPrice <= 500) {
             console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
             
-            // COMPLETAMENTO NOME PRODOTTO
-            console.log('\n🏷️ Completamento nome prodotto...');
+            // COMPLETAMENTO NOME PRODOTTO CON BRAND E VERIFICA DISPONIBILITÀ
+            console.log('\n🏷️ Completamento nome prodotto con brand...');
             let completedProductName = product;
+            let productAvailable = true;
+            let suggestedAlternative = null;
             
             try {
               const completionPrompt = `Prodotto: "${product}"
 Catena: ${chainName}
+Città: ${city}
 
-Completa il nome del prodotto in modo preciso e professionale.
-REGOLE:
-- Se il prodotto è generico (es: "pasta"), suggerisci un formato comune (es: "Pasta di semola 500g")
-- Includi peso/formato tipico se manca (es: 1kg, 500g, 1L)
-- Mantieni il nome semplice ma completo
-- NON inventare marche specifiche
-- Prodotti sono standardizzati in tutta Italia
+ANALIZZA E COMPLETA:
+1. Verifica se "${product}" è venduto da ${chainName}
+2. Se NON è venduto (es: Nutella non in Eurospin, prodotti Esselunga Solo in Esselunga):
+   - Suggerisci l'alternativa PIÙ SIMILE venduta da ${chainName}
+   - Include il BRAND della catena se esiste
+3. Se È venduto, completa il nome includendo:
+   - BRAND (se applicabile)
+   - Formato/peso standard
+   - Descrizione chiara
+
+FORMATO RISPOSTA:
+Se venduto: "BRAND Nome Prodotto formato"
+Se NON venduto: "ALTERNATIVA|BRAND Nome Alternativa formato"
 
 Esempi:
-"latte" → "Latte fresco intero 1L"
-"pane" → "Pane tipo 00 400g"
-"pasta" → "Pasta di semola 500g"
+"nutella" + Eurospin → "ALTERNATIVA|Eurospin Crema Spalmabile Nocciola 400g"
+"latte" + Conad → "Conad Latte Fresco Intero 1L"
+"pasta" + Lidl → "Combino Pasta di Semola 500g"
 
-Rispondi SOLO con il nome completo del prodotto (max 50 caratteri)`;
+Rispondi SOLO con il nome (max 60 caratteri)`;
 
               const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
                 method: 'POST',
@@ -184,20 +193,67 @@ Rispondi SOLO con il nome completo del prodotto (max 50 caratteri)`;
                   model: 'google/gemini-2.5-flash',
                   messages: [{ role: 'user', content: completionPrompt }],
                   temperature: 0.3,
-                  max_tokens: 50,
+                  max_tokens: 80,
                 }),
               });
 
               if (completionResponse.ok) {
                 const completionData = await completionResponse.json();
                 const suggestedName = completionData.choices[0].message.content.trim();
-                if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
+                
+                if (suggestedName.startsWith('ALTERNATIVA|')) {
+                  productAvailable = false;
+                  suggestedAlternative = suggestedName.replace('ALTERNATIVA|', '');
+                  completedProductName = suggestedAlternative;
+                  console.log(`⚠️ Prodotto non disponibile. Alternativa: ${suggestedAlternative}`);
+                } else if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
                   completedProductName = suggestedName;
                   console.log(`✓ Nome completato: ${completedProductName}`);
                 }
               }
             } catch (e) {
               console.log('⚠️ Completamento nome fallito, uso nome originale');
+            }
+            
+            // GENERAZIONE IMMAGINE PRODOTTO
+            console.log('\n📸 Generazione immagine prodotto...');
+            let productImageUrl = null;
+            
+            try {
+              const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
+Stile: foto realistica di prodotto su sfondo bianco, come nei cataloghi di supermercato.
+Dettagli: packaging del prodotto visibile, etichetta leggibile se possibile, illuminazione professionale.
+${chainName === 'Eurospin' ? 'Include marchio Eurospin se applicabile.' : ''}
+${chainName === 'Lidl' ? 'Include marchio Lidl/Combino se applicabile.' : ''}
+${chainName === 'Conad' ? 'Include marchio Conad se applicabile.' : ''}
+Alta qualità, realistica, professionale.`;
+
+              const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash-image',
+                  messages: [{
+                    role: 'user',
+                    content: imagePrompt
+                  }],
+                  modalities: ['image', 'text']
+                }),
+              });
+
+              if (imageResponse.ok) {
+                const imageData = await imageResponse.json();
+                const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+                if (generatedImage) {
+                  productImageUrl = generatedImage;
+                  console.log('✓ Immagine generata');
+                }
+              }
+            } catch (e) {
+              console.log('⚠️ Generazione immagine fallita');
             }
             
             // Salva in cache
@@ -220,7 +276,10 @@ Rispondi SOLO con il nome completo del prodotto (max 50 caratteri)`;
                 priceInfo: `€${foundPrice.toFixed(2)}`,
                 cached: false,
                 estimated: true,
-                completedProduct: completedProductName
+                completedProduct: completedProductName,
+                productAvailable,
+                suggestedAlternative,
+                imageUrl: productImageUrl
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
