@@ -29,6 +29,10 @@ serve(async (req) => {
     const chainName = storeNameParts[0].trim();
     const storeAddress = storeNameParts.length > 1 ? storeNameParts.slice(1).join(' - ').trim() : '';
     
+    // Estrai città/provincia dall'indirizzo
+    const locationMatch = storeAddress.match(/,\s*([^,]+)$/);
+    const city = locationMatch ? locationMatch[1].trim() : '';
+    
     const normalizedProduct = product.trim().toLowerCase();
     const normalizedStore = chainName.toLowerCase();
     const normalizedAddress = storeAddress.toLowerCase();
@@ -36,6 +40,8 @@ serve(async (req) => {
     console.log(`=== RICERCA PREZZO ===`);
     console.log(`Prodotto: ${product}`);
     console.log(`Catena: ${chainName}`);
+    console.log(`Indirizzo: ${storeAddress}`);
+    console.log(`Città: ${city}`);
 
     // FASE 1: Cache (30 giorni, qualsiasi punto vendita della stessa catena)
     console.log('\n🔍 Cache...');
@@ -75,21 +81,25 @@ serve(async (req) => {
       );
     }
 
-    console.log('\n💡 Ricerca AI prezzo (OBBLIGATORIO)...');
+    console.log('\n💡 Ricerca AI prezzo SPECIFICO per negozio e zona...');
     
-    const searchPrompt = `Trova il prezzo di "${product}" da ${chainName} in Italia.
+    const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName} a ${city || 'Italia'}.
+Indirizzo completo negozio: ${storeAddress}
 
-REGOLE OBBLIGATORIE:
-1. Cerca il prezzo REALE su siti ufficiali, volantini, comparatori
-2. Se NON trovi il prezzo esatto, DEVI stimare un prezzo realistico basandoti su:
-   - Prezzi di prodotti simili dello stesso supermercato
-   - Prezzi medi di mercato per quel tipo di prodotto
-   - Categoria del prodotto (es: frutta/verdura €1-3/kg, pasta €0.50-2, carne €8-15/kg)
-3. DEVI SEMPRE rispondere con un numero (es: 2.99)
-4. NON rispondere MAI con "NON TROVATO" o testi
-5. Il prezzo deve essere realistico per il mercato italiano
+ISTRUZIONI OBBLIGATORIE:
+1. Cerca il prezzo REALE per questo SPECIFICO negozio o punto vendita ${chainName} in zona ${city}
+2. Verifica su:
+   - Sito ufficiale ${chainName} (sezione "Volantino" o "Offerte" per ${city})
+   - Comparatori prezzi italiani che mostrano prezzi per località (Everli, Doveconviene, ecc.)
+   - App/siti che mostrano prezzi reali per supermercati in ${city}
+3. Se NON trovi il prezzo ESATTO per ${city}, cerca prezzi per ${chainName} in città vicine o nella stessa regione
+4. SOLO se non trovi prezzi regionali, stima un prezzo realistico basandoti su:
+   - Prezzi medi ${chainName} in Italia per prodotti simili
+   - Range di prezzo tipico per quel tipo di prodotto
+5. DEVI SEMPRE rispondere con un numero (es: 2.99)
+6. Il prezzo deve essere realistico per ${chainName} in Italia
 
-Rispondi SOLO con il numero del prezzo (es: 2.99)`;
+Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
 
     try {
       const controller = new AbortController();
@@ -102,7 +112,7 @@ Rispondi SOLO con il numero del prezzo (es: 2.99)`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
+          model: 'google/gemini-2.5-pro', // Modello più potente per ricerca accurata
           messages: [{ role: 'user', content: searchPrompt }],
           temperature: 0.3,
           max_tokens: 30,
