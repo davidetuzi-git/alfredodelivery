@@ -358,20 +358,35 @@ const Order = () => {
             updateData.suggestion = `Selezionato: ${data.completedProduct}`;
           }
           
+          // Show cache info if available
+          if (data.cached) {
+            updateData.suggestion = (updateData.suggestion ? updateData.suggestion + ' - ' : '') + `Cache (${data.cacheAge})`;
+          }
+          
           updatedItems[index] = { ...updatedItems[index], ...updateData };
           return updatedItems;
         });
-      } else {
-        // Show error message if available
-        if (error || data?.error) {
-          const errorMessage = data?.error || 'Impossibile recuperare il prezzo';
-          toast({
-            title: "Errore ricerca prezzo",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
+      } else if (data?.error || error) {
+        // Price not found or error occurred
+        const errorMessage = data?.error || data?.message || 'Impossibile recuperare il prezzo';
         
+        setItems(prevItems => {
+          const updatedItems = [...prevItems];
+          updatedItems[index] = { 
+            ...updatedItems[index], 
+            loading: false, 
+            suggestion: errorMessage,
+            price: null
+          };
+          return updatedItems;
+        });
+        
+        toast({
+          title: "Prezzo non trovato",
+          description: data?.message || errorMessage,
+          variant: "destructive",
+        });
+      } else {
         setItems(prevItems => {
           const updatedItems = [...prevItems];
           updatedItems[index] = { ...updatedItems[index], loading: false, suggestion: null };

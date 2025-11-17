@@ -466,6 +466,36 @@ export type Database = {
           },
         ]
       }
+      product_prices: {
+        Row: {
+          created_at: string
+          id: string
+          price: number
+          product_name: string
+          source: string | null
+          store_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price: number
+          product_name: string
+          source?: string | null
+          store_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number
+          product_name?: string
+          source?: string | null
+          store_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -677,6 +707,7 @@ export type Database = {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
       }
+      cleanup_old_prices: { Args: never; Returns: undefined }
       generate_pickup_code: { Args: never; Returns: string }
       has_role: {
         Args: {
