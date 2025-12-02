@@ -28,8 +28,9 @@ const Checkout = () => {
   const subtotal = orderData.total || 0;
   const deliveryFee = orderData.deliveryFee || 3.99;
   const discount = orderData.discount || 4.99;
+  const schedulingAdjustment = orderData.orderData?.schedulingAdjustment || { amount: 0, description: '' };
   const itemCount = orderData.itemCount || 0;
-  const finalTotal = subtotal + deliveryFee - discount;
+  const finalTotal = subtotal;
   const storeName = orderData.orderData?.store || "";
 
   // Check authentication first
@@ -296,12 +297,24 @@ const Checkout = () => {
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Prodotti ({itemCount} articoli)</span>
-              <span className="font-semibold">€{subtotal.toFixed(2)}</span>
+              <span className="font-semibold">€{(subtotal - deliveryFee + discount - (schedulingAdjustment.amount || 0)).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Costo consegna</span>
               <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
             </div>
+            {schedulingAdjustment.amount !== 0 && (
+              <div className={`flex justify-between ${
+                schedulingAdjustment.amount > 0 
+                  ? "text-red-600 dark:text-red-400" 
+                  : "text-green-600 dark:text-green-400"
+              }`}>
+                <span>{schedulingAdjustment.amount > 0 ? "Supplemento urgenza" : "Sconto programmazione"}</span>
+                <span className="font-semibold">
+                  {schedulingAdjustment.amount > 0 ? '+' : ''}€{schedulingAdjustment.amount.toFixed(2)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sconto fedeltà</span>
               <span className="font-semibold text-green-600">-€{discount.toFixed(2)}</span>

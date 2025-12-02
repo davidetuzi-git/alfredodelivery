@@ -12,17 +12,18 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Plus, X, Loader2, CalendarIcon, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload } from "lucide-react";
+import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import DeliveryDatePicker from "@/components/DeliveryDatePicker";
+import { useSchedulingPricing, calculateSchedulingAdjustment } from "@/hooks/useSchedulingPricing";
+import { isSameDay } from "date-fns";
 
 interface ShoppingItem {
   name: string;
@@ -140,7 +141,6 @@ const Order = () => {
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lon: number } | null>(initialState?.addressCoords || null);
   const [store, setStore] = useState(initialState?.store || "");
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(initialState?.deliveryDate ? new Date(initialState.deliveryDate) : undefined);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [timeSlot, setTimeSlot] = useState(initialState?.timeSlot || "");
   const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
@@ -149,6 +149,24 @@ const Order = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
+
+  // Use scheduling pricing hook for smart date suggestions
+  const { suggestedDates } = useSchedulingPricing(
+    store,
+    addressCoords?.lat || null,
+    addressCoords?.lon || null
+  );
+
+  // Calculate scheduling adjustment for current date selection
+  const schedulingAdjustment = calculateSchedulingAdjustment(deliveryDate);
+  
+  // Check if selected date has extra discount from nearby orders
+  const selectedSuggestion = deliveryDate 
+    ? suggestedDates.find(s => isSameDay(s.date, deliveryDate))
+    : null;
+  
+  // Total scheduling discount/surcharge
+  const schedulingAmount = (schedulingAdjustment?.amount || 0) + (selectedSuggestion ? -selectedSuggestion.extraDiscount : 0);
 
   // Set store coordinates when component loads if store is already selected
   useEffect(() => {
@@ -732,6 +750,12 @@ const Order = () => {
     // Calculate service fee
     const serviceFee = calculateServiceFee(finalItems);
     
+    // Calculate scheduling adjustment (discount or surcharge based on delivery date)
+    const schedulingAdjustmentForOrder = calculateSchedulingAdjustment(deliveryDate);
+    const suggestionDiscount = suggestedDates.find(s => isSameDay(s.date, deliveryDate!));
+    const totalSchedulingAdjustment = (schedulingAdjustmentForOrder?.amount || 0) + 
+      (suggestionDiscount ? -suggestionDiscount.extraDiscount : 0);
+    
     navigate("/riepilogo-ordine", { 
       state: { 
         orderData: {
@@ -754,6 +778,12 @@ const Order = () => {
           deliveryFee,
           deliveryDistance,
           serviceFee,
+          schedulingAdjustment: {
+            amount: totalSchedulingAdjustment,
+            description: schedulingAdjustmentForOrder?.description || '',
+            suggestionReason: suggestionDiscount?.reason || null,
+            suggestionDiscount: suggestionDiscount?.extraDiscount || 0
+          },
           latitude: addressCoords?.lat || null,
           longitude: addressCoords?.lon || null
         },
@@ -1044,40 +1074,19 @@ const Order = () => {
 
               <div className="space-y-2">
                 <Label>Data di consegna</Label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="deliveryDate"
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !deliveryDate && "text-muted-foreground",
-                        fieldErrors.has('deliveryDate') && "border-destructive animate-shake"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deliveryDate ? format(deliveryDate, "PPP", { locale: it }) : "Seleziona una data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={deliveryDate}
-                      onSelect={(date) => {
-                        setDeliveryDate(date);
-                        setCalendarOpen(false);
-                        if (fieldErrors.has('deliveryDate')) {
-                          const newErrors = new Set(fieldErrors);
-                          newErrors.delete('deliveryDate');
-                          setFieldErrors(newErrors);
-                        }
-                      }}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DeliveryDatePicker
+                  value={deliveryDate}
+                  onChange={(date) => {
+                    setDeliveryDate(date);
+                    if (fieldErrors.has('deliveryDate')) {
+                      const newErrors = new Set(fieldErrors);
+                      newErrors.delete('deliveryDate');
+                      setFieldErrors(newErrors);
+                    }
+                  }}
+                  suggestedDates={suggestedDates}
+                  hasError={fieldErrors.has('deliveryDate')}
+                />
               </div>
 
               <div className="space-y-2">
@@ -1336,10 +1345,30 @@ const Order = () => {
                           }
                         </span>
                       </div>
+                      {/* Scheduling adjustment row */}
+                      {schedulingAmount !== 0 && (
+                        <div className={cn(
+                          "flex justify-between",
+                          schedulingAmount > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+                        )}>
+                          <div className="flex flex-col gap-0.5">
+                            <span>{schedulingAmount > 0 ? "Supplemento urgenza" : "Sconto programmazione"}</span>
+                            {schedulingAdjustment?.description && (
+                              <span className="text-xs opacity-80">{schedulingAdjustment.description}</span>
+                            )}
+                            {selectedSuggestion && (
+                              <span className="text-xs opacity-80">+ Bonus consegna raggruppata</span>
+                            )}
+                          </div>
+                          <span className="font-medium">
+                            {schedulingAmount > 0 ? '+' : ''}€{schedulingAmount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center pt-2 border-t">
                         <span className="font-semibold text-lg">Totale stimato:</span>
                         <span className="font-bold text-xl text-primary">
-                          €{(finalTotal + (addressCoords && selectedStoreCoords 
+                          €{(finalTotal + schedulingAmount + (addressCoords && selectedStoreCoords 
                             ? calculateDeliveryFee(
                                 calculateDistance(
                                   addressCoords.lat,

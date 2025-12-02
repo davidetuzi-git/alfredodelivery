@@ -117,8 +117,9 @@ const OrderSummary = () => {
   const deliveryDistance = orderData.deliveryDistance || 0;
   const serviceFee = orderData.serviceFee || 0;
   const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, total: 0 };
+  const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '', suggestionReason: null, suggestionDiscount: 0 };
   const discount = 4.99;
-  const total = subtotal + deliveryFee + serviceFee + supplements.total - discount;
+  const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount - discount;
 
   const handleProceedToCheckout = () => {
     navigate("/checkout", {
@@ -309,6 +310,26 @@ const OrderSummary = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Supplementi</span>
                 <span className="font-semibold">€{supplements.total.toFixed(2)}</span>
+              </div>
+            )}
+            {schedulingAdjustment.amount !== 0 && (
+              <div className={`flex justify-between text-sm ${
+                schedulingAdjustment.amount > 0 
+                  ? "text-red-600 dark:text-red-400" 
+                  : "text-green-600 dark:text-green-400"
+              }`}>
+                <div className="flex flex-col">
+                  <span>{schedulingAdjustment.amount > 0 ? "Supplemento urgenza" : "Sconto programmazione"}</span>
+                  {schedulingAdjustment.description && (
+                    <span className="text-xs opacity-80">{schedulingAdjustment.description}</span>
+                  )}
+                  {schedulingAdjustment.suggestionReason && (
+                    <span className="text-xs opacity-80">+ {schedulingAdjustment.suggestionReason}</span>
+                  )}
+                </div>
+                <span className="font-semibold">
+                  {schedulingAdjustment.amount > 0 ? '+' : ''}€{schedulingAdjustment.amount.toFixed(2)}
+                </span>
               </div>
             )}
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
