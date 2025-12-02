@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/dialog";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Session } from "@supabase/supabase-js";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
+import { OrderFeedbackWithTip } from "@/components/OrderFeedbackWithTip";
 
 interface Order {
   id: string;
@@ -34,6 +35,7 @@ interface Order {
   discount: number;
   voucher_discount: number;
   created_at: string;
+  deliverer_id: string | null;
   deliverer_name: string | null;
   deliverer_phone: string | null;
   items: any;
@@ -46,6 +48,8 @@ const MyOrders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
+  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -91,6 +95,19 @@ const MyOrders = () => {
       if (error) throw error;
 
       setOrders(data || []);
+
+      // Check which orders already have feedback
+      const orderIds = (data || []).map(o => o.id);
+      if (orderIds.length > 0) {
+        const { data: feedbackData } = await supabase
+          .from("order_feedback")
+          .select("order_id")
+          .in("order_id", orderIds);
+        
+        if (feedbackData) {
+          setFeedbackGiven(new Set(feedbackData.map(f => f.order_id)));
+        }
+      }
     } catch (error) {
       console.error("Error loading orders:", error);
       toast({
@@ -490,6 +507,41 @@ const MyOrders = () => {
                   >
                     Traccia ordine in tempo reale
                   </Button>
+                )}
+
+                {/* Feedback Section for delivered orders */}
+                {selectedOrder.delivery_status === 'delivered' && selectedOrder.deliverer_id && (
+                  <>
+                    {feedbackGiven.has(selectedOrder.id) ? (
+                      <Card className="bg-green-50 dark:bg-green-950/20 border-green-500/30">
+                        <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-400">
+                            <Star className="h-5 w-5 fill-current" />
+                            <span className="font-medium">Grazie per il tuo feedback!</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : showFeedback ? (
+                      <OrderFeedbackWithTip
+                        orderId={selectedOrder.id}
+                        delivererId={selectedOrder.deliverer_id}
+                        delivererName={selectedOrder.deliverer_name || "Il rider"}
+                        onComplete={() => {
+                          setFeedbackGiven(prev => new Set([...prev, selectedOrder.id]));
+                          setShowFeedback(false);
+                        }}
+                      />
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => setShowFeedback(true)}
+                      >
+                        <Star className="h-4 w-4 mr-2" />
+                        Valuta la consegna e lascia una mancia
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </>
