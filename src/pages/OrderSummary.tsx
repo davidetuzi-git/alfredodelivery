@@ -4,8 +4,9 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, Store, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, Store, Loader2, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -118,6 +119,7 @@ const OrderSummary = () => {
   const serviceFee = orderData.serviceFee || 0;
   const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, total: 0 };
   const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '', suggestionReason: null, suggestionDiscount: 0 };
+  const subscriptionData = orderData.subscription || null;
   const discount = 4.99;
   const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount - discount;
 
@@ -289,6 +291,23 @@ const OrderSummary = () => {
             <CardTitle>Riepilogo Costi</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Subscription Banner */}
+            {subscriptionData && (
+              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg mb-4">
+                <Crown className="h-5 w-5 text-primary" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Alfredo Extra {subscriptionData.plan === "yearly" ? "Plus" : "Base"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {subscriptionData.usedDelivery 
+                      ? `Consegna gratuita inclusa • ${subscriptionData.deliveriesRemaining} rimanenti dopo questo ordine`
+                      : `Product picking a €${subscriptionData.pickingFee.toFixed(2)}/prodotto`
+                    }
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-primary/20 text-primary border-0">Attivo</Badge>
+              </div>
+            )}
+
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotale</span>
               <span className="font-semibold">€{subtotal.toFixed(2)}</span>
@@ -300,10 +319,22 @@ const OrderSummary = () => {
                   <span className="ml-1 text-xs">({deliveryDistance.toFixed(1)} km)</span>
                 )}
               </span>
-              <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
+              {subscriptionData?.usedDelivery ? (
+                <span className="font-semibold text-green-600">
+                  <span className="line-through text-muted-foreground mr-2">€{(deliveryDistance <= 7 ? (subtotal < 50 ? 10 : 8) : (deliveryDistance <= 10 ? (subtotal < 50 ? 15 : 12) : 20)).toFixed(2)}</span>
+                  GRATIS
+                </span>
+              ) : (
+                <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
+              )}
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Costo del servizio</span>
+              <span className="text-muted-foreground">
+                Costo del servizio
+                {subscriptionData && (
+                  <span className="ml-1 text-xs text-primary">(€{subscriptionData.pickingFee}/prodotto)</span>
+                )}
+              </span>
               <span className="font-semibold">€{serviceFee.toFixed(2)}</span>
             </div>
             {supplements.total > 0 && (

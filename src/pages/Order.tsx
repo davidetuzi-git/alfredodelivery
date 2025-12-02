@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import DeliveryDatePicker from "@/components/DeliveryDatePicker";
 import { useSchedulingPricing, calculateSchedulingAdjustment } from "@/hooks/useSchedulingPricing";
+import { useSubscription, SUBSCRIPTION_PLANS } from "@/hooks/useSubscription";
 import { isSameDay } from "date-fns";
 
 interface ShoppingItem {
@@ -184,8 +185,16 @@ const Order = () => {
     types: string[];
   } | null>(null);
 
+  // Get subscription benefits
+  const { subscription, benefits: subscriptionBenefits, decrementDelivery } = useSubscription();
+
   // Calculate delivery fee based on distance and subtotal
-  const calculateDeliveryFee = (distance: number, subtotal: number): number => {
+  // If user has subscription with remaining deliveries, delivery is FREE
+  const calculateDeliveryFee = (distance: number, subtotal: number, useSubscriptionDelivery: boolean = false): number => {
+    if (useSubscriptionDelivery && subscriptionBenefits.deliveriesRemaining > 0) {
+      return 0; // Free delivery for subscribers with remaining deliveries
+    }
+    
     if (distance <= 7) {
       return subtotal < 50 ? 10 : 8;
     } else if (distance <= 10) {
@@ -195,9 +204,10 @@ const Order = () => {
     return 20; // High fee for >10km deliveries
   };
 
-  // Calculate service fee: €0.15 per product * quantity
+  // Calculate service fee (product picking): €0.15 default, €0.12 monthly sub, €0.10 yearly sub
   const calculateServiceFee = (items: ShoppingItem[]): number => {
-    return items.reduce((sum, item) => sum + (item.quantity * 0.15), 0);
+    const pickingFee = subscriptionBenefits.pickingFeePerProduct;
+    return items.reduce((sum, item) => sum + (item.quantity * pickingFee), 0);
   };
 
   const storesFullList = [
@@ -753,6 +763,9 @@ const Order = () => {
 
     const fullAddress = `${address}, ${streetNumber}${addressNotes ? ` - ${addressNotes}` : ''}`;
     
+    // Check if user can use subscription delivery
+    const useSubscriptionDelivery = subscriptionBenefits.hasActiveSubscription && subscriptionBenefits.deliveriesRemaining > 0;
+    
     // Calculate delivery fee based on distance and subtotal
     let deliveryFee = 10; // Default for Zona 1 (0-7km) with <50€ spend
     let deliveryDistance = 0;
@@ -764,13 +777,13 @@ const Order = () => {
         selectedStoreCoords.lat,
         selectedStoreCoords.lng
       );
-      deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal);
+      deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal, useSubscriptionDelivery);
     } else {
       // If we don't have coordinates, use default based on subtotal
-      deliveryFee = calculatedTotal < 50 ? 10 : 8;
+      deliveryFee = useSubscriptionDelivery ? 0 : (calculatedTotal < 50 ? 10 : 8);
     }
 
-    // Calculate service fee
+    // Calculate service fee (uses subscription picking fee if available)
     const serviceFee = calculateServiceFee(finalItems);
     
     // Calculate scheduling adjustment (discount or surcharge based on delivery date)
@@ -808,7 +821,15 @@ const Order = () => {
             suggestionDiscount: suggestionDiscount?.extraDiscount || 0
           },
           latitude: addressCoords?.lat || null,
-          longitude: addressCoords?.lon || null
+          longitude: addressCoords?.lon || null,
+          subscription: subscriptionBenefits.hasActiveSubscription ? {
+            plan: subscriptionBenefits.plan,
+            usedDelivery: useSubscriptionDelivery,
+            pickingFee: subscriptionBenefits.pickingFeePerProduct,
+            deliveriesRemaining: useSubscriptionDelivery 
+              ? subscriptionBenefits.deliveriesRemaining - 1 
+              : subscriptionBenefits.deliveriesRemaining
+          } : null
         },
         orderFormData: {
           name,

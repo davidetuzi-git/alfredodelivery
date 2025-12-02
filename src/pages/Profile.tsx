@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store, ShoppingBag } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store, ShoppingBag, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,7 @@ const Profile = () => {
   
   const menuItems = [
     { icon: ShoppingBag, label: "I miei ordini", action: () => navigate("/i-miei-ordini") },
+    { icon: Crown, label: "Alfredo Extra", action: () => navigate("/abbonamenti"), highlight: true },
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => navigate("/indirizzi-salvati") },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => navigate("/metodi-pagamento") },
@@ -100,15 +101,21 @@ const Profile = () => {
           <CardContent className="space-y-2">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
+              const isHighlight = 'highlight' in item && item.highlight;
               return (
                 <Button
                   key={index}
-                  variant="ghost"
-                  className="w-full justify-start"
+                  variant={isHighlight ? "secondary" : "ghost"}
+                  className={`w-full justify-start ${isHighlight ? "bg-primary/10 hover:bg-primary/20 text-primary" : ""}`}
                   onClick={item.action}
                 >
-                  <Icon className="h-5 w-5 mr-3" />
+                  <Icon className={`h-5 w-5 mr-3 ${isHighlight ? "text-primary" : ""}`} />
                   {item.label}
+                  {isHighlight && (
+                    <Badge variant="secondary" className="ml-auto bg-primary/20 text-primary border-0 text-xs">
+                      Nuovo
+                    </Badge>
+                  )}
                 </Button>
               );
             })}
