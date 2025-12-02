@@ -106,8 +106,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get compensation config for bonus info
+    const { data: compensationConfig } = await supabase
+      .from("rider_compensation_config")
+      .select("first_order_bonus")
+      .single();
+
+    const firstOrderBonus = compensationConfig?.first_order_bonus || 1.00;
+
     // Send Telegram messages to all nearby deliverers
     const notificationPromises = nearbyDeliverers.map(async (deliverer) => {
+      // Check if this would be the rider's first delivery today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayDeliveries } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("deliverer_id", deliverer.id)
+        .gte("delivery_date", today + "T00:00:00Z")
+        .lte("delivery_date", today + "T23:59:59Z")
+        .in("delivery_status", ["delivered"]);
+
+      const isFirstOrderToday = !todayDeliveries || todayDeliveries.length === 0;
+
       // Create notification record
       const { data: notification } = await supabase
         .from("delivery_notifications")
@@ -138,6 +158,12 @@ const handler = async (req: Request): Promise<Response> => {
         const acceptUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=accept&token=${authToken}&apikey=${anonKey}`;
         const rejectUrl = `${supabaseUrl}/functions/v1/respond-delivery-request?notification_id=${notification.id}&response=reject&apikey=${anonKey}`;
 
+        // Build bonus incentive message
+        let bonusMessage = "";
+        if (isFirstOrderToday) {
+          bonusMessage = `\n\n🎁 *BONUS PRIMA CONSEGNA!*\nQuesta è la tua prima consegna di oggi!\nGuadagni *+€${firstOrderBonus.toFixed(2)} extra* accettando questo ordine!`;
+        }
+
         const message = `🚚 *Nuova Consegna Disponibile*
 
 Ciao ${deliverer.name}!
@@ -149,6 +175,7 @@ C'è una nuova consegna disponibile nella tua zona:
 🕐 *Orario:* ${order.time_slot}
 🏪 *Ritiro:* ${order.store_name}
 📍 *Consegna:* ${order.delivery_address}
+${bonusMessage}
 
 ⚡ *Il primo che accetta riceverà l'ordine!*`;
 
