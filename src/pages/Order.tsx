@@ -521,34 +521,47 @@ const Order = () => {
       bagFee: 0,
       waterFee: 0,
       waterOnlyFee: 0,
-      total: 0
+      total: 0,
+      drinksOnlyError: null as string | null
     };
 
-    // Bag supplement: 3€ for each bag over 3
+    // Bag supplement: €3 for each bag over 3 (max 3 bags = 45L included)
     if (bags > 3) {
       supplements.bagFee = (bags - 3) * 3;
     }
 
-    // Check if order is water-only
-    const isWaterOnly = validItems.every(item => 
+    // Check if order is drinks-only (beverages only)
+    const isDrinksOnly = validItems.length > 0 && validItems.every(item => 
       item.name.toLowerCase().includes('acqua') || 
-      item.name.toLowerCase().includes('water')
+      item.name.toLowerCase().includes('water') ||
+      item.name.toLowerCase().includes('bevanda') ||
+      item.name.toLowerCase().includes('bibita') ||
+      item.name.toLowerCase().includes('succo') ||
+      item.name.toLowerCase().includes('latte') ||
+      item.name.toLowerCase().includes('birra') ||
+      item.name.toLowerCase().includes('vino')
     );
 
-    if (isWaterOnly && waterLiters > 0) {
-      // Water-only order: 10€ fixed + 0.50€ per 3L
-      supplements.waterOnlyFee = 10;
-      if (waterLiters > 12) {
-        const excessLiters = waterLiters - 12;
-        supplements.waterOnlyFee += Math.ceil(excessLiters / 3) * 0.50;
+    if (isDrinksOnly && waterLiters > 0) {
+      // Drinks-only order: Min 12L, Max 24L
+      // Extra fisso €10 + €0.20 ogni litro oltre il nono
+      if (waterLiters < 12) {
+        supplements.drinksOnlyError = `Ordine solo bevande: minimo 12L (attuale: ${waterLiters.toFixed(1)}L)`;
+      } else if (waterLiters > 24) {
+        supplements.drinksOnlyError = `Ordine solo bevande: massimo 24L (attuale: ${waterLiters.toFixed(1)}L)`;
+      } else {
+        supplements.waterOnlyFee = 10; // Base fee
+        if (waterLiters > 9) {
+          const excessLiters = waterLiters - 9;
+          supplements.waterOnlyFee += excessLiters * 0.20; // €0.20 per liter over 9
+        }
       }
     } else if (waterLiters > 0) {
-      // Mixed order with water: 0.50€ every 3L excess
-      // Assume first ~6L are included in normal bags
-      const includedWater = 6;
+      // Mixed order with water: €0.50 every 3L over 9L (included in volume)
+      const includedWater = 9;
       if (waterLiters > includedWater) {
         const excessLiters = waterLiters - includedWater;
-        supplements.waterFee = Math.ceil(excessLiters / 3) * 0.50;
+        supplements.waterFee = Math.floor(excessLiters / 3) * 0.50;
       }
     }
 
@@ -717,6 +730,16 @@ const Order = () => {
       const itemPrice = item.price || 0;
       return sum + (itemPrice * item.quantity);
     }, 0);
+    
+    // Check drinks-only order validity
+    if (supplements.drinksOnlyError) {
+      toast({
+        title: "Ordine solo bevande non valido",
+        description: supplements.drinksOnlyError,
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Check minimum spend
     if (total < 25) {
@@ -1274,8 +1297,14 @@ const Order = () => {
                         {waterLiters > 0 && (
                           <p className="text-sm text-muted-foreground mt-1">
                             Volume acqua: {waterLiters.toFixed(1)}L
-                            {supplements.waterFee > 0 && ` (+€${supplements.waterFee.toFixed(2)})`}
-                            {supplements.waterOnlyFee > 0 && ` (Ordine solo acqua: +€${supplements.waterOnlyFee.toFixed(2)})`}
+                            {supplements.waterFee > 0 && ` (+€${supplements.waterFee.toFixed(2)} oltre 9L)`}
+                            {supplements.waterOnlyFee > 0 && ` (Ordine solo bevande: +€${supplements.waterOnlyFee.toFixed(2)})`}
+                          </p>
+                        )}
+                        {supplements.drinksOnlyError && (
+                          <p className="text-sm text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {supplements.drinksOnlyError}
                           </p>
                         )}
                       </CardContent>
