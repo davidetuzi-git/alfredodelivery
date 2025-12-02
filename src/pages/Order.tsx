@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import DeliveryDatePicker from "@/components/DeliveryDatePicker";
 import { useSchedulingPricing, calculateSchedulingAdjustment } from "@/hooks/useSchedulingPricing";
 import { useSubscription, SUBSCRIPTION_PLANS } from "@/hooks/useSubscription";
+import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { isSameDay } from "date-fns";
 
 interface ShoppingItem {
@@ -187,21 +188,34 @@ const Order = () => {
 
   // Get subscription benefits
   const { subscription, benefits: subscriptionBenefits, decrementDelivery } = useSubscription();
+  
+  // Get loyalty benefits for delivery discounts
+  const { loyaltyProfile, getBenefits } = useLoyalty();
+  const loyaltyBenefits = loyaltyProfile ? getBenefits(loyaltyProfile.current_level) : null;
 
   // Calculate delivery fee based on distance and subtotal
   // If user has subscription with remaining deliveries, delivery is FREE
-  const calculateDeliveryFee = (distance: number, subtotal: number, useSubscriptionDelivery: boolean = false): number => {
+  // Otherwise apply loyalty discount
+  const calculateDeliveryFee = (distance: number, subtotal: number, useSubscriptionDelivery: boolean = false): { baseFee: number; loyaltyDiscount: number; finalFee: number } => {
     if (useSubscriptionDelivery && subscriptionBenefits.deliveriesRemaining > 0) {
-      return 0; // Free delivery for subscribers with remaining deliveries
+      return { baseFee: 0, loyaltyDiscount: 0, finalFee: 0 }; // Free delivery for subscribers with remaining deliveries
     }
     
+    let baseFee = 10;
     if (distance <= 7) {
-      return subtotal < 50 ? 10 : 8;
+      baseFee = subtotal < 50 ? 10 : 8;
     } else if (distance <= 10) {
-      return subtotal < 50 ? 15 : 12;
+      baseFee = subtotal < 50 ? 15 : 12;
+    } else {
+      baseFee = 20; // High fee for >10km deliveries
     }
-    // Over 10km - could set a very high fee or not deliver
-    return 20; // High fee for >10km deliveries
+    
+    // Apply loyalty discount
+    const loyaltyDiscountPercent = loyaltyBenefits?.deliveryDiscount || 0;
+    const loyaltyDiscount = baseFee * (loyaltyDiscountPercent / 100);
+    const finalFee = baseFee - loyaltyDiscount;
+    
+    return { baseFee, loyaltyDiscount, finalFee };
   };
 
   // Calculate service fee (product picking): €0.15 default, €0.12 monthly sub, €0.10 yearly sub
@@ -767,7 +781,7 @@ const Order = () => {
     const useSubscriptionDelivery = subscriptionBenefits.hasActiveSubscription && subscriptionBenefits.deliveriesRemaining > 0;
     
     // Calculate delivery fee based on distance and subtotal
-    let deliveryFee = 10; // Default for Zona 1 (0-7km) with <50€ spend
+    let deliveryFeeData = { baseFee: 10, loyaltyDiscount: 0, finalFee: 10 }; // Default for Zona 1 (0-7km) with <50€ spend
     let deliveryDistance = 0;
     
     if (addressCoords && selectedStoreCoords) {
@@ -777,10 +791,13 @@ const Order = () => {
         selectedStoreCoords.lat,
         selectedStoreCoords.lng
       );
-      deliveryFee = calculateDeliveryFee(deliveryDistance, calculatedTotal, useSubscriptionDelivery);
+      deliveryFeeData = calculateDeliveryFee(deliveryDistance, calculatedTotal, useSubscriptionDelivery);
     } else {
       // If we don't have coordinates, use default based on subtotal
-      deliveryFee = useSubscriptionDelivery ? 0 : (calculatedTotal < 50 ? 10 : 8);
+      const baseFee = useSubscriptionDelivery ? 0 : (calculatedTotal < 50 ? 10 : 8);
+      const loyaltyDiscountPercent = loyaltyBenefits?.deliveryDiscount || 0;
+      const loyaltyDiscount = baseFee * (loyaltyDiscountPercent / 100);
+      deliveryFeeData = { baseFee, loyaltyDiscount, finalFee: baseFee - loyaltyDiscount };
     }
 
     // Calculate service fee (uses subscription picking fee if available)
@@ -811,7 +828,9 @@ const Order = () => {
             waterOnlyFee: supplements.waterOnlyFee,
             total: supplements.total
           },
-          deliveryFee,
+          deliveryFee: deliveryFeeData.finalFee,
+          deliveryFeeBase: deliveryFeeData.baseFee,
+          loyaltyDiscount: deliveryFeeData.loyaltyDiscount,
           deliveryDistance,
           serviceFee,
           schedulingAdjustment: {
@@ -822,6 +841,11 @@ const Order = () => {
           },
           latitude: addressCoords?.lat || null,
           longitude: addressCoords?.lon || null,
+          loyalty: loyaltyProfile ? {
+            level: loyaltyProfile.current_level,
+            discountPercent: loyaltyBenefits?.deliveryDiscount || 0,
+            discountAmount: deliveryFeeData.loyaltyDiscount
+          } : null,
           subscription: subscriptionBenefits.hasActiveSubscription ? {
             plan: subscriptionBenefits.plan,
             usedDelivery: useSubscriptionDelivery,
@@ -1390,11 +1414,31 @@ const Order = () => {
                                   selectedStoreCoords.lng
                                 ),
                                 total
-                              ).toFixed(2)}`
+                              ).finalFee.toFixed(2)}`
                             : "da calcolare"
                           }
                         </span>
                       </div>
+                      {/* Loyalty discount row */}
+                      {loyaltyProfile && loyaltyBenefits && loyaltyBenefits.deliveryDiscount > 0 && addressCoords && selectedStoreCoords && (
+                        <div className="flex justify-between text-green-600 dark:text-green-400 text-sm">
+                          <div className="flex items-center gap-1">
+                            <span>{LOYALTY_LEVELS[loyaltyProfile.current_level].icon}</span>
+                            <span>Sconto fedeltà ({loyaltyBenefits.deliveryDiscount}%)</span>
+                          </div>
+                          <span>
+                            -€{calculateDeliveryFee(
+                              calculateDistance(
+                                addressCoords.lat,
+                                addressCoords.lon,
+                                selectedStoreCoords.lat,
+                                selectedStoreCoords.lng
+                              ),
+                              total
+                            ).loyaltyDiscount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                       {/* Scheduling adjustment row */}
                       {schedulingAmount !== 0 && (
                         <div className={cn(
@@ -1427,7 +1471,7 @@ const Order = () => {
                                   selectedStoreCoords.lng
                                 ),
                                 total
-                              )
+                              ).finalFee
                             : 0
                           )).toFixed(2)}
                         </span>
@@ -1441,6 +1485,7 @@ const Order = () => {
                             selectedStoreCoords.lng
                           ).toFixed(1)}km 
                           {total >= 50 && " (sconto per spesa ≥€50)"}
+                          {loyaltyBenefits && loyaltyBenefits.deliveryDiscount > 0 && ` + sconto ${loyaltyBenefits.deliveryDiscount}% fedeltà`}
                         </p>
                       )}
                     </div>

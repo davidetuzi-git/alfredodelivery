@@ -4,7 +4,7 @@ import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLoyalty, LOYALTY_LEVELS, LoyaltyLevel } from "@/hooks/useLoyalty";
-import { ArrowLeft, Trophy, Gift, Sparkles, Calendar, TrendingUp } from "lucide-react";
+import { ArrowLeft, Trophy, Gift, Sparkles, Calendar, TrendingUp, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -181,6 +181,12 @@ const Loyalty = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Link to pricing policy */}
+        <Button onClick={() => navigate("/prezzi-policy")} variant="outline" className="w-full" size="lg">
+          <FileText className="h-4 w-4 mr-2" />
+          Vedi Policy Prezzi Completa
+        </Button>
       </div>
 
       <Navigation />
