@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { User, MapPin, CreditCard, Bell, Settings, LogOut, Store, ShoppingBag, Crown, Gift } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, Settings, LogOut, Store, ShoppingBag, Crown, Gift, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,7 @@ const Profile = () => {
   const menuItems = [
     { icon: ShoppingBag, label: "I miei ordini", action: () => navigate("/i-miei-ordini") },
     { icon: Gift, label: "Programma Fedeltà", action: () => navigate("/fedelta"), highlight: true },
+    { icon: FileText, label: "Policy Prezzi", action: () => navigate("/prezzi-policy") },
     { icon: Crown, label: "Alfredo Extra", action: () => navigate("/abbonamenti") },
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => navigate("/indirizzi-salvati") },

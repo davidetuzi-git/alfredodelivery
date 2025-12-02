@@ -33,6 +33,7 @@ import MyOrders from "./pages/MyOrders";
 import FAQ from "./pages/FAQ";
 import Subscriptions from "./pages/Subscriptions";
 import Loyalty from "./pages/Loyalty";
+import PricingPolicy from "./pages/PricingPolicy";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/faq" element={<FAQ />} />
           <Route path="/abbonamenti" element={<Subscriptions />} />
           <Route path="/fedelta" element={<Loyalty />} />
+          <Route path="/prezzi-policy" element={<PricingPolicy />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/deliverer/auth" element={<DelivererAuth />} />
