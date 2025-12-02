@@ -145,6 +145,8 @@ export type Database = {
       deliverer_requests: {
         Row: {
           created_at: string
+          document_type: string | null
+          document_url: string | null
           email: string
           id: string
           name: string
@@ -157,6 +159,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          document_type?: string | null
+          document_url?: string | null
           email: string
           id?: string
           name: string
@@ -169,6 +173,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          document_type?: string | null
+          document_url?: string | null
           email?: string
           id?: string
           name?: string

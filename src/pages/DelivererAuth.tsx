@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Truck, Home } from "lucide-react";
+import { Truck, Home, Upload, FileCheck, AlertCircle } from "lucide-react";
 
 const DelivererAuth = () => {
   const navigate = useNavigate();
@@ -14,7 +15,10 @@ const DelivererAuth = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [documentType, setDocumentType] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -69,6 +73,42 @@ const DelivererAuth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Formato file non supportato. Usa JPG, PNG, WEBP o PDF.");
+        return;
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Il file è troppo grande. Massimo 10MB.");
+        return;
+      }
+      setDocumentFile(file);
+    }
+  };
+
+  const uploadDocument = async (userId: string): Promise<string | null> => {
+    if (!documentFile) return null;
+
+    const fileExt = documentFile.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError, data } = await supabase.storage
+      .from('deliverer-documents')
+      .upload(fileName, documentFile);
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error("Errore nel caricamento del documento");
+    }
+
+    return fileName;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -83,6 +123,18 @@ const DelivererAuth = () => {
         if (error) throw error;
         toast.success("Login effettuato con successo!");
       } else {
+        // Validate registration fields
+        if (!documentType) {
+          toast.error("Seleziona il tipo di documento");
+          setLoading(false);
+          return;
+        }
+        if (!documentFile) {
+          toast.error("Carica un documento d'identità valido");
+          setLoading(false);
+          return;
+        }
+
         // Sign up
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -99,6 +151,9 @@ const DelivererAuth = () => {
         if (signUpError) throw signUpError;
 
         if (authData.user) {
+          // Upload document
+          const documentUrl = await uploadDocument(authData.user.id);
+
           // Crea richiesta di registrazione
           console.log('Creating deliverer request for user:', authData.user.id);
           const { data: requestData, error: requestError } = await supabase
@@ -109,6 +164,8 @@ const DelivererAuth = () => {
               email,
               phone,
               status: 'pending',
+              document_url: documentUrl,
+              document_type: documentType,
             })
             .select()
             .single();
@@ -181,6 +238,66 @@ const DelivererAuth = () => {
                     onChange={(e) => setPhone(e.target.value)}
                     required
                   />
+                </div>
+
+                {/* Document Upload Section */}
+                <div className="space-y-3 p-4 border border-dashed border-primary/30 rounded-lg bg-primary/5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                    <AlertCircle className="h-4 w-4" />
+                    Documento d'identità (obbligatorio)
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="documentType" className="text-sm font-medium">
+                      Tipo di documento
+                    </label>
+                    <Select value={documentType} onValueChange={setDocumentType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona tipo documento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="carta_identita">Carta d'Identità</SelectItem>
+                        <SelectItem value="patente">Patente di Guida</SelectItem>
+                        <SelectItem value="passaporto">Passaporto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Carica documento
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {documentFile ? (
+                        <span className="flex items-center gap-2">
+                          <FileCheck className="h-4 w-4 text-green-500" />
+                          {documentFile.name.length > 25 
+                            ? documentFile.name.substring(0, 25) + '...' 
+                            : documentFile.name}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          Seleziona file (JPG, PNG, PDF)
+                        </span>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Carica una foto chiara del tuo documento. Max 10MB.
+                    </p>
+                  </div>
                 </div>
               </>
             )}
