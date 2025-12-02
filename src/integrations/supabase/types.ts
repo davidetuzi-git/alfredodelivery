@@ -737,11 +737,15 @@ export type Database = {
           created_at: string
           distance_bonus_per_km: number
           distance_bonus_threshold_km: number
+          first_order_bonus: number
           high_demand_multiplier: number
           id: string
           peak_time_multiplier: number
           picking_fee_per_item: number
+          rating_bonus_amount: number
+          rating_bonus_threshold: number
           rider_tip_percentage: number
+          uncovered_zone_bonus: number
           updated_at: string
           updated_by: string | null
           weather_bonus_amount: number
@@ -753,11 +757,15 @@ export type Database = {
           created_at?: string
           distance_bonus_per_km?: number
           distance_bonus_threshold_km?: number
+          first_order_bonus?: number
           high_demand_multiplier?: number
           id?: string
           peak_time_multiplier?: number
           picking_fee_per_item?: number
+          rating_bonus_amount?: number
+          rating_bonus_threshold?: number
           rider_tip_percentage?: number
+          uncovered_zone_bonus?: number
           updated_at?: string
           updated_by?: string | null
           weather_bonus_amount?: number
@@ -769,11 +777,15 @@ export type Database = {
           created_at?: string
           distance_bonus_per_km?: number
           distance_bonus_threshold_km?: number
+          first_order_bonus?: number
           high_demand_multiplier?: number
           id?: string
           peak_time_multiplier?: number
           picking_fee_per_item?: number
+          rating_bonus_amount?: number
+          rating_bonus_threshold?: number
           rider_tip_percentage?: number
+          uncovered_zone_bonus?: number
           updated_at?: string
           updated_by?: string | null
           weather_bonus_amount?: number

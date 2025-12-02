@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Bike, DollarSign, Cloud, Clock, Target, TrendingUp, 
-  Save, Plus, Trash2, Euro, Percent, AlertCircle
+  Save, Plus, Trash2, Euro, Percent, AlertCircle,
+  Sunrise, MapPin, Star
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -30,6 +31,10 @@ interface CompensationConfig {
   peak_time_multiplier: number;
   high_demand_multiplier: number;
   rider_tip_percentage: number;
+  first_order_bonus: number;
+  uncovered_zone_bonus: number;
+  rating_bonus_threshold: number;
+  rating_bonus_amount: number;
 }
 
 interface Mission {
@@ -136,6 +141,10 @@ export const RiderCostsTab = () => {
           peak_time_multiplier: config.peak_time_multiplier,
           high_demand_multiplier: config.high_demand_multiplier,
           rider_tip_percentage: config.rider_tip_percentage,
+          first_order_bonus: config.first_order_bonus,
+          uncovered_zone_bonus: config.uncovered_zone_bonus,
+          rating_bonus_threshold: config.rating_bonus_threshold,
+          rating_bonus_amount: config.rating_bonus_amount,
         })
         .eq('id', config.id);
 
@@ -355,6 +364,99 @@ export const RiderCostsTab = () => {
                           onChange={(e) => setConfig({ ...config, high_demand_multiplier: parseFloat(e.target.value) })}
                         />
                         <span className="text-sm text-muted-foreground">x</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Bonuses */}
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-4 flex items-center gap-2">
+                      <Star className="h-4 w-4 text-yellow-500" />
+                      Bonus Aggiuntivi
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="space-y-1">
+                          <Label className="flex items-center gap-2">
+                            <Sunrise className="h-4 w-4 text-orange-500" />
+                            Bonus primo ordine del giorno
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Extra per la prima consegna della giornata
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.50"
+                            value={config.first_order_bonus}
+                            onChange={(e) => setConfig({ ...config, first_order_bonus: parseFloat(e.target.value) })}
+                            className="w-20"
+                          />
+                          <span className="text-sm">€</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="space-y-1">
+                          <Label className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-red-500" />
+                            Bonus zona scoperta
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Extra per consegne in zone poco servite
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.50"
+                            value={config.uncovered_zone_bonus}
+                            onChange={(e) => setConfig({ ...config, uncovered_zone_bonus: parseFloat(e.target.value) })}
+                            className="w-20"
+                          />
+                          <span className="text-sm">€</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="flex items-center gap-2">
+                            <Star className="h-4 w-4 text-yellow-500" />
+                            Bonus rating elevato
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Extra per rider con rating superiore alla soglia
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Soglia:</span>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="1"
+                              max="5"
+                              value={config.rating_bonus_threshold}
+                              onChange={(e) => setConfig({ ...config, rating_bonus_threshold: parseFloat(e.target.value) })}
+                              className="w-20"
+                            />
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Bonus:</span>
+                            <Input
+                              type="number"
+                              step="0.25"
+                              value={config.rating_bonus_amount}
+                              onChange={(e) => setConfig({ ...config, rating_bonus_amount: parseFloat(e.target.value) })}
+                              className="w-20"
+                            />
+                            <span className="text-sm">€/ordine</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
