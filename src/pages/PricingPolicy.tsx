@@ -5,23 +5,46 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Truck, Package, Droplets, Clock, Gift, Trophy, 
-  MapPin, ShoppingBag, Sparkles, Calendar, Users 
+  MapPin, ShoppingBag, Sparkles, Calendar, Users, Download 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LOYALTY_LEVELS } from "@/hooks/useLoyalty";
+import { generatePricingPolicyDocument } from "@/utils/generatePricingPolicyDoc";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const PricingPolicy = () => {
   const navigate = useNavigate();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await generatePricingPolicyDocument();
+      toast.success("Documento scaricato con successo!");
+    } catch (error) {
+      console.error('Error generating document:', error);
+      toast.error("Errore durante il download del documento");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
       
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Indietro
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Indietro
+          </Button>
+          <Button onClick={handleDownload} disabled={downloading} className="gap-2">
+            <Download className="h-4 w-4" />
+            {downloading ? "Generando..." : "Scarica Word"}
+          </Button>
+        </div>
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Policy Prezzi ALFREDO</h1>
