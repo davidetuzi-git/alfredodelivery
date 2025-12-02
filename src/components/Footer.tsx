@@ -30,6 +30,7 @@ export const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/come-funziona" className="hover:text-primary transition-colors">Come funziona</Link></li>
               <li><Link to="/prezzi" className="hover:text-primary transition-colors">Prezzi</Link></li>
+              <li><Link to="/prezzi-policy" className="hover:text-primary transition-colors">Policy Prezzi</Link></li>
               <li><a href="#" className="hover:text-primary transition-colors">Supermercati partner</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Zone di consegna</a></li>
             </ul>
