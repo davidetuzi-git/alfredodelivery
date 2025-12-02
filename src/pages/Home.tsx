@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Star, TrendingUp, Gift } from "lucide-react";
+import { ShoppingBag, Star, TrendingUp, Gift, Crown } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { SubscriptionBanner } from "@/components/SubscriptionBanner";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -21,6 +23,7 @@ const Home = () => {
     totalSaved: 0,
     activeVouchers: 0
   });
+  const { subscription, benefits } = useSubscription();
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -196,6 +199,38 @@ const Home = () => {
       </div>
 
       <div className="max-w-screen-xl mx-auto p-6 space-y-6">
+        {/* Subscription Banner - show only if no active subscription */}
+        {!subscription && (
+          <SubscriptionBanner />
+        )}
+
+        {/* Active Subscription Status */}
+        {subscription && (
+          <Card 
+            className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20 cursor-pointer hover:border-primary/40 transition-colors"
+            onClick={() => navigate("/abbonamenti")}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Crown className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">
+                      Alfredo Extra {benefits.plan === "yearly" ? "Plus" : "Base"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {benefits.deliveriesRemaining} consegne rimanenti • €{benefits.pickingFeePerProduct.toFixed(2)}/prodotto
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-primary/20 text-primary border-0">Attivo</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {vouchers.length > 0 && (
           <Card>
             <CardHeader>

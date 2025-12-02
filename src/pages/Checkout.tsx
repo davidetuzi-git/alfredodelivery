@@ -6,11 +6,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2, Crown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Session } from "@supabase/supabase-js";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ const Checkout = () => {
   const [acceptsMealVouchers, setAcceptsMealVouchers] = useState(false);
   const [mealVoucherTypes, setMealVoucherTypes] = useState<string[]>([]);
   const [loadingStoreInfo, setLoadingStoreInfo] = useState(true);
+  const { decrementDelivery } = useSubscription();
   
   
   const orderData = location.state || {};
@@ -29,6 +32,7 @@ const Checkout = () => {
   const deliveryFee = orderData.deliveryFee || 3.99;
   const discount = orderData.discount || 4.99;
   const schedulingAdjustment = orderData.orderData?.schedulingAdjustment || { amount: 0, description: '' };
+  const subscriptionData = orderData.orderData?.subscription || null;
   const itemCount = orderData.itemCount || 0;
   const finalTotal = subtotal;
   const storeName = orderData.orderData?.store || "";
@@ -225,6 +229,11 @@ const Checkout = () => {
 
       if (insertError) throw insertError;
 
+      // If subscription delivery was used, decrement the count
+      if (subscriptionData?.usedDelivery) {
+        await decrementDelivery();
+      }
+
       // Notify deliverers
       if (orderInserted) {
 
@@ -295,13 +304,34 @@ const Checkout = () => {
             <CardTitle>Riepilogo ordine</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Subscription Banner */}
+            {subscriptionData && (
+              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg mb-2">
+                <Crown className="h-5 w-5 text-primary" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Alfredo Extra {subscriptionData.plan === "yearly" ? "Plus" : "Base"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {subscriptionData.usedDelivery 
+                      ? "Consegna gratuita inclusa"
+                      : `Product picking scontato (€${subscriptionData.pickingFee}/prodotto)`
+                    }
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-primary/20 text-primary border-0 text-xs">Attivo</Badge>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <span className="text-muted-foreground">Prodotti ({itemCount} articoli)</span>
               <span className="font-semibold">€{(subtotal - deliveryFee + discount - (schedulingAdjustment.amount || 0)).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Costo consegna</span>
-              <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
+              {subscriptionData?.usedDelivery ? (
+                <span className="font-semibold text-green-600">GRATIS</span>
+              ) : (
+                <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
+              )}
             </div>
             {schedulingAdjustment.amount !== 0 && (
               <div className={`flex justify-between ${

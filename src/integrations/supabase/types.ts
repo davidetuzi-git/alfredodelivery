@@ -730,6 +730,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          deliveries_remaining: number
+          deliveries_total: number
+          expires_at: string
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          price_paid: number
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          deliveries_remaining: number
+          deliveries_total: number
+          expires_at: string
+          id?: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          price_paid: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          deliveries_remaining?: number
+          deliveries_total?: number
+          expires_at?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          price_paid?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       voucher_uses: {
         Row: {
           discount_applied: number
@@ -848,6 +893,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "deliverer" | "customer"
+      subscription_plan: "monthly" | "yearly"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -976,6 +1022,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "deliverer", "customer"],
+      subscription_plan: ["monthly", "yearly"],
     },
   },
 } as const
