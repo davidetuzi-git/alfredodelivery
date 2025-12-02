@@ -567,11 +567,11 @@ const Order = () => {
         }
       }
     } else if (waterLiters > 0) {
-      // Mixed order with water: €0.50 every 3L over 9L (included in volume)
+      // Mixed order with water: €0.50 per liter over 9L (included in volume)
       const includedWater = 9;
       if (waterLiters > includedWater) {
         const excessLiters = waterLiters - includedWater;
-        supplements.waterFee = Math.floor(excessLiters / 3) * 0.50;
+        supplements.waterFee = excessLiters * 0.50; // €0.50 per liter
       }
     }
 
