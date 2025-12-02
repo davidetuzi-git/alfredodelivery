@@ -2,12 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { User, MapPin, CreditCard, Bell, Settings, LogOut, Star, Store, ShoppingBag, Crown } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, Settings, LogOut, Store, ShoppingBag, Crown, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
+import { LoyaltyCard } from "@/components/LoyaltyCard";
+import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ const Profile = () => {
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const { loyaltyProfile } = useLoyalty();
 
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
@@ -59,7 +62,8 @@ const Profile = () => {
   
   const menuItems = [
     { icon: ShoppingBag, label: "I miei ordini", action: () => navigate("/i-miei-ordini") },
-    { icon: Crown, label: "Alfredo Extra", action: () => navigate("/abbonamenti"), highlight: true },
+    { icon: Gift, label: "Programma Fedeltà", action: () => navigate("/fedelta"), highlight: true },
+    { icon: Crown, label: "Alfredo Extra", action: () => navigate("/abbonamenti") },
     { icon: User, label: "Dati personali", action: () => navigate("/dati-personali") },
     { icon: MapPin, label: "Indirizzi salvati", action: () => navigate("/indirizzi-salvati") },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => navigate("/metodi-pagamento") },
@@ -84,16 +88,24 @@ const Profile = () => {
                 Ciao {firstName || "Utente"}
               </h1>
               <p className="text-muted-foreground">{email}</p>
-              <Badge variant="secondary" className="mt-2 flex items-center gap-1 w-fit">
-                <Star className="h-3 w-3 fill-primary text-primary" />
-                Cliente Gold
-              </Badge>
+              {loyaltyProfile && (
+                <Badge 
+                  variant="secondary" 
+                  className={`mt-2 flex items-center gap-1 w-fit ${LOYALTY_LEVELS[loyaltyProfile.current_level].bgColor} ${LOYALTY_LEVELS[loyaltyProfile.current_level].textColor}`}
+                >
+                  <span>{LOYALTY_LEVELS[loyaltyProfile.current_level].icon}</span>
+                  {LOYALTY_LEVELS[loyaltyProfile.current_level].name}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Loyalty Card */}
+        <LoyaltyCard />
+
         <Card>
           <CardHeader>
             <CardTitle>Il mio account</CardTitle>
@@ -119,24 +131,6 @@ const Profile = () => {
                 </Button>
               );
             })}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Statistiche</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-primary/5 rounded-lg">
-                <div className="text-3xl font-bold text-primary">24</div>
-                <div className="text-sm text-muted-foreground">Ordini totali</div>
-              </div>
-              <div className="text-center p-4 bg-primary/5 rounded-lg">
-                <div className="text-3xl font-bold text-primary">€856</div>
-                <div className="text-sm text-muted-foreground">Risparmiati</div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
