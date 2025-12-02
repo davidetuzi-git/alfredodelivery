@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Phone, MapPin, Clock, CheckCircle, XCircle } from "lucide-react";
+import { User, Phone, MapPin, Clock, CheckCircle, XCircle, FileText, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -24,6 +24,8 @@ interface DelivererRequest {
   phone: string;
   status: string;
   created_at: string;
+  document_url: string | null;
+  document_type: string | null;
 }
 
 interface DeliverersTabProps {
@@ -120,49 +122,105 @@ export const DeliverersTab = ({ deliverers }: DeliverersTabProps) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {requests.map((request) => (
-                <Card key={request.id} className="bg-background">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold">{request.name}</span>
+              {requests.map((request) => {
+                const getDocumentLabel = (type: string | null) => {
+                  switch (type) {
+                    case 'carta_identita': return "Carta d'Identità";
+                    case 'patente': return 'Patente';
+                    case 'passaporto': return 'Passaporto';
+                    default: return 'Non specificato';
+                  }
+                };
+
+                const getDocumentUrl = async (path: string) => {
+                  const { data } = await supabase.storage
+                    .from('deliverer-documents')
+                    .createSignedUrl(path, 3600); // 1 hour expiry
+                  return data?.signedUrl;
+                };
+
+                const handleViewDocument = async (documentUrl: string | null) => {
+                  if (!documentUrl) {
+                    toast.error("Documento non disponibile");
+                    return;
+                  }
+                  const url = await getDocumentUrl(documentUrl);
+                  if (url) {
+                    window.open(url, '_blank');
+                  } else {
+                    toast.error("Errore nel caricamento del documento");
+                  }
+                };
+
+                return (
+                  <Card key={request.id} className="bg-background">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">{request.name}</span>
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <p className="text-muted-foreground">Email: {request.email}</p>
+                            <p className="text-muted-foreground">Telefono: {request.phone}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Richiesta: {new Date(request.created_at).toLocaleDateString('it-IT')}
+                            </p>
+                          </div>
+                          
+                          {/* Document Section */}
+                          <div className="pt-2 mt-2 border-t">
+                            <div className="flex items-center gap-2 text-sm">
+                              <FileText className="h-4 w-4 text-primary" />
+                              <span className="font-medium">Documento:</span>
+                              <span>{getDocumentLabel(request.document_type)}</span>
+                              {request.document_url ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => handleViewDocument(request.document_url)}
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Visualizza
+                                </Button>
+                              ) : (
+                                <Badge variant="destructive" className="text-xs">
+                                  Non caricato
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-sm space-y-1">
-                          <p className="text-muted-foreground">Email: {request.email}</p>
-                          <p className="text-muted-foreground">Telefono: {request.phone}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Richiesta: {new Date(request.created_at).toLocaleDateString('it-IT')}
-                          </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleApprove(request.id)}
+                            disabled={loading || !request.document_url}
+                            className="gap-2"
+                            title={!request.document_url ? "Documento richiesto" : ""}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Approva
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleReject(request.id)}
+                            disabled={loading}
+                            className="gap-2"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Rifiuta
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleApprove(request.id)}
-                          disabled={loading}
-                          className="gap-2"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Approva
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleReject(request.id)}
-                          disabled={loading}
-                          className="gap-2"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Rifiuta
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
