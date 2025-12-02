@@ -446,6 +446,39 @@ export type Database = {
           },
         ]
       }
+      order_tips: {
+        Row: {
+          created_at: string
+          deliverer_id: string
+          id: string
+          order_id: string
+          platform_share: number
+          rider_share: number
+          tip_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deliverer_id: string
+          id?: string
+          order_id: string
+          platform_share: number
+          rider_share: number
+          tip_amount: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deliverer_id?: string
+          id?: string
+          order_id?: string
+          platform_share?: number
+          rider_share?: number
+          tip_amount?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -694,6 +727,188 @@ export type Database = {
           referred_user_id?: string
           referrer_bonus_applied?: boolean
           referrer_user_id?: string
+        }
+        Relationships: []
+      }
+      rider_compensation_config: {
+        Row: {
+          base_delivery_fee_max: number
+          base_delivery_fee_min: number
+          created_at: string
+          distance_bonus_per_km: number
+          distance_bonus_threshold_km: number
+          high_demand_multiplier: number
+          id: string
+          peak_time_multiplier: number
+          picking_fee_per_item: number
+          rider_tip_percentage: number
+          updated_at: string
+          updated_by: string | null
+          weather_bonus_amount: number
+          weather_bonus_enabled: boolean
+        }
+        Insert: {
+          base_delivery_fee_max?: number
+          base_delivery_fee_min?: number
+          created_at?: string
+          distance_bonus_per_km?: number
+          distance_bonus_threshold_km?: number
+          high_demand_multiplier?: number
+          id?: string
+          peak_time_multiplier?: number
+          picking_fee_per_item?: number
+          rider_tip_percentage?: number
+          updated_at?: string
+          updated_by?: string | null
+          weather_bonus_amount?: number
+          weather_bonus_enabled?: boolean
+        }
+        Update: {
+          base_delivery_fee_max?: number
+          base_delivery_fee_min?: number
+          created_at?: string
+          distance_bonus_per_km?: number
+          distance_bonus_threshold_km?: number
+          high_demand_multiplier?: number
+          id?: string
+          peak_time_multiplier?: number
+          picking_fee_per_item?: number
+          rider_tip_percentage?: number
+          updated_at?: string
+          updated_by?: string | null
+          weather_bonus_amount?: number
+          weather_bonus_enabled?: boolean
+        }
+        Relationships: []
+      }
+      rider_earnings: {
+        Row: {
+          base_fee: number
+          created_at: string
+          deliverer_id: string
+          distance_bonus: number
+          id: string
+          order_id: string
+          paid_at: string | null
+          peak_bonus: number
+          picking_fee: number
+          tip_amount: number
+          total_earnings: number
+          weather_bonus: number
+        }
+        Insert: {
+          base_fee?: number
+          created_at?: string
+          deliverer_id: string
+          distance_bonus?: number
+          id?: string
+          order_id: string
+          paid_at?: string | null
+          peak_bonus?: number
+          picking_fee?: number
+          tip_amount?: number
+          total_earnings?: number
+          weather_bonus?: number
+        }
+        Update: {
+          base_fee?: number
+          created_at?: string
+          deliverer_id?: string
+          distance_bonus?: number
+          id?: string
+          order_id?: string
+          paid_at?: string | null
+          peak_bonus?: number
+          picking_fee?: number
+          tip_amount?: number
+          total_earnings?: number
+          weather_bonus?: number
+        }
+        Relationships: []
+      }
+      rider_mission_progress: {
+        Row: {
+          bonus_paid: boolean
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          current_progress: number
+          deliverer_id: string
+          id: string
+          mission_id: string
+        }
+        Insert: {
+          bonus_paid?: boolean
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_progress?: number
+          deliverer_id: string
+          id?: string
+          mission_id: string
+        }
+        Update: {
+          bonus_paid?: boolean
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_progress?: number
+          deliverer_id?: string
+          id?: string
+          mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rider_mission_progress_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "rider_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rider_missions: {
+        Row: {
+          active: boolean
+          bonus_amount: number
+          bonus_percentage: number | null
+          created_at: string
+          description: string | null
+          id: string
+          target_deliveries: number | null
+          target_hours_end: string | null
+          target_hours_start: string | null
+          title: string
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          active?: boolean
+          bonus_amount: number
+          bonus_percentage?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          target_deliveries?: number | null
+          target_hours_end?: string | null
+          target_hours_start?: string | null
+          title: string
+          valid_from: string
+          valid_until: string
+        }
+        Update: {
+          active?: boolean
+          bonus_amount?: number
+          bonus_percentage?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          target_deliveries?: number | null
+          target_hours_end?: string | null
+          target_hours_start?: string | null
+          title?: string
+          valid_from?: string
+          valid_until?: string
         }
         Relationships: []
       }
