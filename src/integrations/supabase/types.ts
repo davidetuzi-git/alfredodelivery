@@ -301,6 +301,45 @@ export type Database = {
           },
         ]
       }
+      loyalty_profiles: {
+        Row: {
+          created_at: string
+          current_level: Database["public"]["Enums"]["loyalty_level"]
+          id: string
+          lifetime_points: number
+          monthly_orders_count: number
+          monthly_orders_reset_at: string
+          points_balance: number
+          referral_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_level?: Database["public"]["Enums"]["loyalty_level"]
+          id?: string
+          lifetime_points?: number
+          monthly_orders_count?: number
+          monthly_orders_reset_at?: string
+          points_balance?: number
+          referral_code?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_level?: Database["public"]["Enums"]["loyalty_level"]
+          id?: string
+          lifetime_points?: number
+          monthly_orders_count?: number
+          monthly_orders_reset_at?: string
+          points_balance?: number
+          referral_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_chat_messages: {
         Row: {
           created_at: string | null
@@ -502,6 +541,36 @@ export type Database = {
           },
         ]
       }
+      points_transactions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          order_id: string | null
+          points: number
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          points: number
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          points?: number
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_prices: {
         Row: {
           created_at: string
@@ -598,6 +667,33 @@ export type Database = {
           postal_code?: string | null
           preferred_store?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_uses: {
+        Row: {
+          created_at: string
+          id: string
+          referred_bonus_applied: boolean
+          referred_user_id: string
+          referrer_bonus_applied: boolean
+          referrer_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referred_bonus_applied?: boolean
+          referred_user_id: string
+          referrer_bonus_applied?: boolean
+          referrer_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referred_bonus_applied?: boolean
+          referred_user_id?: string
+          referrer_bonus_applied?: boolean
+          referrer_user_id?: string
         }
         Relationships: []
       }
@@ -881,8 +977,16 @@ export type Database = {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
       }
+      calculate_loyalty_level: {
+        Args: { has_subscription: boolean; monthly_orders: number }
+        Returns: Database["public"]["Enums"]["loyalty_level"]
+      }
       cleanup_old_prices: { Args: never; Returns: undefined }
       generate_pickup_code: { Args: never; Returns: string }
+      get_level_discount_percent: {
+        Args: { level: Database["public"]["Enums"]["loyalty_level"] }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -893,6 +997,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "deliverer" | "customer"
+      loyalty_level: "bronze" | "silver" | "gold" | "platinum"
       subscription_plan: "monthly" | "yearly"
     }
     CompositeTypes: {
@@ -1022,6 +1127,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "deliverer", "customer"],
+      loyalty_level: ["bronze", "silver", "gold", "platinum"],
       subscription_plan: ["monthly", "yearly"],
     },
   },
