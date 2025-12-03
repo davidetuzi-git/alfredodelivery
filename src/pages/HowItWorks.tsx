@@ -367,14 +367,20 @@ const HowItWorksPage = () => {
                   <tbody className="divide-y">
                     <tr className="hover:bg-muted/50">
                       <td className="px-4 py-3 font-medium">Buste standard</td>
-                      <td className="px-4 py-3 text-muted-foreground">Max 3 buste (20-25 litri totali)</td>
+                      <td className="px-4 py-3 text-muted-foreground">1 busta = 15L o 12 pezzi (max 3 incluse)</td>
                       <td className="px-4 py-3 text-muted-foreground">3 € per ogni busta aggiuntiva</td>
                       <td className="px-4 py-3 text-muted-foreground">Incremento costi logistici e trasporto</td>
                     </tr>
                     <tr className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">Volume acqua</td>
-                      <td className="px-4 py-3 text-muted-foreground">Incluso nel volume buste</td>
-                      <td className="px-4 py-3 text-muted-foreground">0,50 € ogni 3 litri eccedenti</td>
+                      <td className="px-4 py-3 font-medium">Cassa d&apos;acqua</td>
+                      <td className="px-4 py-3 text-muted-foreground">9-12L = 1 busta separata</td>
+                      <td className="px-4 py-3 text-muted-foreground">Conta come busta a sé</td>
+                      <td className="px-4 py-3 text-muted-foreground">Elevato peso e volume dell&apos;acqua</td>
+                    </tr>
+                    <tr className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">Volume acqua extra</td>
+                      <td className="px-4 py-3 text-muted-foreground">Max 9L inclusi, poi supplemento</td>
+                      <td className="px-4 py-3 text-muted-foreground">0,50 € per litro eccedente</td>
                       <td className="px-4 py-3 text-muted-foreground">Elevato peso e volume dell&apos;acqua</td>
                     </tr>
                     <tr className="hover:bg-muted/50">

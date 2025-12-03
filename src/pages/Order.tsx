@@ -513,51 +513,67 @@ const Order = () => {
     }
   };
 
-  // Calculate bags needed - max 20 products per bag, considering volume
+  // Calculate bags needed - 15L OR 12 pieces = 1 bag
+  // Water crates (9-12L) count as 1 separate bag each
   const calculateBags = () => {
     const validItems = items.filter(item => item.name.trim() !== "");
     if (validItems.length === 0) return 0;
     
-    let estimatedVolume = 0; // in liters
-    let productCount = 0;
+    let estimatedVolume = 0; // in liters (excluding water crates)
+    let productCount = 0; // excluding water crates
+    let waterCrateBags = 0; // separate bags for water crates
     
     validItems.forEach(item => {
       const itemName = item.name.toLowerCase();
       const qty = item.quantity;
-      productCount += qty;
       
-      // Volume estimates per product type (in liters)
-      if (itemName.includes('acqua') || itemName.includes('water')) {
-        // Water bottles - extract volume from name
-        const match = itemName.match(/(\d+(?:\.\d+)?)\s*l/i);
-        if (match) {
-          estimatedVolume += parseFloat(match[1]) * qty;
-        } else {
-          estimatedVolume += 1.5 * qty; // Default 1.5L if not specified
-        }
-      } else if (itemName.includes('latte') || itemName.includes('milk') || itemName.includes('succo') || itemName.includes('juice')) {
-        estimatedVolume += 1 * qty; // ~1L per bottle
-      } else if (itemName.includes('olio') || itemName.includes('oil') || itemName.includes('vino') || itemName.includes('wine')) {
-        estimatedVolume += 0.75 * qty; // ~750ml per bottle
-      } else if (itemName.includes('pasta') || itemName.includes('riso') || itemName.includes('rice') || itemName.includes('farina') || itemName.includes('flour')) {
-        estimatedVolume += 0.5 * qty; // ~500g packages
-      } else if (itemName.includes('scatola') || itemName.includes('lattina') || itemName.includes('can')) {
-        estimatedVolume += 0.4 * qty; // Canned goods
+      // Check for water crates (typically 6x1.5L = 9L or 6x2L = 12L)
+      const isWaterCrate = (itemName.includes('acqua') || itemName.includes('water')) &&
+        (itemName.includes('cassa') || itemName.includes('6x') || itemName.includes('6 x'));
+      
+      if (isWaterCrate) {
+        // Each water crate (9-12L) counts as 1 separate bag
+        waterCrateBags += qty;
       } else {
-        // Generic items: estimate ~0.8L per item (average grocery product)
-        estimatedVolume += 0.8 * qty;
+        // Regular items
+        productCount += qty;
+        
+        // Volume estimates per product type (in liters)
+        if (itemName.includes('acqua') || itemName.includes('water')) {
+          // Individual water bottles
+          const match = itemName.match(/(\d+(?:\.\d+)?)\s*l/i);
+          if (match) {
+            estimatedVolume += parseFloat(match[1]) * qty;
+          } else {
+            estimatedVolume += 1.5 * qty; // Default 1.5L if not specified
+          }
+        } else if (itemName.includes('latte') || itemName.includes('milk') || itemName.includes('succo') || itemName.includes('juice')) {
+          estimatedVolume += 1 * qty; // ~1L per bottle
+        } else if (itemName.includes('olio') || itemName.includes('oil') || itemName.includes('vino') || itemName.includes('wine')) {
+          estimatedVolume += 0.75 * qty; // ~750ml per bottle
+        } else if (itemName.includes('pasta') || itemName.includes('riso') || itemName.includes('rice') || itemName.includes('farina') || itemName.includes('flour')) {
+          estimatedVolume += 0.5 * qty; // ~500g packages
+        } else if (itemName.includes('scatola') || itemName.includes('lattina') || itemName.includes('can')) {
+          estimatedVolume += 0.4 * qty; // Canned goods
+        } else {
+          // Generic items: estimate ~0.8L per item (average grocery product)
+          estimatedVolume += 0.8 * qty;
+        }
       }
     });
     
-    // Calculate bags needed based on:
-    // 1. Product count: max 20 products per bag
-    // 2. Volume: max 15L per bag (realistic capacity)
-    const bagsByCount = Math.ceil(productCount / 20);
+    // Calculate bags needed for regular items:
+    // 1. Product count: max 12 products per bag
+    // 2. Volume: max 15L per bag
+    const bagsByCount = Math.ceil(productCount / 12);
     const bagsByVolume = Math.ceil(estimatedVolume / 15);
     
     // Use the larger number (more restrictive constraint)
-    const bagsNeeded = Math.max(bagsByCount, bagsByVolume);
-    return Math.max(1, bagsNeeded); // At least 1 bag
+    const regularBags = Math.max(bagsByCount, bagsByVolume);
+    
+    // Total bags = regular bags + water crate bags
+    const totalBags = regularBags + waterCrateBags;
+    return Math.max(validItems.length > 0 ? 1 : 0, totalBags);
   };
 
   // Calculate water volume in liters
@@ -1396,6 +1412,9 @@ const Order = () => {
                             {bags} {bags === 1 ? 'busta' : 'buste'}
                           </Badge>
                         </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          1 busta = 15L oppure 12 pezzi. Cassa d'acqua (9-12L) = 1 busta separata.
+                        </p>
                         {bags > 3 && (
                           <p className="text-sm text-muted-foreground">
                             Supplemento buste: +€{supplements.bagFee.toFixed(2)} ({bags - 3} buste extra × €3)

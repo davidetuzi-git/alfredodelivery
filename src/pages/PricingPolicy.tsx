@@ -181,10 +181,12 @@ const PricingPolicy = () => {
             </div>
 
             <div>
-              <h4 className="font-medium mb-2">Supplemento buste (volume)</h4>
-              <p className="text-sm text-muted-foreground mb-2">
-                Prime 3 buste (≈45L) incluse. Oltre: <strong>€3,00/busta aggiuntiva</strong>
-              </p>
+              <h4 className="font-medium mb-2">Calcolo Buste</h4>
+              <div className="text-sm text-muted-foreground space-y-2 mb-2">
+                <p><strong>1 busta</strong> = 15 litri OPPURE 12 pezzi (si applica il limite raggiunto prima)</p>
+                <p><strong>Cassa d'acqua</strong> (9-12L) = 1 busta a sé stante</p>
+                <p className="pt-2">Prime 3 buste incluse. Oltre: <strong>€3,00/busta aggiuntiva</strong></p>
+              </div>
             </div>
           </CardContent>
         </Card>
