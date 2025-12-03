@@ -50,6 +50,42 @@ export type Database = {
         }
         Relationships: []
       }
+      communication_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          loyalty_updates: boolean
+          new_features: boolean
+          newsletter: boolean
+          order_updates: boolean
+          promotions: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          loyalty_updates?: boolean
+          new_features?: boolean
+          newsletter?: boolean
+          order_updates?: boolean
+          promotions?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loyalty_updates?: boolean
+          new_features?: boolean
+          newsletter?: boolean
+          order_updates?: boolean
+          promotions?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deliverer_address_requests: {
         Row: {
           created_at: string
@@ -1035,6 +1071,42 @@ export type Database = {
           meal_voucher_types?: Json | null
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string
+          read: boolean
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message: string
+          read?: boolean
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string
+          read?: boolean
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
