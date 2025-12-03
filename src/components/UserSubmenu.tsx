@@ -1,8 +1,10 @@
-import { User, MapPin, CreditCard, Bell, Settings, ShoppingBag, Crown, Gift, Store } from "lucide-react";
+import { User, MapPin, CreditCard, Bell, ShoppingBag, Crown, Gift, Store, Home, PlusCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const menuItems = [
+  { icon: Home, label: "Start", path: "/profilo" },
+  { icon: PlusCircle, label: "Nuovo Ordine", path: "/ordina" },
   { icon: ShoppingBag, label: "Ordini", path: "/i-miei-ordini" },
   { icon: Gift, label: "Fedeltà", path: "/fedelta" },
   { icon: Crown, label: "Alfredo Extra", path: "/abbonamenti" },
