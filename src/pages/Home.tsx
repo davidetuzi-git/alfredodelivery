@@ -307,7 +307,7 @@ const Home = () => {
                 <div 
                   key={order.id} 
                   className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate('/i-miei-ordini')}
+                  onClick={() => navigate('/i-miei-ordini', { state: { openOrderId: order.id } })}
                 >
                   <div className="flex-1">
                     <h3 className="font-semibold">{order.store_name}</h3>
