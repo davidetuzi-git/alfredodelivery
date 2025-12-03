@@ -3,16 +3,27 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw, Edit, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -55,6 +66,10 @@ const MyOrders = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [repeatOrderOpen, setRepeatOrderOpen] = useState(false);
   const [orderToRepeat, setOrderToRepeat] = useState<Order | null>(null);
+  const [filterTab, setFilterTab] = useState<'active' | 'closed'>('active');
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Get order ID from location state (when navigating from Home)
   const openOrderId = (location.state as { openOrderId?: string })?.openOrderId;
@@ -157,6 +172,8 @@ const MyOrders = () => {
         return "bg-green-500/10 text-green-700 border-green-500/20";
       case "cancelled":
         return "bg-red-500/10 text-red-700 border-red-500/20";
+      case "expired":
+        return "bg-gray-500/10 text-gray-700 border-gray-500/20";
       default:
         return "bg-gray-500/10 text-gray-700 border-gray-500/20";
     }
@@ -178,6 +195,8 @@ const MyOrders = () => {
         return "Consegnato";
       case "cancelled":
         return "Annullato";
+      case "expired":
+        return "Scaduto";
       default:
         return status;
     }
@@ -198,12 +217,89 @@ const MyOrders = () => {
     return order.total_amount - order.delivery_fee + order.discount + order.voucher_discount;
   };
 
+  // Check if order can be cancelled (24+ hours before delivery and not yet in progress)
+  const canCancelOrder = (order: Order) => {
+    if (['delivered', 'cancelled', 'on_the_way', 'shopping_complete'].includes(order.delivery_status)) {
+      return false;
+    }
+    const deliveryDate = new Date(order.delivery_date);
+    const now = new Date();
+    const hoursUntilDelivery = (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilDelivery >= 24;
+  };
+
+  // Check if order can be edited
+  const canEditOrder = (order: Order) => {
+    if (['delivered', 'cancelled', 'on_the_way', 'shopping_complete', 'at_store'].includes(order.delivery_status)) {
+      return false;
+    }
+    const deliveryDate = new Date(order.delivery_date);
+    const now = new Date();
+    const hoursUntilDelivery = (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilDelivery >= 24;
+  };
+
+  const handleCancelOrder = async () => {
+    if (!orderToCancel || !session) return;
+    
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ delivery_status: 'cancelled', status: 'cancelled' })
+        .eq('id', orderToCancel.id)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Ordine annullato",
+        description: "Il tuo ordine è stato annullato con successo",
+      });
+      
+      // Refresh orders
+      loadOrders(session.user.id);
+      setCancelDialogOpen(false);
+      setOrderToCancel(null);
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile annullare l'ordine",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleEditOrder = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Navigate to order page with order data for editing
+    navigate('/ordina', { 
+      state: { 
+        editOrder: order,
+        items: order.items,
+        store: order.store_name,
+        address: order.delivery_address
+      } 
+    });
+  };
+
+  const openCancelDialog = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOrderToCancel(order);
+    setCancelDialogOpen(true);
+  };
+
   const activeOrders = orders.filter(
-    (o) => !["delivered", "cancelled"].includes(o.delivery_status)
+    (o) => !["delivered", "cancelled", "expired"].includes(o.delivery_status)
   );
   const completedOrders = orders.filter((o) =>
-    ["delivered", "cancelled"].includes(o.delivery_status)
+    ["delivered", "cancelled", "expired"].includes(o.delivery_status)
   );
+
+  const displayedOrders = filterTab === 'active' ? activeOrders : completedOrders;
 
   if (loading) {
     return (
@@ -227,23 +323,35 @@ const MyOrders = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Active Orders */}
-        {activeOrders.length > 0 && (
+        {/* Filter Tabs */}
+        <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as 'active' | 'closed')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="active" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Attivi ({activeOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="closed" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Chiusi ({completedOrders.length})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Orders List */}
+        {displayedOrders.length > 0 ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Ordini attivi ({activeOrders.length})
-            </h2>
-            {activeOrders.map((order) => (
+            {displayedOrders.map((order) => (
               <Card
                 key={order.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className={`hover:shadow-md transition-shadow cursor-pointer ${
+                  filterTab === 'closed' ? 'opacity-75 hover:opacity-100' : ''
+                }`}
                 onClick={() => handleOrderClick(order)}
               >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <Badge className="font-mono">{order.pickup_code}</Badge>
                         <Badge className={getStatusColor(order.delivery_status)}>
                           {getStatusLabel(order.delivery_status)}
@@ -271,7 +379,7 @@ const MyOrders = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        Consegna prevista:{" "}
+                        Consegna:{" "}
                         {format(new Date(order.delivery_date), "dd MMM yyyy", { locale: it })} -{" "}
                         {order.time_slot}
                       </span>
@@ -286,58 +394,45 @@ const MyOrders = () => {
                     </div>
                   )}
 
-                  <Button variant="outline" className="w-full mt-4">
-                    <Eye className="h-4 w-4 mr-2" />
-                    Vedi dettagli
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Completed Orders */}
-        {completedOrders.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Package className="h-5 w-5 text-muted-foreground" />
-              Ordini completati ({completedOrders.length})
-            </h2>
-            {completedOrders.map((order) => (
-              <Card
-                key={order.id}
-                className="opacity-75 hover:opacity-100 hover:shadow-md transition-all cursor-pointer"
-                onClick={() => handleOrderClick(order)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className="font-mono">
-                          {order.pickup_code}
-                        </Badge>
-                        <Badge className={getStatusColor(order.delivery_status)}>
-                          {getStatusLabel(order.delivery_status)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(order.created_at), "dd MMM yyyy", { locale: it })}
-                      </p>
+                  {/* Action Buttons for Active Orders */}
+                  {filterTab === 'active' && (
+                    <div className="flex gap-2 mt-4">
+                      {canEditOrder(order) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => handleEditOrder(order, e)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Modifica
+                        </Button>
+                      )}
+                      {canCancelOrder(order) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                          onClick={(e) => openCancelDialog(order, e)}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Annulla
+                        </Button>
+                      )}
+                      {!canEditOrder(order) && !canCancelOrder(order) && (
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Vedi dettagli
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-xl font-bold text-muted-foreground">
-                      €{order.total_amount.toFixed(2)}
-                    </p>
-                  </div>
+                  )}
 
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <ShoppingBag className="h-4 w-4" />
-                    <span>{order.store_name}</span>
-                  </div>
-
-                  {order.delivery_status === 'delivered' && (
+                  {/* Repeat Order for Delivered */}
+                  {order.delivery_status === 'delivered' && filterTab === 'closed' && (
                     <Button 
                       variant="outline" 
-                      className="w-full"
+                      className="w-full mt-4"
                       onClick={(e) => handleRepeatOrder(order, e)}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -348,24 +443,50 @@ const MyOrders = () => {
               </Card>
             ))}
           </div>
-        )}
-
-        {orders.length === 0 && (
+        ) : (
           <Card>
             <CardContent className="p-12 text-center">
               <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-xl font-semibold mb-2">Nessun ordine</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {filterTab === 'active' ? 'Nessun ordine attivo' : 'Nessun ordine chiuso'}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Non hai ancora effettuato nessun ordine
+                {filterTab === 'active' 
+                  ? 'Non hai ordini in corso' 
+                  : 'Non hai ancora completato nessun ordine'}
               </p>
-              <Button onClick={() => navigate("/ordina")}>
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                Fai il tuo primo ordine
-              </Button>
+              {filterTab === 'active' && (
+                <Button onClick={() => navigate("/ordina")}>
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Fai un nuovo ordine
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Cancel Order Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annullare l'ordine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stai per annullare l'ordine {orderToCancel?.pickup_code}. Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Torna indietro</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCancelOrder}
+              disabled={cancelling}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {cancelling ? 'Annullamento...' : 'Conferma annullamento'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog Dettagli Ordine */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
