@@ -9,6 +9,7 @@ import { UserSubmenu } from "@/components/UserSubmenu";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ServiceAlerts } from "@/components/ServiceAlerts";
 import { SlidingPartnerBanners } from "@/components/SlidingPartnerBanners";
+import { AdSidebar } from "@/components/AdSidebar";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -309,12 +310,18 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto p-6 space-y-6">
-        {/* Service Alerts - blocked dates and holidays */}
-        <ServiceAlerts />
+      <div className="max-w-screen-2xl mx-auto p-6">
+        <div className="flex gap-6">
+          {/* Left Ad Sidebar */}
+          <AdSidebar position="left" />
+          
+          {/* Main Content */}
+          <div className="flex-1 space-y-6 min-w-0">
+            {/* Service Alerts - blocked dates and holidays */}
+            <ServiceAlerts />
 
-        {/* Sliding Partner Banners */}
-        <SlidingPartnerBanners />
+            {/* Sliding Partner Banners */}
+            <SlidingPartnerBanners />
 
         {/* Subscription Banner - show only if no active subscription */}
         {!subscription && (
@@ -445,6 +452,11 @@ const Home = () => {
             </CardContent>
           </Card>
         )}
+          </div>
+          
+          {/* Right Ad Sidebar */}
+          <AdSidebar position="right" />
+        </div>
       </div>
 
       <Navigation />
