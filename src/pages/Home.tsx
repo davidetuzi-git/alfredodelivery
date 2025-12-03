@@ -199,7 +199,7 @@ const Home = () => {
               onClick={() => navigate("/fedelta")}
             >
               <Star className="h-3 w-3 fill-current" />
-              Cliente {levelInfo.name}
+              Livello {levelInfo.name}
             </Badge>
           </div>
 
