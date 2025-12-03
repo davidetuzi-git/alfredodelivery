@@ -99,14 +99,23 @@ const Checkout = () => {
         const returnUrl = `${window.location.origin}/stripe-success?session_id={CHECKOUT_SESSION_ID}`;
         const cancelUrl = `${window.location.origin}/checkout`;
         
+        // Strip imageUrl from items to reduce payload size
+        const lightOrderData = {
+          ...orderData.orderData,
+          items: (orderData.orderData.items || []).map((item: any) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            suggestion: item.suggestion
+          })),
+          itemCount,
+          subscription: subscriptionData
+        };
+        
         const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
           body: { 
             amount: finalTotal,
-            orderData: {
-              ...orderData.orderData,
-              itemCount,
-              subscription: subscriptionData
-            },
+            orderData: lightOrderData,
             returnUrl,
             cancelUrl
           }
