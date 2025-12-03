@@ -32,75 +32,84 @@ const banners = [
 export const SlidingPartnerBanners = () => {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('left');
+  const [isSliding, setIsSliding] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsAnimating(true);
+      setSlideDirection(currentIndex === 0 ? 'left' : 'right');
+      setIsSliding(true);
+      
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % banners.length);
-        setIsAnimating(false);
-      }, 300);
+        setIsSliding(false);
+      }, 500);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentIndex]);
 
   const currentBanner = banners[currentIndex];
   const Icon = currentBanner.icon;
 
+  const getSlideClass = () => {
+    if (!isSliding) return 'translate-x-0';
+    return slideDirection === 'left' ? '-translate-x-full' : 'translate-x-full';
+  };
+
   return (
     <Card 
-      className={`overflow-hidden border ${currentBanner.borderColor} transition-all duration-300`}
+      className={`overflow-hidden border ${currentBanner.borderColor} transition-colors duration-300`}
     >
-      <CardContent 
-        className={`p-4 bg-gradient-to-r ${currentBanner.bgGradient} transition-opacity duration-300 ${
-          isAnimating ? 'opacity-0' : 'opacity-100'
-        }`}
-      >
-        <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-full bg-background/80 flex items-center justify-center flex-shrink-0`}>
-            <Icon className={`h-6 w-6 ${currentBanner.iconColor}`} />
+      <CardContent className="p-0 relative overflow-hidden">
+        <div 
+          className={`p-4 bg-gradient-to-r ${currentBanner.bgGradient} transform transition-transform duration-500 ease-in-out ${getSlideClass()}`}
+        >
+          <div className="flex items-center gap-4">
+            <div className={`h-12 w-12 rounded-full bg-background/80 flex items-center justify-center flex-shrink-0`}>
+              <Icon className={`h-6 w-6 ${currentBanner.iconColor}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm md:text-base leading-tight">
+                {currentBanner.title}
+              </h3>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                {currentBanner.description}
+              </p>
+            </div>
+            <Button 
+              size="sm" 
+              variant="secondary"
+              onClick={() => navigate(currentBanner.route)}
+              className="flex-shrink-0"
+            >
+              {currentBanner.buttonText}
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm md:text-base leading-tight">
-              {currentBanner.title}
-            </h3>
-            <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-              {currentBanner.description}
-            </p>
+          
+          {/* Indicator dots */}
+          <div className="flex justify-center gap-1.5 mt-3">
+            {banners.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setSlideDirection(index > currentIndex ? 'left' : 'right');
+                  setIsSliding(true);
+                  setTimeout(() => {
+                    setCurrentIndex(index);
+                    setIsSliding(false);
+                  }, 500);
+                }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === currentIndex 
+                    ? 'w-4 bg-primary' 
+                    : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                }`}
+                aria-label={`Vai al banner ${index + 1}`}
+              />
+            ))}
           </div>
-          <Button 
-            size="sm" 
-            variant="secondary"
-            onClick={() => navigate(currentBanner.route)}
-            className="flex-shrink-0"
-          >
-            {currentBanner.buttonText}
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-        
-        {/* Indicator dots */}
-        <div className="flex justify-center gap-1.5 mt-3">
-          {banners.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setIsAnimating(true);
-                setTimeout(() => {
-                  setCurrentIndex(index);
-                  setIsAnimating(false);
-                }, 300);
-              }}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                index === currentIndex 
-                  ? 'w-4 bg-primary' 
-                  : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-              }`}
-              aria-label={`Vai al banner ${index + 1}`}
-            />
-          ))}
         </div>
       </CardContent>
     </Card>
