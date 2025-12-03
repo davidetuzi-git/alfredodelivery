@@ -11,19 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, ShoppingCart, Clock, Search, User, LogOut, Package, Settings } from "lucide-react";
+import { Home, ShoppingCart, Clock, Search, User, LogOut, Package, Settings, LayoutDashboard } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export const Header = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
+        checkAdminRole(session.user.id);
       }
     });
 
@@ -31,8 +33,10 @@ export const Header = () => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
+        checkAdminRole(session.user.id);
       } else {
         setProfile(null);
+        setIsAdmin(false);
       }
     });
 
@@ -49,6 +53,17 @@ export const Header = () => {
     if (data) {
       setProfile(data);
     }
+  };
+
+  const checkAdminRole = async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    
+    setIsAdmin(!!data);
   };
 
   const handleLogout = async () => {
@@ -70,7 +85,7 @@ export const Header = () => {
     if (user?.user_metadata?.name) {
       return user.user_metadata.name;
     }
-    return "Utente";
+    return isAdmin ? "Admin" : "Utente";
   };
 
   const getInitials = () => {
@@ -133,7 +148,7 @@ export const Header = () => {
               <DropdownMenuContent className="w-56 bg-background" align="end" forceMount>
                 <DropdownMenuLabel 
                   className="font-normal cursor-pointer hover:bg-accent rounded-sm transition-colors"
-                  onClick={() => navigate("/profilo")}
+                  onClick={() => navigate(isAdmin ? "/admin" : "/profilo")}
                 >
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
@@ -145,18 +160,35 @@ export const Header = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profilo")}>
-                  <User className="mr-2 h-4 w-4" />
-                  Profilo
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/i-miei-ordini")}>
-                  <Package className="mr-2 h-4 w-4" />
-                  I miei ordini
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dati-personali")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Impostazioni
-                </DropdownMenuItem>
+                
+                {isAdmin ? (
+                  <>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/admin")}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dati-personali")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Impostazioni
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profilo")}>
+                      <User className="mr-2 h-4 w-4" />
+                      Profilo
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/i-miei-ordini")}>
+                      <Package className="mr-2 h-4 w-4" />
+                      I miei ordini
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dati-personali")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Impostazioni
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />

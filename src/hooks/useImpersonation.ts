@@ -8,28 +8,30 @@ export interface ImpersonationState {
   impersonatedUserName: string | null;
 }
 
-export const useImpersonation = () => {
-  const [state, setState] = useState<ImpersonationState>({
-    isImpersonating: false,
-    impersonatedUserId: null,
-    impersonatedUserName: null,
-  });
-
-  useEffect(() => {
-    const stored = localStorage.getItem(IMPERSONATION_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setState({
-          isImpersonating: true,
-          impersonatedUserId: parsed.userId,
-          impersonatedUserName: parsed.userName,
-        });
-      } catch {
-        localStorage.removeItem(IMPERSONATION_KEY);
-      }
+// Initialize state synchronously from localStorage
+const getInitialState = (): ImpersonationState => {
+  if (typeof window === 'undefined') {
+    return { isImpersonating: false, impersonatedUserId: null, impersonatedUserName: null };
+  }
+  
+  const stored = localStorage.getItem(IMPERSONATION_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      return {
+        isImpersonating: true,
+        impersonatedUserId: parsed.userId,
+        impersonatedUserName: parsed.userName,
+      };
+    } catch {
+      localStorage.removeItem(IMPERSONATION_KEY);
     }
-  }, []);
+  }
+  return { isImpersonating: false, impersonatedUserId: null, impersonatedUserName: null };
+};
+
+export const useImpersonation = () => {
+  const [state, setState] = useState<ImpersonationState>(getInitialState);
 
   const startImpersonation = (userId: string, userName: string) => {
     const data = { userId, userName };
