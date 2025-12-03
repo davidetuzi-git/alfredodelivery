@@ -5,17 +5,18 @@ import { Scale } from "lucide-react";
 interface PriceComparisonProps {
   items: Array<{ name: string; price: number | null; quantity: number }>;
   currentStore: string;
+  nearbyStores?: string[];
 }
 
-const PriceComparison = ({ items, currentStore }: PriceComparisonProps) => {
+const PriceComparison = ({ items, currentStore, nearbyStores = [] }: PriceComparisonProps) => {
   const navigate = useNavigate();
-
 
   const handleCompare = () => {
     navigate("/confronta", { 
       state: { 
         items: items.filter(item => item.name.trim() !== ""),
-        currentStore 
+        currentStore,
+        nearbyStores 
       } 
     });
   };

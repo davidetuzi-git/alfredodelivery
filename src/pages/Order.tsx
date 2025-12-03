@@ -1782,7 +1782,7 @@ const Order = () => {
                 )}
               </div>
 
-              <PriceComparison items={items} currentStore={store} />
+              <PriceComparison items={items} currentStore={store} nearbyStores={filteredStores} />
 
               <Button 
                 type="submit" 
