@@ -1041,6 +1041,48 @@ export type Database = {
         }
         Relationships: []
       }
+      service_calendar: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          holiday_name: string | null
+          holiday_surcharge: number
+          id: string
+          is_blocked: boolean
+          is_holiday: boolean
+          notification_sent_at: string | null
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date: string
+          holiday_name?: string | null
+          holiday_surcharge?: number
+          id?: string
+          is_blocked?: boolean
+          is_holiday?: boolean
+          notification_sent_at?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          holiday_name?: string | null
+          holiday_surcharge?: number
+          id?: string
+          is_blocked?: boolean
+          is_holiday?: boolean
+          notification_sent_at?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       supermarkets: {
         Row: {
           accepts_meal_vouchers: boolean

@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import DeliveryDatePicker from "@/components/DeliveryDatePicker";
 import { useSchedulingPricing, calculateSchedulingAdjustment } from "@/hooks/useSchedulingPricing";
+import { useServiceCalendar } from "@/hooks/useServiceCalendar";
 import { useSubscription, SUBSCRIPTION_PLANS } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { isSameDay } from "date-fns";
@@ -174,8 +175,12 @@ const Order = () => {
     addressCoords?.lon || null
   );
 
+  // Use service calendar for holiday detection
+  const { isDateHoliday } = useServiceCalendar();
+
   // Calculate scheduling adjustment for current date selection
   const schedulingAdjustment = calculateSchedulingAdjustment(deliveryDate);
+  const holidayInfo = deliveryDate ? isDateHoliday(deliveryDate) : { isHoliday: false };
   
   // Check if selected date has extra discount from nearby orders
   const selectedSuggestion = deliveryDate 
@@ -821,6 +826,8 @@ const Order = () => {
     // Calculate scheduling adjustment (discount or surcharge based on delivery date)
     const schedulingAdjustmentForOrder = calculateSchedulingAdjustment(deliveryDate);
     const suggestionDiscount = suggestedDates.find(s => isSameDay(s.date, deliveryDate!));
+    const holidayInfoForOrder = isDateHoliday(deliveryDate);
+    const holidaySurcharge = holidayInfoForOrder.isHoliday ? (holidayInfoForOrder.surcharge || 10) : 0;
     const totalSchedulingAdjustment = (schedulingAdjustmentForOrder?.amount || 0) + 
       (suggestionDiscount ? -suggestionDiscount.extraDiscount : 0);
     
@@ -848,6 +855,8 @@ const Order = () => {
           loyaltyDiscount: deliveryFeeData.loyaltyDiscount,
           deliveryDistance,
           serviceFee,
+          holidaySurcharge,
+          holidayName: holidayInfoForOrder.isHoliday ? holidayInfoForOrder.name : null,
           schedulingAdjustment: {
             amount: totalSchedulingAdjustment,
             description: schedulingAdjustmentForOrder?.description || '',

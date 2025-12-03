@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, isToday, isTomorrow, differenceInDays, startOfDay, isSameDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Sparkles, Clock, TrendingDown, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Sparkles, Clock, TrendingDown, AlertTriangle, CalendarOff, PartyPopper } from "lucide-react";
 import { calculateSchedulingAdjustment, SuggestedDate } from "@/hooks/useSchedulingPricing";
+import { useServiceCalendar } from "@/hooks/useServiceCalendar";
 
 interface DeliveryDatePickerProps {
   value: Date | undefined;
@@ -27,9 +28,11 @@ const DeliveryDatePicker = ({
   const [open, setOpen] = useState(false);
   const now = new Date();
   const currentHour = now.getHours();
+  const { isDateBlocked, isDateHoliday, loading: calendarLoading } = useServiceCalendar();
 
   // Get adjustment for selected date
   const selectedAdjustment = value ? calculateSchedulingAdjustment(value) : null;
+  const selectedHoliday = value ? isDateHoliday(value) : { isHoliday: false };
   
   // Check if selected date has extra discount from nearby orders
   const selectedSuggestion = value 
@@ -48,15 +51,30 @@ const DeliveryDatePicker = ({
     const adjustment = calculateSchedulingAdjustment(day);
     const suggestion = suggestedDates.find(s => isSameDay(s.date, day));
     const isPast = day < startOfDay(now);
+    const blocked = isDateBlocked(day);
+    const holiday = isDateHoliday(day);
     
     if (isPast) {
       return <span>{day.getDate()}</span>;
     }
 
+    if (blocked) {
+      return (
+        <div className="relative flex flex-col items-center opacity-50">
+          <span className="line-through">{day.getDate()}</span>
+          <CalendarOff className="h-2.5 w-2.5 text-destructive" />
+        </div>
+      );
+    }
+
     return (
       <div className="relative flex flex-col items-center">
         <span>{day.getDate()}</span>
-        {adjustment && (
+        {holiday.isHoliday ? (
+          <span className="text-[9px] font-medium leading-tight text-amber-600 dark:text-amber-400">
+            +€10
+          </span>
+        ) : adjustment && (
           <span 
             className={cn(
               "text-[9px] font-medium leading-tight",
@@ -68,13 +86,23 @@ const DeliveryDatePicker = ({
             {adjustment.label}
           </span>
         )}
-        {suggestion && (
+        {holiday.isHoliday && (
+          <span className="absolute -top-1 -right-1">
+            <PartyPopper className="h-2.5 w-2.5 text-amber-500" />
+          </span>
+        )}
+        {suggestion && !holiday.isHoliday && (
           <span className="absolute -top-1 -right-1">
             <Sparkles className="h-2.5 w-2.5 text-amber-500" />
           </span>
         )}
       </div>
     );
+  };
+
+  // Check if date should be disabled (blocked or past)
+  const isDateDisabled = (date: Date) => {
+    return date < startOfDay(now) || isDateBlocked(date);
   };
 
   return (
@@ -177,7 +205,7 @@ const DeliveryDatePicker = ({
               onChange(date);
               setOpen(false);
             }}
-            disabled={(date) => date < startOfDay(now)}
+            disabled={isDateDisabled}
             initialFocus
             className="pointer-events-auto"
             components={{
@@ -187,8 +215,25 @@ const DeliveryDatePicker = ({
         </PopoverContent>
       </Popover>
 
+      {/* Show holiday surcharge notice */}
+      {value && selectedHoliday.isHoliday && (
+        <div className="p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-sm">
+          <div className="flex items-start gap-2">
+            <PartyPopper className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-amber-700 dark:text-amber-300">
+                Festività: {selectedHoliday.name} (+€{selectedHoliday.surcharge?.toFixed(2)})
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Per le consegne durante le festività nazionali è previsto un supplemento
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Show adjustment details below picker */}
-      {value && (selectedAdjustment || selectedSuggestion) && (
+      {value && !selectedHoliday.isHoliday && (selectedAdjustment || selectedSuggestion) && (
         <div className={cn(
           "p-3 rounded-lg border text-sm",
           selectedAdjustment?.type === 'surcharge' 
