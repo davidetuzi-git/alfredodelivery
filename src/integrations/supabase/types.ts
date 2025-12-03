@@ -669,6 +669,8 @@ export type Database = {
           items: Json
           latitude: number | null
           longitude: number | null
+          loyalty_card_barcode: string | null
+          loyalty_card_used: boolean | null
           payment_method: string | null
           pickup_code: string
           status: string
@@ -697,6 +699,8 @@ export type Database = {
           items: Json
           latitude?: number | null
           longitude?: number | null
+          loyalty_card_barcode?: string | null
+          loyalty_card_used?: boolean | null
           payment_method?: string | null
           pickup_code: string
           status?: string
@@ -725,6 +729,8 @@ export type Database = {
           items?: Json
           latitude?: number | null
           longitude?: number | null
+          loyalty_card_barcode?: string | null
+          loyalty_card_used?: boolean | null
           payment_method?: string | null
           pickup_code?: string
           status?: string
@@ -1250,6 +1256,36 @@ export type Database = {
           notification_sent_at?: string | null
           reason?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      store_loyalty_cards: {
+        Row: {
+          barcode: string
+          card_name: string | null
+          created_at: string
+          id: string
+          store_chain: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          barcode: string
+          card_name?: string | null
+          created_at?: string
+          id?: string
+          store_chain: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          barcode?: string
+          card_name?: string | null
+          created_at?: string
+          id?: string
+          store_chain?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

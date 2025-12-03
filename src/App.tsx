@@ -40,6 +40,7 @@ import PricingPolicy from "./pages/PricingPolicy";
 import Notifications from "./pages/Notifications";
 import RequestZone from "./pages/RequestZone";
 import SupermarketPartnership from "./pages/SupermarketPartnership";
+import StoreLoyaltyCards from "./pages/StoreLoyaltyCards";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,7 @@ const App = () => (
           <Route path="/notifiche" element={<Notifications />} />
           <Route path="/richiedi-zona" element={<RequestZone />} />
           <Route path="/partnership-supermercati" element={<SupermarketPartnership />} />
+          <Route path="/carte-fedelta" element={<StoreLoyaltyCards />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
