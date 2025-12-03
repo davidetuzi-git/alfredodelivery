@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ interface Order {
 
 const MyOrders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,9 @@ const MyOrders = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Get order ID from location state (when navigating from Home)
+  const openOrderId = (location.state as { openOrderId?: string })?.openOrderId;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -119,6 +123,19 @@ const MyOrders = () => {
       setLoading(false);
     }
   };
+
+  // Auto-open order dialog when navigating from Home with a specific order
+  useEffect(() => {
+    if (openOrderId && orders.length > 0 && !loading) {
+      const orderToOpen = orders.find(o => o.id === openOrderId);
+      if (orderToOpen) {
+        setSelectedOrder(orderToOpen);
+        setDialogOpen(true);
+        // Clear the state to prevent re-opening on re-renders
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [openOrderId, orders, loading]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
