@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderChat from "@/components/OrderChat";
 import {
   AlertDialog,
@@ -42,6 +43,53 @@ interface Order {
   created_at: string;
 }
 
+// Mapping prodotti -> reparti supermercato
+const DEPARTMENT_KEYWORDS: Record<string, string[]> = {
+  'Frutta e Verdura': ['mela', 'banana', 'arancia', 'limone', 'pomodoro', 'insalata', 'lattuga', 'carota', 'patata', 'cipolla', 'aglio', 'zucchina', 'melanzana', 'peperone', 'frutta', 'verdura', 'kiwi', 'pera', 'uva', 'fragola', 'cetriolo', 'spinaci', 'broccoli', 'cavolfiore', 'cavolo', 'sedano', 'finocchio', 'rucola', 'radicchio', 'carciofi', 'asparagi', 'funghi', 'avocado', 'mango', 'ananas', 'cocco', 'melone', 'anguria', 'pesca', 'albicocca', 'ciliegia', 'fico', 'melagrana'],
+  'Latticini e Formaggi': ['latte', 'yogurt', 'formaggio', 'mozzarella', 'parmigiano', 'grana', 'ricotta', 'burro', 'mascarpone', 'gorgonzola', 'pecorino', 'stracchino', 'philadelphia', 'crescenza', 'taleggio', 'fontina', 'provolone', 'scamorza', 'feta', 'emmental', 'brie', 'camembert', 'panna', 'besciamella'],
+  'Carne e Salumi': ['carne', 'pollo', 'manzo', 'maiale', 'vitello', 'agnello', 'tacchino', 'salsiccia', 'hamburger', 'prosciutto', 'salame', 'mortadella', 'pancetta', 'speck', 'bresaola', 'wurstel', 'coppa', 'guanciale', 'bacon', 'cotechino', 'arrosto', 'bistecca', 'fettine', 'macinato', 'polpette'],
+  'Pesce e Frutti di Mare': ['pesce', 'salmone', 'tonno', 'merluzzo', 'orata', 'branzino', 'sogliola', 'gamberi', 'calamari', 'cozze', 'vongole', 'polpo', 'seppia', 'acciughe', 'sardine', 'sgombro', 'trota', 'bastoncini', 'surimi', 'baccalà'],
+  'Pane e Prodotti da Forno': ['pane', 'panino', 'focaccia', 'grissini', 'crackers', 'fette biscottate', 'piadina', 'pancarrè', 'brioche', 'cornetto', 'croissant', 'torta', 'biscotti', 'merendine', 'ciambella', 'plumcake', 'muffin'],
+  'Pasta, Riso e Cereali': ['pasta', 'spaghetti', 'penne', 'fusilli', 'rigatoni', 'farfalle', 'lasagne', 'gnocchi', 'riso', 'farina', 'cereali', 'corn flakes', 'muesli', 'avena', 'orzo', 'farro', 'couscous', 'quinoa', 'polenta'],
+  'Conserve e Condimenti': ['passata', 'pelati', 'sughi', 'olio', 'aceto', 'sale', 'pepe', 'spezie', 'maionese', 'ketchup', 'senape', 'pesto', 'olive', 'sottaceti', 'capperi', 'tonno in scatola', 'legumi in scatola', 'fagioli', 'ceci', 'lenticchie', 'mais', 'piselli'],
+  'Surgelati': ['surgelato', 'gelato', 'pizza surgelata', 'verdure surgelate', 'pesce surgelato', 'patatine surgelate', 'ghiaccioli', 'semifreddo', 'frozen'],
+  'Bevande': ['acqua', 'succo', 'coca cola', 'fanta', 'sprite', 'aranciata', 'tè', 'birra', 'vino', 'prosecco', 'spumante', 'liquore', 'energy drink', 'redbull', 'limonata', 'gassosa', 'chinotto', 'cedrata', 'aperitivo', 'caffè in bottiglia'],
+  'Colazione e Caffè': ['caffè', 'cappuccino', 'cacao', 'nutella', 'marmellata', 'miele', 'crema spalmabile', 'biscotti', 'fette biscottate', 'corn flakes', 'muesli', 'nescafé', 'orzo solubile', 'tè', 'tisana', 'camomilla'],
+  'Snack e Dolci': ['cioccolato', 'cioccolatini', 'caramelle', 'patatine', 'chips', 'taralli', 'salatini', 'popcorn', 'snack', 'barrette', 'kinder', 'ferrero', 'pocket coffee', 'wafer'],
+  'Igiene Personale': ['shampoo', 'bagnoschiuma', 'sapone', 'dentifricio', 'spazzolino', 'deodorante', 'crema', 'rasoio', 'assorbenti', 'pannolini', 'cotton fioc', 'fazzoletti', 'salviette', 'collutorio'],
+  'Pulizia Casa': ['detersivo', 'ammorbidente', 'candeggina', 'sgrassatore', 'detergente', 'spugna', 'carta igienica', 'scottex', 'sacchetti', 'mocio', 'scope', 'guanti', 'alluminio', 'pellicola']
+};
+
+const categorizeToDepartment = (itemName: string): string => {
+  const lowerName = itemName.toLowerCase();
+  
+  for (const [department, keywords] of Object.entries(DEPARTMENT_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (lowerName.includes(keyword)) {
+        return department;
+      }
+    }
+  }
+  return 'Altro';
+};
+
+const DEPARTMENT_ORDER = [
+  'Frutta e Verdura',
+  'Pane e Prodotti da Forno',
+  'Latticini e Formaggi',
+  'Carne e Salumi',
+  'Pesce e Frutti di Mare',
+  'Pasta, Riso e Cereali',
+  'Conserve e Condimenti',
+  'Surgelati',
+  'Bevande',
+  'Colazione e Caffè',
+  'Snack e Dolci',
+  'Igiene Personale',
+  'Pulizia Casa',
+  'Altro'
+];
+
 const DelivererOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -51,6 +99,33 @@ const DelivererOrderDetail = () => {
   const [sharingLocation, setSharingLocation] = useState(false);
   const [delivererName, setDelivererName] = useState<string>("");
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'smart'>('list');
+
+  // Raggruppa items per reparto
+  const itemsByDepartment = useMemo(() => {
+    const grouped: Record<string, { items: (OrderItem & { originalIndex: number })[]; checkedCount: number }> = {};
+    
+    items.forEach((item, index) => {
+      const dept = categorizeToDepartment(item.name);
+      if (!grouped[dept]) {
+        grouped[dept] = { items: [], checkedCount: 0 };
+      }
+      grouped[dept].items.push({ ...item, originalIndex: index });
+      if (item.checked) {
+        grouped[dept].checkedCount++;
+      }
+    });
+
+    // Ordina secondo DEPARTMENT_ORDER
+    const orderedDepartments: typeof grouped = {};
+    DEPARTMENT_ORDER.forEach(dept => {
+      if (grouped[dept]) {
+        orderedDepartments[dept] = grouped[dept];
+      }
+    });
+
+    return orderedDepartments;
+  }, [items]);
 
   useEffect(() => {
     loadOrderDetails();
@@ -355,45 +430,105 @@ const DelivererOrderDetail = () => {
 
         <Card className="mb-4">
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                <CardTitle>Lista della Spesa</CardTitle>
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  <CardTitle>Lista della Spesa</CardTitle>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {checkedCount}/{totalItems} completati
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                {checkedCount}/{totalItems} completati
-              </div>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'smart')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="list" className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    Lista
+                  </TabsTrigger>
+                  <TabsTrigger value="smart" className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Per Reparto
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {items.map((item, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                    item.checked ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-background'
-                  }`}
-                >
-                  <Checkbox
-                    id={`item-${index}`}
-                    checked={item.checked}
-                    onCheckedChange={() => toggleItemCheck(index)}
-                  />
-                  <label
-                    htmlFor={`item-${index}`}
-                    className={`flex-1 cursor-pointer ${item.checked ? 'line-through text-muted-foreground' : ''}`}
+            {viewMode === 'list' ? (
+              <div className="space-y-3">
+                {items.map((item, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                      item.checked ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-background'
+                    }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
+                    <Checkbox
+                      id={`item-${index}`}
+                      checked={item.checked}
+                      onCheckedChange={() => toggleItemCheck(index)}
+                    />
+                    <label
+                      htmlFor={`item-${index}`}
+                      className={`flex-1 cursor-pointer ${item.checked ? 'line-through text-muted-foreground' : ''}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
+                        </div>
+                        <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
                       </div>
-                      <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(itemsByDepartment).map(([department, { items: deptItems, checkedCount: deptChecked }]) => (
+                  <div key={department}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-primary flex items-center gap-2">
+                        <span className="text-lg">🛒</span>
+                        {department}
+                      </h3>
+                      <Badge variant={deptChecked === deptItems.length ? "default" : "outline"} className="text-xs">
+                        {deptChecked}/{deptItems.length}
+                      </Badge>
                     </div>
-                  </label>
-                </div>
-              ))}
-            </div>
+                    <div className="space-y-2 pl-2 border-l-2 border-primary/20">
+                      {deptItems.map((item) => (
+                        <div
+                          key={item.originalIndex}
+                          className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${
+                            item.checked ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-background'
+                          }`}
+                        >
+                          <Checkbox
+                            id={`item-smart-${item.originalIndex}`}
+                            checked={item.checked}
+                            onCheckedChange={() => toggleItemCheck(item.originalIndex)}
+                          />
+                          <label
+                            htmlFor={`item-smart-${item.originalIndex}`}
+                            className={`flex-1 cursor-pointer ${item.checked ? 'line-through text-muted-foreground' : ''}`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-sm">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">Qtà: {item.quantity}</p>
+                              </div>
+                              <p className="font-semibold text-sm">€{(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 pt-4 border-t">
               <div className="flex justify-between items-center text-lg font-bold">
