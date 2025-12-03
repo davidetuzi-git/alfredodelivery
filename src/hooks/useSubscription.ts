@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useImpersonation } from "./useImpersonation";
 
 export interface Subscription {
   id: string;
@@ -58,6 +59,7 @@ export const SUBSCRIPTION_PLANS = {
 };
 
 export function useSubscription() {
+  const { isImpersonating, impersonatedUserId } = useImpersonation();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [benefits, setBenefits] = useState<SubscriptionBenefits>({
@@ -71,12 +73,20 @@ export function useSubscription() {
 
   useEffect(() => {
     loadSubscription();
-  }, []);
+  }, [isImpersonating, impersonatedUserId]);
 
   const loadSubscription = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      let userId: string | null = null;
+      
+      if (isImpersonating && impersonatedUserId) {
+        userId = impersonatedUserId;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id || null;
+      }
+      
+      if (!userId) {
         setLoading(false);
         return;
       }
@@ -84,7 +94,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from("user_subscriptions")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -96,8 +106,8 @@ export function useSubscription() {
         // Check if subscription is expired
         const isExpired = new Date(data.expires_at) < new Date();
         
-        if (isExpired) {
-          // Mark as expired
+        if (isExpired && !isImpersonating) {
+          // Mark as expired (only if not impersonating to avoid accidental changes)
           await supabase
             .from("user_subscriptions")
             .update({ status: "expired" })

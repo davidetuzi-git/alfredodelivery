@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useImpersonation } from './useImpersonation';
 
 export type LoyaltyLevel = 'bronze' | 'silver' | 'gold' | 'platinum';
 
@@ -105,18 +106,27 @@ export const getLevelFromPoints = (points: number): LoyaltyLevel => {
 };
 
 export function useLoyalty() {
+  const { isImpersonating, impersonatedUserId } = useImpersonation();
   const [loyaltyProfile, setLoyaltyProfile] = useState<LoyaltyProfile | null>(null);
   const [transactions, setTransactions] = useState<PointsTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadLoyaltyData();
-  }, []);
+  }, [isImpersonating, impersonatedUserId]);
 
   const loadLoyaltyData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      let userId: string | null = null;
+      
+      if (isImpersonating && impersonatedUserId) {
+        userId = impersonatedUserId;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id || null;
+      }
+      
+      if (!userId) {
         setLoading(false);
         return;
       }
@@ -125,7 +135,7 @@ export function useLoyalty() {
       const { data: profile, error: profileError } = await supabase
         .from('loyalty_profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
@@ -134,11 +144,11 @@ export function useLoyalty() {
 
       if (profile) {
         setLoyaltyProfile(profile as unknown as LoyaltyProfile);
-      } else {
-        // Create profile if doesn't exist
+      } else if (!isImpersonating) {
+        // Create profile if doesn't exist (only if not impersonating)
         const { data: newProfile, error: insertError } = await supabase
           .from('loyalty_profiles')
-          .insert({ user_id: user.id })
+          .insert({ user_id: userId })
           .select()
           .single();
 
@@ -151,7 +161,7 @@ export function useLoyalty() {
       const { data: txns } = await supabase
         .from('points_transactions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
 

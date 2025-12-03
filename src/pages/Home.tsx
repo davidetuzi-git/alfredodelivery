@@ -11,6 +11,7 @@ import { ServiceAlerts } from "@/components/ServiceAlerts";
 import { SlidingPartnerBanners } from "@/components/SlidingPartnerBanners";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
+import { useImpersonation } from "@/hooks/useImpersonation";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ const ORDERS_PER_PAGE = 3;
 
 const Home = () => {
   const navigate = useNavigate();
+  const { isImpersonating, impersonatedUserId, impersonatedUserName } = useImpersonation();
   const [session, setSession] = useState<any>(null);
   const [userName, setUserName] = useState<string>("Utente");
   const [orders, setOrders] = useState<any[]>([]);
@@ -34,6 +36,9 @@ const Home = () => {
   const { subscription, benefits } = useSubscription();
   const { loyaltyProfile } = useLoyalty();
 
+  // Get effective user ID (impersonated or real)
+  const effectiveUserId = isImpersonating && impersonatedUserId ? impersonatedUserId : session?.user?.id;
+
   // Get loyalty level info
   const currentLevel = loyaltyProfile?.current_level || 'bronze';
   const levelInfo = LOYALTY_LEVELS[currentLevel];
@@ -42,6 +47,23 @@ const Home = () => {
     const checkOnboarding = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      
+      // If impersonating, load impersonated user's data directly
+      if (isImpersonating && impersonatedUserId) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, full_name")
+          .eq("id", impersonatedUserId)
+          .maybeSingle();
+
+        if (profile) {
+          const displayName = profile.first_name || profile.full_name || impersonatedUserName || "Utente";
+          setUserName(displayName);
+        }
+        await loadUserData(impersonatedUserId);
+        return;
+      }
+      
       if (session) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -65,7 +87,7 @@ const Home = () => {
     };
 
     checkOnboarding();
-  }, [navigate]);
+  }, [navigate, isImpersonating, impersonatedUserId, impersonatedUserName]);
 
   const loadUserData = async (userId: string) => {
     // Carica ordini dell'utente
@@ -117,14 +139,14 @@ const Home = () => {
   };
 
   const loadMoreOrders = async () => {
-    if (!session?.user?.id || loadingMore) return;
+    if (!effectiveUserId || loadingMore) return;
     
     setLoadingMore(true);
     try {
       const { data: moreOrders } = await supabase
         .from("orders")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", effectiveUserId)
         .order("created_at", { ascending: false })
         .range(orders.length, orders.length + ORDERS_PER_PAGE - 1);
 
@@ -186,7 +208,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className={`min-h-screen bg-background pb-20 ${isImpersonating ? 'pt-12' : ''}`}>
       <Header />
       <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
