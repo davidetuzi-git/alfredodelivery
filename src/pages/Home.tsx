@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Star, TrendingUp, Gift, Crown, Loader2 } from "lucide-react";
+import { ShoppingBag, Star, TrendingUp, Gift, Crown, Loader2, User, MapPin, CreditCard } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
@@ -187,7 +187,7 @@ const Home = () => {
       <Header />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-screen-xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold mb-1">Ciao, {userName}!</h1>
               <p className="text-muted-foreground">Benvenuto su ALFREDO</p>
@@ -199,6 +199,55 @@ const Home = () => {
               <Star className="h-3 w-3 fill-current" />
               Cliente {levelInfo.name}
             </Badge>
+          </div>
+
+          {/* Quick account menu */}
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-shrink-0 bg-background/50 hover:bg-background"
+              onClick={() => navigate("/abbonamenti")}
+            >
+              <Crown className="h-4 w-4 mr-2 text-primary" />
+              Alfredo Extra
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-shrink-0 bg-background/50 hover:bg-background"
+              onClick={() => navigate("/fedelta")}
+            >
+              <Gift className="h-4 w-4 mr-2 text-primary" />
+              Fedeltà
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-shrink-0 bg-background/50 hover:bg-background"
+              onClick={() => navigate("/dati-personali")}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Dati Personali
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-shrink-0 bg-background/50 hover:bg-background"
+              onClick={() => navigate("/indirizzi-salvati")}
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Indirizzi
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-shrink-0 bg-background/50 hover:bg-background"
+              onClick={() => navigate("/metodi-pagamento")}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pagamenti
+            </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
