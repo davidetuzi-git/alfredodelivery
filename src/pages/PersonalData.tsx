@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Save, Bell, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
@@ -24,6 +25,14 @@ interface ProfileData {
   preferred_store: string;
 }
 
+interface CommunicationPreferences {
+  order_updates: boolean;
+  promotions: boolean;
+  newsletter: boolean;
+  loyalty_updates: boolean;
+  new_features: boolean;
+}
+
 const PersonalData = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -37,6 +46,13 @@ const PersonalData = () => {
     dietary_preferences: "",
     delivery_notes: "",
     preferred_store: ""
+  });
+  const [commPrefs, setCommPrefs] = useState<CommunicationPreferences>({
+    order_updates: true,
+    promotions: true,
+    newsletter: false,
+    loyalty_updates: true,
+    new_features: true
   });
 
   useEffect(() => {
@@ -59,13 +75,14 @@ const PersonalData = () => {
 
       setUserId(user.id);
 
+      // Load profile
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') {
         console.error('Error loading profile:', error);
         toast({
           title: "Errore",
@@ -83,6 +100,23 @@ const PersonalData = () => {
           preferred_store: profile.preferred_store || ""
         });
       }
+
+      // Load communication preferences
+      const { data: prefs } = await supabase
+        .from('communication_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (prefs) {
+        setCommPrefs({
+          order_updates: prefs.order_updates,
+          promotions: prefs.promotions,
+          newsletter: prefs.newsletter,
+          loyalty_updates: prefs.loyalty_updates,
+          new_features: prefs.new_features
+        });
+      }
     } catch (error) {
       console.error('Unexpected error:', error);
     } finally {
@@ -95,7 +129,8 @@ const PersonalData = () => {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      // Save profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: userId,
@@ -103,11 +138,22 @@ const PersonalData = () => {
           updated_at: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Save communication preferences
+      const { error: prefsError } = await supabase
+        .from('communication_preferences')
+        .upsert({
+          user_id: userId,
+          ...commPrefs,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (prefsError) throw prefsError;
 
       toast({
         title: "Salvato!",
-        description: "I tuoi dati sono stati aggiornati con successo",
+        description: "I tuoi dati e preferenze sono stati aggiornati con successo",
       });
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -119,6 +165,10 @@ const PersonalData = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateCommPref = (field: keyof CommunicationPreferences, value: boolean) => {
+    setCommPrefs(prev => ({ ...prev, [field]: value }));
   };
 
   const updateField = (field: keyof ProfileData, value: string) => {
@@ -266,7 +316,100 @@ const PersonalData = () => {
           </CardContent>
         </Card>
 
-        <Button 
+        {/* Communication Preferences */}
+        <Card className="mt-6 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Preferenze di Comunicazione
+            </CardTitle>
+            <CardDescription>
+              Scegli quali comunicazioni desideri ricevere via email
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="order_updates" className="font-medium">Aggiornamenti Ordini e Servizio</Label>
+                <p className="text-xs text-muted-foreground">
+                  Ricevi notifiche su stato ordini, date bloccate e comunicazioni operative
+                </p>
+              </div>
+              <Switch
+                id="order_updates"
+                checked={commPrefs.order_updates}
+                onCheckedChange={(checked) => updateCommPref('order_updates', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="promotions" className="font-medium">Promozioni e Offerte</Label>
+                <p className="text-xs text-muted-foreground">
+                  Ricevi sconti esclusivi, codici promozionali e offerte speciali
+                </p>
+              </div>
+              <Switch
+                id="promotions"
+                checked={commPrefs.promotions}
+                onCheckedChange={(checked) => updateCommPref('promotions', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="loyalty_updates" className="font-medium">Programma Fedeltà</Label>
+                <p className="text-xs text-muted-foreground">
+                  Aggiornamenti sui tuoi punti, livello e premi disponibili
+                </p>
+              </div>
+              <Switch
+                id="loyalty_updates"
+                checked={commPrefs.loyalty_updates}
+                onCheckedChange={(checked) => updateCommPref('loyalty_updates', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="new_features" className="font-medium">Novità e Funzionalità</Label>
+                <p className="text-xs text-muted-foreground">
+                  Scopri nuove funzionalità, miglioramenti e aggiornamenti della piattaforma
+                </p>
+              </div>
+              <Switch
+                id="new_features"
+                checked={commPrefs.new_features}
+                onCheckedChange={(checked) => updateCommPref('new_features', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="newsletter" className="font-medium">Newsletter</Label>
+                <p className="text-xs text-muted-foreground">
+                  Ricette, consigli e contenuti interessanti dal mondo della spesa
+                </p>
+              </div>
+              <Switch
+                id="newsletter"
+                checked={commPrefs.newsletter}
+                onCheckedChange={(checked) => updateCommPref('newsletter', checked)}
+              />
+            </div>
+
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-blue-600 mt-0.5" />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Le comunicazioni operative (date bloccate, chiusure servizio) vengono inviate solo se hai attivato "Aggiornamenti Ordini e Servizio"
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Button
           onClick={handleSave} 
           disabled={saving}
           className="w-full mt-6"
