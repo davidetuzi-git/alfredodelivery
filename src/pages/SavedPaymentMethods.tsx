@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
+import { Navigation } from "@/components/Navigation";
 
 interface SavedPaymentMethod {
   id: string;
@@ -175,16 +178,10 @@ const SavedPaymentMethods = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/profilo")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Indietro
-          </Button>
           <h1 className="text-3xl font-bold">Metodi di Pagamento</h1>
         </div>
       </div>
@@ -295,6 +292,7 @@ const SavedPaymentMethods = () => {
           )}
         </div>
       </div>
+      <Navigation />
     </div>
   );
 };

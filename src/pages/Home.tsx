@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag, Star, TrendingUp, Gift, Crown, Loader2, User, MapPin, CreditCard } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
@@ -185,6 +186,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between mb-4">

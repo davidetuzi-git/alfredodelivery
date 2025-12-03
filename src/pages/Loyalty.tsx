@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,9 @@ const Loyalty = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Indietro
-        </Button>
-
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">Programma Fedeltà</h1>
           <p className="text-muted-foreground">Accumula punti e sblocca vantaggi esclusivi</p>

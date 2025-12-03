@@ -68,7 +68,7 @@ const Profile = () => {
     { icon: MapPin, label: "Indirizzi salvati", action: () => navigate("/indirizzi-salvati") },
     { icon: CreditCard, label: "Metodi di pagamento", action: () => navigate("/metodi-pagamento") },
     { icon: Store, label: "Segnala supermercato", action: () => navigate("/segnala-supermercato") },
-    { icon: Bell, label: "Notifiche", action: () => {} },
+    { icon: Bell, label: "Notifiche", action: () => navigate("/notifiche") },
     { icon: Settings, label: "Impostazioni", action: () => {} },
   ];
 

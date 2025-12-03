@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
+import { Navigation } from "@/components/Navigation";
 import { toast } from "@/hooks/use-toast";
 import { stores } from "@/components/SupermarketMap";
 
@@ -132,16 +135,10 @@ const PersonalData = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate("/profilo")}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Torna al profilo
-          </Button>
           <h1 className="text-3xl font-bold mb-2">Dati personali</h1>
           <p className="text-muted-foreground">Gestisci le tue informazioni personali</p>
         </div>
@@ -288,6 +285,7 @@ const PersonalData = () => {
           )}
         </Button>
       </div>
+      <Navigation />
     </div>
   );
 };
