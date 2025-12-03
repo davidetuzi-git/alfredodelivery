@@ -167,6 +167,8 @@ const Order = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [showAlternativesDialog, setShowAlternativesDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   // Use scheduling pricing hook for smart date suggestions
   const { suggestedDates } = useSchedulingPricing(
@@ -688,6 +690,20 @@ const Order = () => {
     
     // Clear errors if validation passed
     setFieldErrors(new Set());
+    
+    // Check for items with suggested alternatives
+    const itemsWithAlternatives = validItems.filter(item => 
+      item.suggestedAlternative && item.suggestedAlternative.trim() !== ''
+    );
+    
+    // If there are alternatives and user hasn't confirmed yet, show dialog
+    if (itemsWithAlternatives.length > 0 && !pendingSubmit) {
+      setShowAlternativesDialog(true);
+      return;
+    }
+    
+    // Reset pending submit flag
+    setPendingSubmit(false);
 
     // Check if there are items without prices (NOT FOUND)
     const itemsWithoutPrice = validItems.filter(item => item.price === null || item.price === undefined);
@@ -1645,6 +1661,73 @@ const Order = () => {
             >
               <Upload className="h-4 w-4 mr-2" />
               Importa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alternatives confirmation dialog */}
+      <Dialog open={showAlternativesDialog} onOpenChange={setShowAlternativesDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Conferma Alternative
+            </DialogTitle>
+            <DialogDescription>
+              Alcuni prodotti richiesti non sono disponibili presso il supermercato selezionato. 
+              Abbiamo trovato le seguenti alternative:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="max-h-[300px] overflow-y-auto space-y-3 py-4">
+            {items
+              .filter(item => item.suggestedAlternative && item.suggestedAlternative.trim() !== '')
+              .map((item, index) => (
+                <div key={index} className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground line-through">
+                        {item.originalName || item.name}
+                      </p>
+                      <p className="font-medium text-sm flex items-center gap-1">
+                        <span className="text-amber-600">→</span>
+                        {item.suggestedAlternative}
+                      </p>
+                      {item.price && (
+                        <p className="text-sm text-primary font-semibold mt-1">
+                          €{item.price.toFixed(2)} × {item.quantity}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAlternativesDialog(false)}
+              className="w-full sm:w-auto"
+            >
+              Modifica Lista
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowAlternativesDialog(false);
+                setPendingSubmit(true);
+                // Re-trigger form submit
+                const form = document.querySelector('form');
+                if (form) {
+                  form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+              }}
+              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
+            >
+              Accetto le Alternative
             </Button>
           </DialogFooter>
         </DialogContent>
