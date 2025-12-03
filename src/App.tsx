@@ -33,6 +33,7 @@ import DelivererProfile from "./pages/DelivererProfile";
 import MyOrders from "./pages/MyOrders";
 import FAQ from "./pages/FAQ";
 import Subscriptions from "./pages/Subscriptions";
+import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import Loyalty from "./pages/Loyalty";
 import PricingPolicy from "./pages/PricingPolicy";
 
@@ -68,6 +69,7 @@ const App = () => (
           <Route path="/come-funziona" element={<HowItWorksPage />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/abbonamenti" element={<Subscriptions />} />
+          <Route path="/subscription-success" element={<SubscriptionSuccess />} />
           <Route path="/fedelta" element={<Loyalty />} />
           <Route path="/prezzi-policy" element={<PricingPolicy />} />
           <Route path="/admin/login" element={<AdminLogin />} />

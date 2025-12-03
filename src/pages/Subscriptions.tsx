@@ -8,8 +8,8 @@ import { Header } from "@/components/Header";
 import { ArrowLeft, Check, Crown, Sparkles, Clock, Gift, Shield, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useSubscription, SUBSCRIPTION_PLANS, Subscription } from "@/hooks/useSubscription";
-import { addMonths, addYears, format } from "date-fns";
+import { useSubscription, SUBSCRIPTION_PLANS } from "@/hooks/useSubscription";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
 const Subscriptions = () => {
@@ -43,39 +43,26 @@ const Subscriptions = () => {
     setPurchasing(plan);
 
     try {
-      const planDetails = SUBSCRIPTION_PLANS[plan];
-      const now = new Date();
-      const expiresAt = plan === "monthly" ? addMonths(now, 1) : addYears(now, 1);
-
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .insert({
-          user_id: userId,
-          plan: plan,
-          status: "active",
-          deliveries_remaining: planDetails.deliveries,
-          deliveries_total: planDetails.deliveries,
-          price_paid: planDetails.price,
-          started_at: now.toISOString(),
-          expires_at: expiresAt.toISOString()
-        });
+      // Call Stripe checkout edge function
+      const { data, error } = await supabase.functions.invoke("create-subscription-checkout", {
+        body: { plan }
+      });
 
       if (error) throw error;
 
-      toast({
-        title: "Abbonamento attivato! 🎉",
-        description: `Il tuo piano ${planDetails.name} è ora attivo.`
-      });
-
-      await refreshSubscription();
+      if (data?.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL di pagamento non ricevuto");
+      }
     } catch (error) {
-      console.error("Error purchasing subscription:", error);
+      console.error("Error creating checkout:", error);
       toast({
         title: "Errore",
-        description: "Impossibile completare l'acquisto. Riprova.",
+        description: "Impossibile avviare il pagamento. Riprova.",
         variant: "destructive"
       });
-    } finally {
       setPurchasing(null);
     }
   };
