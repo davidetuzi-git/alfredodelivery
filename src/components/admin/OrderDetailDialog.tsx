@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, MapPin, Clock, User, Phone, Calendar, ShoppingBag, Truck, RefreshCw, Loader2 } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, Calendar, ShoppingBag, Truck, RefreshCw, Loader2, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
@@ -23,6 +23,7 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('requested_by_customer');
+  const [refundPassword, setRefundPassword] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
 
   if (!order) return null;
@@ -50,6 +51,15 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
   };
 
   const handleRefund = async (isFullRefund: boolean) => {
+    if (!refundPassword) {
+      toast({
+        title: "Errore",
+        description: "Inserisci la password di sicurezza per il rimborso",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsRefunding(true);
     try {
       const amount = isFullRefund ? null : parseFloat(refundAmount);
@@ -68,7 +78,8 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
         body: {
           orderId: order.id,
           amount: isFullRefund ? null : amount,
-          reason: refundReason
+          reason: refundReason,
+          refundPassword: refundPassword
         }
       });
 
@@ -76,11 +87,12 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
 
       toast({
         title: "Rimborso effettuato",
-        description: `Rimborso di €${data.amount.toFixed(2)} completato con successo`,
+        description: `Rimborso di €${data.amount.toFixed(2)} completato. Email di conferma inviata.`,
       });
 
       setShowRefundForm(false);
       setRefundAmount('');
+      setRefundPassword('');
       onOrderUpdate?.();
 
     } catch (error: any) {
@@ -155,6 +167,24 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
 
                 {showRefundForm && (
                   <div className="space-y-4">
+                    {/* Security Password */}
+                    <div className="p-3 bg-red-100 border border-red-300 rounded-lg">
+                      <Label className="flex items-center gap-2 text-red-800 mb-2">
+                        <Lock className="h-4 w-4" />
+                        Password di Sicurezza Rimborso
+                      </Label>
+                      <Input
+                        type="password"
+                        placeholder="Inserisci la password dedicata"
+                        value={refundPassword}
+                        onChange={(e) => setRefundPassword(e.target.value)}
+                        className="border-red-300"
+                      />
+                      <p className="text-xs text-red-600 mt-1">
+                        Una email di conferma sarà inviata all'admin dopo il rimborso
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>Importo rimborso parziale (€)</Label>
@@ -187,7 +217,7 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
                         variant="outline"
                         className="flex-1"
                         onClick={() => handleRefund(false)}
-                        disabled={isRefunding || !refundAmount}
+                        disabled={isRefunding || !refundAmount || !refundPassword}
                       >
                         {isRefunding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Rimborso Parziale
@@ -196,7 +226,7 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
                         variant="destructive"
                         className="flex-1"
                         onClick={() => handleRefund(true)}
-                        disabled={isRefunding}
+                        disabled={isRefunding || !refundPassword}
                       >
                         {isRefunding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Rimborso Totale (€{order.total_amount.toFixed(2)})
@@ -207,7 +237,10 @@ export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: 
                       variant="ghost" 
                       size="sm" 
                       className="w-full"
-                      onClick={() => setShowRefundForm(false)}
+                      onClick={() => {
+                        setShowRefundForm(false);
+                        setRefundPassword('');
+                      }}
                     >
                       Annulla
                     </Button>
