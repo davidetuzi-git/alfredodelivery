@@ -526,46 +526,46 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
           </div>
         )}
         
-        {/* Route info overlay */}
+        {/* Route info overlay - positioned bottom-left to avoid route and pins */}
         {routeDistance !== null && selectedStore && (
-          <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-72 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl shadow-xl border border-border/50 p-4 z-[1000] animate-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-semibold text-sm leading-tight">{selectedStore.name}</p>
-                  <p className="text-xs text-muted-foreground truncate max-w-[180px]">{selectedStore.address}</p>
-                </div>
+          <div className="absolute bottom-16 left-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg shadow-lg border border-border/50 p-2 z-[1000] animate-in slide-in-from-left-2 duration-300 max-w-[200px]">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-xs leading-tight truncate">{selectedStore.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{selectedStore.address}</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-muted/50 rounded-lg p-2">
-                <p className="text-lg font-bold text-primary">{routeDistance.toFixed(1)}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">KM</p>
+            <div className="flex items-center gap-3 text-center">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-primary">{routeDistance.toFixed(1)}</p>
+                <p className="text-[8px] text-muted-foreground uppercase">KM</p>
               </div>
-              <div className="bg-muted/50 rounded-lg p-2">
-                <p className="text-lg font-bold text-primary">{routeDuration ? Math.round(routeDuration) : '-'}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">MIN</p>
+              <div className="w-px h-6 bg-border/50"></div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-primary">{routeDuration ? Math.round(routeDuration) : '-'}</p>
+                <p className="text-[8px] text-muted-foreground uppercase">MIN</p>
               </div>
-              <div className="bg-muted/50 rounded-lg p-2">
-                <p className="text-lg font-bold text-green-600">€{deliveryFee}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CONS.</p>
+              <div className="w-px h-6 bg-border/50"></div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-green-600">€{deliveryFee}</p>
+                <p className="text-[8px] text-muted-foreground uppercase">CONS.</p>
               </div>
             </div>
             
-            <div className="mt-3 pt-2 border-t border-border/50">
-              <p className="text-[10px] text-muted-foreground text-center">
+            <div className="mt-2 pt-1 border-t border-border/30">
+              <p className="text-[8px] text-muted-foreground text-center">
                 {routeDistance <= 7 
-                  ? '📍 Zona 1 (0-7km) • Consegna standard' 
+                  ? '📍 Zona 1 • Standard' 
                   : routeDistance <= 10 
-                    ? '📍 Zona 2 (7-10km) • Consegna estesa' 
-                    : '📍 Zona 3 (>10km) • Consegna lontana'}
+                    ? '📍 Zona 2 • Estesa' 
+                    : '📍 Zona 3 • Lontana'}
               </p>
             </div>
           </div>
