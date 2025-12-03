@@ -9,9 +9,7 @@ import ChatBot from "@/components/ChatBot";
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <div className="hidden md:block">
-        <Header />
-      </div>
+      <Header />
       <Hero />
       <HowItWorks />
       <Benefits />

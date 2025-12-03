@@ -15,13 +15,13 @@ const steps = [
   },
   {
     icon: Truck,
-    title: "Un Alfredo fa la spesa",
+    title: "Un Alfredo fa la spesa per te",
     description: "Il nostro shopper seleziona con cura i tuoi prodotti e li porta a casa tua",
     step: "03"
   },
   {
     icon: CheckCircle,
-    title: "Ricevi e goditi",
+    title: "Ricevi la spesa quando vuoi",
     description: "Verifica la spesa, lascia un feedback e goditi il tuo tempo risparmiato",
     step: "04"
   }
