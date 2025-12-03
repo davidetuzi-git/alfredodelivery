@@ -20,6 +20,7 @@ const CompareStores = () => {
   const location = useLocation();
   const items = (location.state?.items || []) as ShoppingItem[];
   const currentStore = location.state?.currentStore || "";
+  const nearbyStores = (location.state?.nearbyStores || []) as string[];
   
   const [compareStore, setCompareStore] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,19 +29,8 @@ const CompareStores = () => {
     compare: { store: string; total: number; items: Array<{ name: string; price: number; quantity: number }> };
   } | null>(null);
 
-  const stores = [
-    "Esselunga - Via Tuscolana 123, Roma",
-    "Carrefour Express - Via Appia Nuova 45, Roma",
-    "Coop - Via dei Castani 67, Roma",
-    "Conad - Viale Manzoni 89, Roma",
-    "Lidl - Via Casilina 234, Roma",
-    "Conad - Via Nettunense 255, Anzio",
-    "Lidl - Via Ardeatina 574, Anzio",
-    "MD Discount - Via di Villa Claudia 90, Anzio",
-    "Conad - Via Monte Velino 15, Avezzano",
-    "Eurospin - Via Corradini 34, Avezzano",
-    "Tigre - Via Tiburtina Valeria 168, Avezzano",
-  ].filter(s => s !== currentStore);
+  // Use nearby stores from the map (within 10km) - filter out current store
+  const stores = nearbyStores.filter(s => s !== currentStore);
 
   const handleCompare = async () => {
     if (!compareStore) {
