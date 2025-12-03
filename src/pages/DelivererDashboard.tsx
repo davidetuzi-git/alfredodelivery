@@ -598,58 +598,60 @@ const DelivererDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-2 sm:p-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <Truck className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Dashboard Fattorino</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Menu a tendina per lo stato */}
+        {/* Header mobile-friendly */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Power className="h-4 w-4 text-muted-foreground" />
-              <Select
-                value={deliverer.status}
-                onValueChange={(value: 'available' | 'inactive') => updateAvailabilityStatus(value)}
-                disabled={updatingStatus || deliverer.status === 'busy'}
-              >
-                <SelectTrigger className="w-[180px] bg-background">
-                  <SelectValue>
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${getStatusColor(deliverer.status)}`} />
-                      <span>{getStatusLabel(deliverer.status)}</span>
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  <SelectItem value="available">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span>Disponibile</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="inactive">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-gray-500" />
-                      <span>Non Attivo</span>
-                    </div>
-                  </SelectItem>
-                  {deliverer.status === 'busy' && (
-                    <SelectItem value="busy" disabled>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                        <span>Occupato (auto)</span>
-                      </div>
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Truck className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <h1 className="text-xl sm:text-3xl font-bold">Dashboard</h1>
             </div>
-            <Button onClick={handleLogout} variant="outline">
-              <LogOut className="h-4 w-4 mr-2" />
-              Esci
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Esci</span>
             </Button>
+          </div>
+          
+          {/* Status selector - full width on mobile */}
+          <div className="flex items-center gap-2 w-full">
+            <Power className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Select
+              value={deliverer.status}
+              onValueChange={(value: 'available' | 'inactive') => updateAvailabilityStatus(value)}
+              disabled={updatingStatus || deliverer.status === 'busy'}
+            >
+              <SelectTrigger className="flex-1 bg-background">
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${getStatusColor(deliverer.status)}`} />
+                    <span>{getStatusLabel(deliverer.status)}</span>
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                <SelectItem value="available">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span>Disponibile</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="inactive">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-gray-500" />
+                    <span>Non Attivo</span>
+                  </div>
+                </SelectItem>
+                {deliverer.status === 'busy' && (
+                  <SelectItem value="busy" disabled>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                      <span>Occupato (auto)</span>
+                    </div>
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
