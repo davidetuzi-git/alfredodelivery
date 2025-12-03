@@ -8,7 +8,6 @@ import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ServiceAlerts } from "@/components/ServiceAlerts";
-import { SlidingPartnerBanners } from "@/components/SlidingPartnerBanners";
 import { AdSidebar } from "@/components/AdSidebar";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
@@ -319,9 +318,6 @@ const Home = () => {
           <div className="flex-1 space-y-6 min-w-0">
             {/* Service Alerts - blocked dates and holidays */}
             <ServiceAlerts />
-
-            {/* Sliding Partner Banners */}
-            <SlidingPartnerBanners />
 
         {/* Subscription Banner - show only if no active subscription */}
         {!subscription && (
