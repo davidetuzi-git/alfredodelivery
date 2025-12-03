@@ -90,31 +90,83 @@ serve(async (req) => {
     });
 
     // Search for the payment intent related to this order
+    // Get more payments and search with broader criteria
     const payments = await stripe.paymentIntents.list({
-      limit: 50,
+      limit: 100,
     });
 
-    // Find the payment for this order
+    logStep("Searching payment intents", { count: payments.data.length });
+
+    // Find the payment for this order using multiple strategies
     const orderTotal = Math.round(order.total_amount * 100);
     const orderDate = new Date(order.created_at);
     
-    let paymentIntent = payments.data.find((pi: any) => {
+    let paymentIntent = null;
+
+    // Strategy 1: Match by amount and time (within 24 hours)
+    paymentIntent = payments.data.find((pi: any) => {
       const piDate = new Date(pi.created * 1000);
       const timeDiff = Math.abs(piDate.getTime() - orderDate.getTime());
+      // Match by amount and within 24 hours of order creation
       return pi.amount === orderTotal && 
-             timeDiff < 3600000 && 
+             timeDiff < 86400000 && 
              pi.status === 'succeeded';
     });
 
+    logStep("Strategy 1 (amount+time)", { found: !!paymentIntent });
+
+    // Strategy 2: Match by metadata user_id
     if (!paymentIntent) {
       paymentIntent = payments.data.find((pi: any) => 
         pi.metadata?.user_id === order.user_id && 
+        pi.status === 'succeeded' &&
+        pi.amount === orderTotal
+      );
+      logStep("Strategy 2 (metadata user_id)", { found: !!paymentIntent });
+    }
+
+    // Strategy 3: Match by customer email
+    if (!paymentIntent) {
+      // Get user email
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('id', order.user_id)
+        .single();
+
+      if (profile) {
+        // Search in Stripe customers
+        const { data: authUser } = await supabaseClient.auth.admin.getUserById(order.user_id);
+        const userEmail = authUser?.user?.email;
+        
+        if (userEmail) {
+          const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+          if (customers.data.length > 0) {
+            const customerId = customers.data[0].id;
+            // Find payment by customer and amount
+            paymentIntent = payments.data.find((pi: any) => 
+              pi.customer === customerId && 
+              pi.amount === orderTotal &&
+              pi.status === 'succeeded'
+            );
+            logStep("Strategy 3 (customer email)", { found: !!paymentIntent, email: userEmail });
+          }
+        }
+      }
+    }
+
+    // Strategy 4: Match just by exact amount and succeeded status (last resort)
+    if (!paymentIntent) {
+      paymentIntent = payments.data.find((pi: any) => 
+        pi.amount === orderTotal && 
         pi.status === 'succeeded'
       );
+      logStep("Strategy 4 (amount only)", { found: !!paymentIntent });
     }
 
     if (!paymentIntent) {
-      throw new Error("Pagamento Stripe non trovato per questo ordine");
+      logStep("No payment found", { orderTotal, orderUserId: order.user_id });
+      throw new Error("Pagamento Stripe non trovato per questo ordine. Verifica che l'ordine sia stato pagato con carta.");
     }
 
     logStep("Payment intent found", { paymentIntentId: paymentIntent.id });
