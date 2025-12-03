@@ -188,14 +188,14 @@ const PersonalData = () => {
             <div className="space-y-2">
               <Label htmlFor="preferred_store">Supermercato preferito</Label>
               <Select 
-                value={profileData.preferred_store} 
-                onValueChange={(value) => updateField('preferred_store', value)}
+                value={profileData.preferred_store || "none"} 
+                onValueChange={(value) => updateField('preferred_store', value === "none" ? "" : value)}
               >
                 <SelectTrigger id="preferred_store">
                   <SelectValue placeholder="Nessun supermercato preferito" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nessuno</SelectItem>
+              <SelectContent>
+                  <SelectItem value="none">Nessuno</SelectItem>
                   {stores.map((store) => {
                     const storeName = `${store.name} - ${store.address}`;
                     return (
