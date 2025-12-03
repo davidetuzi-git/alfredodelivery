@@ -103,6 +103,16 @@ const Profile = () => {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* New Order Button */}
+        <Button 
+          onClick={() => navigate("/ordina")} 
+          className="w-full" 
+          size="lg"
+        >
+          <ShoppingBag className="h-5 w-5 mr-2" />
+          Nuovo Ordine
+        </Button>
+
         {/* Loyalty Card */}
         <LoyaltyCard />
 
