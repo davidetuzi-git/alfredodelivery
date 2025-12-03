@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, ShoppingCart, Crown, Mail, Phone, MapPin, Heart, Bell, Ban, Trash2 } from "lucide-react";
+import { Search, User, ShoppingCart, Crown, Mail, Phone, MapPin, Heart, Bell, Ban, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 interface Customer {
   id: string;
@@ -49,6 +51,8 @@ interface CustomerDetails {
 }
 
 export const CustomersTab = () => {
+  const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +62,15 @@ export const CustomersTab = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [actionCustomerId, setActionCustomerId] = useState<string | null>(null);
+
+  const handleViewAsUser = () => {
+    if (selectedCustomer) {
+      const userName = `${selectedCustomer.profile.first_name || ""} ${selectedCustomer.profile.last_name || ""}`.trim() || "Utente";
+      startImpersonation(selectedCustomer.profile.id, userName);
+      setDialogOpen(false);
+      navigate("/home");
+    }
+  };
 
   useEffect(() => {
     loadCustomers();
@@ -366,7 +379,15 @@ export const CustomersTab = () => {
                   >
                     <TableCell>
                       <div>
-                        <p className="font-medium">
+                        <p 
+                          className="font-medium text-primary hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const userName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Utente";
+                            startImpersonation(customer.id, userName);
+                            navigate("/home");
+                          }}
+                        >
                           {customer.first_name || customer.last_name
                             ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
                             : "N/D"}
@@ -432,6 +453,14 @@ export const CustomersTab = () => {
                 Dettagli Cliente
               </div>
               <div className="flex gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleViewAsUser}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Visualizza come utente
+                </Button>
                 <Button
                   variant="destructive"
                   size="sm"
