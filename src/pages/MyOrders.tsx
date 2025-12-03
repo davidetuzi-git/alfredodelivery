@@ -12,7 +12,7 @@ import {
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -20,6 +20,7 @@ import { it } from "date-fns/locale";
 import { Session } from "@supabase/supabase-js";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
 import { OrderFeedbackWithTip } from "@/components/OrderFeedbackWithTip";
+import { RepeatOrderDialog } from "@/components/RepeatOrderDialog";
 
 interface Order {
   id: string;
@@ -52,6 +53,8 @@ const MyOrders = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
   const [showFeedback, setShowFeedback] = useState(false);
+  const [repeatOrderOpen, setRepeatOrderOpen] = useState(false);
+  const [orderToRepeat, setOrderToRepeat] = useState<Order | null>(null);
 
   // Get order ID from location state (when navigating from Home)
   const openOrderId = (location.state as { openOrderId?: string })?.openOrderId;
@@ -183,6 +186,12 @@ const MyOrders = () => {
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
     setDialogOpen(true);
+  };
+
+  const handleRepeatOrder = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOrderToRepeat(order);
+    setRepeatOrderOpen(true);
   };
 
   const calculateSubtotal = (order: Order) => {
@@ -320,10 +329,21 @@ const MyOrders = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                     <ShoppingBag className="h-4 w-4" />
                     <span>{order.store_name}</span>
                   </div>
+
+                  {order.delivery_status === 'delivered' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={(e) => handleRepeatOrder(order, e)}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Ripeti ordine
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -528,6 +548,22 @@ const MyOrders = () => {
                   </Button>
                 )}
 
+                {/* Repeat Order Button for delivered orders */}
+                {selectedOrder.delivery_status === 'delivered' && (
+                  <Button 
+                    variant="default"
+                    className="w-full"
+                    onClick={() => {
+                      setDialogOpen(false);
+                      setOrderToRepeat(selectedOrder);
+                      setRepeatOrderOpen(true);
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Ripeti questo ordine
+                  </Button>
+                )}
+
                 {/* Feedback Section for delivered orders */}
                 {selectedOrder.delivery_status === 'delivered' && selectedOrder.deliverer_id && (
                   <>
@@ -567,6 +603,14 @@ const MyOrders = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Repeat Order Dialog */}
+      <RepeatOrderDialog
+        open={repeatOrderOpen}
+        onOpenChange={setRepeatOrderOpen}
+        order={orderToRepeat}
+        session={session}
+      />
 
       <Navigation />
     </div>
