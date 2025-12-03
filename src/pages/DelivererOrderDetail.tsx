@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid, XCircle, RefreshCw, AlertTriangle, MessageSquare, ShoppingBag } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderChat from "@/components/OrderChat";
 import {
@@ -19,12 +20,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface OrderItem {
   name: string;
   price: number;
   quantity: number;
   checked?: boolean;
+  notFound?: boolean;
+  alternative?: string;
+  waitingApproval?: boolean;
+  approvedAlternative?: boolean;
 }
 
 interface Order {
@@ -100,6 +113,10 @@ const DelivererOrderDetail = () => {
   const [delivererName, setDelivererName] = useState<string>("");
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'smart'>('list');
+  const [showAlternativeDialog, setShowAlternativeDialog] = useState(false);
+  const [alternativeItemIndex, setAlternativeItemIndex] = useState<number | null>(null);
+  const [alternativeText, setAlternativeText] = useState("");
+  const [showForceCompleteDialog, setShowForceCompleteDialog] = useState(false);
 
   // Raggruppa items per reparto
   const itemsByDepartment = useMemo(() => {
@@ -111,7 +128,7 @@ const DelivererOrderDetail = () => {
         grouped[dept] = { items: [], checkedCount: 0 };
       }
       grouped[dept].items.push({ ...item, originalIndex: index });
-      if (item.checked) {
+      if (item.checked || item.approvedAlternative || item.notFound) {
         grouped[dept].checkedCount++;
       }
     });
@@ -341,6 +358,98 @@ const DelivererOrderDetail = () => {
     }
   };
 
+  const markItemNotFound = (index: number) => {
+    const newItems = items.map((item, i) => 
+      i === index ? { ...item, notFound: true, checked: false, alternative: undefined, waitingApproval: false } : item
+    );
+    setItems(newItems);
+    
+    // Invia messaggio automatico in chat
+    sendChatMessage(`❌ Articolo non trovato: "${items[index].name}" (Qtà: ${items[index].quantity})`);
+    toast.info(`Articolo segnalato come non trovato`);
+  };
+
+  const resetItemStatus = (index: number) => {
+    const newItems = items.map((item, i) => 
+      i === index ? { ...item, notFound: false, checked: false, alternative: undefined, waitingApproval: false, approvedAlternative: false } : item
+    );
+    setItems(newItems);
+  };
+
+  const openAlternativeDialog = (index: number) => {
+    setAlternativeItemIndex(index);
+    setAlternativeText("");
+    setShowAlternativeDialog(true);
+  };
+
+  const submitAlternative = async () => {
+    if (alternativeItemIndex === null || !alternativeText.trim()) return;
+    
+    const newItems = items.map((item, i) => 
+      i === alternativeItemIndex ? { ...item, alternative: alternativeText, waitingApproval: true, notFound: false, checked: false } : item
+    );
+    setItems(newItems);
+    
+    // Invia messaggio in chat per richiedere autorizzazione
+    await sendChatMessage(`🔄 RICHIESTA AUTORIZZAZIONE:\nArticolo: "${items[alternativeItemIndex].name}"\nAlternativa proposta: "${alternativeText}"\n\n👉 Rispondi "OK" o "SI" per confermare, oppure "NO" per rifiutare.`);
+    
+    toast.success("Richiesta alternativa inviata al cliente");
+    setShowAlternativeDialog(false);
+    setAlternativeItemIndex(null);
+    setAlternativeText("");
+  };
+
+  const sendChatMessage = async (message: string) => {
+    try {
+      await supabase
+        .from('order_chat_messages')
+        .insert({
+          order_id: orderId,
+          sender_type: 'deliverer',
+          sender_name: delivererName || 'Fattorino',
+          message
+        });
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+    }
+  };
+
+  const handleForceCompleteShopping = async () => {
+    // Aggiorna stato a shopping_complete anche con articoli mancanti
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          delivery_status: 'shopping_complete',
+          status: 'shopping_complete'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      
+      if (order) {
+        setOrder({ ...order, delivery_status: 'shopping_complete' });
+      }
+      
+      // Invia riepilogo articoli mancanti
+      const missingItems = items.filter(i => i.notFound);
+      if (missingItems.length > 0) {
+        const missingList = missingItems.map(i => `- ${i.name} (Qtà: ${i.quantity})`).join('\n');
+        await sendChatMessage(`⚠️ SPESA COMPLETATA CON ARTICOLI MANCANTI:\n${missingList}\n\nIl totale sarà ricalcolato alla consegna.`);
+      }
+      
+      toast.success("Spesa chiusa");
+      setShowForceCompleteDialog(false);
+      
+      if (!sharingLocation) {
+        setShowLocationPrompt(true);
+      }
+    } catch (error) {
+      console.error('Error force completing shopping:', error);
+      toast.error("Errore nel completamento della spesa");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -357,9 +466,13 @@ const DelivererOrderDetail = () => {
     );
   }
 
-  const checkedCount = items.filter(item => item.checked).length;
+  const checkedCount = items.filter(item => item.checked || item.approvedAlternative).length;
+  const notFoundCount = items.filter(item => item.notFound).length;
+  const waitingApprovalCount = items.filter(item => item.waitingApproval).length;
   const totalItems = items.length;
-  const allChecked = checkedCount === totalItems;
+  const processedItems = checkedCount + notFoundCount;
+  const allProcessed = processedItems === totalItems && waitingApprovalCount === 0;
+  const canForceComplete = checkedCount > 0 && (notFoundCount > 0 || waitingApprovalCount > 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-4">
@@ -436,8 +549,11 @@ const DelivererOrderDetail = () => {
                   <Package className="h-5 w-5" />
                   <CardTitle>Lista della Spesa</CardTitle>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {checkedCount}/{totalItems} completati
+                <div className="text-sm text-muted-foreground flex flex-wrap gap-2 justify-end">
+                  <span className="text-green-600">{checkedCount} ✓</span>
+                  {notFoundCount > 0 && <span className="text-red-600">{notFoundCount} ✗</span>}
+                  {waitingApprovalCount > 0 && <span className="text-yellow-600">{waitingApprovalCount} ⏳</span>}
+                  <span>/ {totalItems}</span>
                 </div>
               </div>
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'smart')} className="w-full">
@@ -460,27 +576,84 @@ const DelivererOrderDetail = () => {
                 {items.map((item, index) => (
                   <div
                     key={index}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                      item.checked ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-background'
+                    className={`p-3 rounded-lg border transition-colors ${
+                      item.checked || item.approvedAlternative ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 
+                      item.notFound ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
+                      item.waitingApproval ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800' :
+                      'bg-background'
                     }`}
                   >
-                    <Checkbox
-                      id={`item-${index}`}
-                      checked={item.checked}
-                      onCheckedChange={() => toggleItemCheck(index)}
-                    />
-                    <label
-                      htmlFor={`item-${index}`}
-                      className={`flex-1 cursor-pointer ${item.checked ? 'line-through text-muted-foreground' : ''}`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id={`item-${index}`}
+                        checked={item.checked || item.approvedAlternative}
+                        disabled={item.notFound || item.waitingApproval}
+                        onCheckedChange={() => toggleItemCheck(index)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div className={item.checked || item.approvedAlternative ? 'line-through text-muted-foreground' : ''}>
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
+                            {item.alternative && (
+                              <p className="text-sm text-orange-600 mt-1">
+                                <RefreshCw className="inline h-3 w-3 mr-1" />
+                                Alternativa: {item.alternative}
+                              </p>
+                            )}
+                            {item.waitingApproval && (
+                              <Badge variant="outline" className="mt-1 text-yellow-700 border-yellow-500 bg-yellow-100">
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                In attesa approvazione cliente
+                              </Badge>
+                            )}
+                            {item.notFound && (
+                              <Badge variant="outline" className="mt-1 text-red-700 border-red-500 bg-red-100">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Non trovato
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
                         </div>
-                        <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
+                        
+                        {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
+                          <div className="flex gap-2 mt-2 pt-2 border-t">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => markItemNotFound(index)}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Non trovato
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                              onClick={() => openAlternativeDialog(index)}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Alternativa
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {(item.notFound || item.waitingApproval) && (
+                          <div className="mt-2 pt-2 border-t">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => resetItemStatus(index)}
+                            >
+                              Annulla
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                    </label>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -501,27 +674,79 @@ const DelivererOrderDetail = () => {
                       {deptItems.map((item) => (
                         <div
                           key={item.originalIndex}
-                          className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${
-                            item.checked ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-background'
+                          className={`p-2 rounded-lg border transition-colors ${
+                            item.checked || item.approvedAlternative ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 
+                            item.notFound ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
+                            item.waitingApproval ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800' :
+                            'bg-background'
                           }`}
                         >
-                          <Checkbox
-                            id={`item-smart-${item.originalIndex}`}
-                            checked={item.checked}
-                            onCheckedChange={() => toggleItemCheck(item.originalIndex)}
-                          />
-                          <label
-                            htmlFor={`item-smart-${item.originalIndex}`}
-                            className={`flex-1 cursor-pointer ${item.checked ? 'line-through text-muted-foreground' : ''}`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-medium text-sm">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">Qtà: {item.quantity}</p>
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              id={`item-smart-${item.originalIndex}`}
+                              checked={item.checked || item.approvedAlternative}
+                              disabled={item.notFound || item.waitingApproval}
+                              onCheckedChange={() => toggleItemCheck(item.originalIndex)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <div className={`flex justify-between items-start ${item.checked || item.approvedAlternative ? 'line-through text-muted-foreground' : ''}`}>
+                                <div>
+                                  <p className="font-medium text-sm">{item.name}</p>
+                                  <p className="text-xs text-muted-foreground">Qtà: {item.quantity}</p>
+                                  {item.alternative && (
+                                    <p className="text-xs text-orange-600 mt-1">
+                                      <RefreshCw className="inline h-3 w-3 mr-1" />
+                                      Alt: {item.alternative}
+                                    </p>
+                                  )}
+                                  {item.waitingApproval && (
+                                    <Badge variant="outline" className="mt-1 text-yellow-700 border-yellow-500 bg-yellow-100 text-xs">
+                                      In attesa
+                                    </Badge>
+                                  )}
+                                  {item.notFound && (
+                                    <Badge variant="outline" className="mt-1 text-red-700 border-red-500 bg-red-100 text-xs">
+                                      Non trovato
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="font-semibold text-sm">€{(item.price * item.quantity).toFixed(2)}</p>
                               </div>
-                              <p className="font-semibold text-sm">€{(item.price * item.quantity).toFixed(2)}</p>
+                              
+                              {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
+                                <div className="flex gap-1 mt-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs text-red-600 hover:bg-red-50"
+                                    onClick={() => markItemNotFound(item.originalIndex)}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs text-orange-600 hover:bg-orange-50"
+                                    onClick={() => openAlternativeDialog(item.originalIndex)}
+                                  >
+                                    <RefreshCw className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              {(item.notFound || item.waitingApproval) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs mt-1"
+                                  onClick={() => resetItemStatus(item.originalIndex)}
+                                >
+                                  Annulla
+                                </Button>
+                              )}
                             </div>
-                          </label>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -563,15 +788,117 @@ const DelivererOrderDetail = () => {
           />
         </div>
 
+        {/* Status summary */}
+        {(notFoundCount > 0 || waitingApprovalCount > 0) && (
+          <Card className="mb-4 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div className="text-sm">
+                  {notFoundCount > 0 && (
+                    <p className="text-orange-700">{notFoundCount} articol{notFoundCount > 1 ? 'i' : 'o'} non trovat{notFoundCount > 1 ? 'i' : 'o'}</p>
+                  )}
+                  {waitingApprovalCount > 0 && (
+                    <p className="text-orange-700">{waitingApprovalCount} alternativ{waitingApprovalCount > 1 ? 'e' : 'a'} in attesa di approvazione</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Force complete button */}
+        {canForceComplete && order.delivery_status !== 'shopping_complete' && (
+          <Button
+            onClick={() => setShowForceCompleteDialog(true)}
+            variant="outline"
+            className="w-full mb-4 border-orange-500 text-orange-600 hover:bg-orange-50"
+            size="lg"
+          >
+            <ShoppingBag className="h-5 w-5 mr-2" />
+            Chiudi spesa con articoli mancanti
+          </Button>
+        )}
+
         <Button
           onClick={handleCompleteOrder}
-          disabled={!allChecked}
+          disabled={!allProcessed || order.delivery_status !== 'shopping_complete'}
           className="w-full"
           size="lg"
         >
           <CheckCircle2 className="h-5 w-5 mr-2" />
-          {allChecked ? 'Completa Consegna' : `Spunta tutti gli articoli (${checkedCount}/${totalItems})`}
+          {order.delivery_status === 'shopping_complete' 
+            ? 'Completa Consegna' 
+            : allProcessed 
+              ? 'Prima completa la spesa' 
+              : `Processa tutti gli articoli (${processedItems}/${totalItems})`}
         </Button>
+
+        {/* Alternative dialog */}
+        <Dialog open={showAlternativeDialog} onOpenChange={setShowAlternativeDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5 text-orange-600" />
+                Proponi alternativa
+              </DialogTitle>
+              <DialogDescription>
+                {alternativeItemIndex !== null && items[alternativeItemIndex] && (
+                  <>
+                    Articolo originale: <strong>{items[alternativeItemIndex].name}</strong>
+                    <br />
+                    Inserisci il prodotto alternativo trovato. Il cliente riceverà una richiesta di approvazione via chat.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Es: Marca X invece di Marca Y, stesso formato"
+                value={alternativeText}
+                onChange={(e) => setAlternativeText(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAlternativeDialog(false)}>
+                Annulla
+              </Button>
+              <Button onClick={submitAlternative} disabled={!alternativeText.trim()}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Invia richiesta
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Force complete dialog */}
+        <AlertDialog open={showForceCompleteDialog} onOpenChange={setShowForceCompleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                Chiudi spesa con articoli mancanti?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Stai per chiudere la spesa con i seguenti problemi:</p>
+                {notFoundCount > 0 && (
+                  <p className="text-red-600">• {notFoundCount} articol{notFoundCount > 1 ? 'i' : 'o'} non trovat{notFoundCount > 1 ? 'i' : 'o'}</p>
+                )}
+                {waitingApprovalCount > 0 && (
+                  <p className="text-orange-600">• {waitingApprovalCount} alternativ{waitingApprovalCount > 1 ? 'e' : 'a'} in attesa</p>
+                )}
+                <p className="mt-2">Il cliente verrà avvisato via chat e il totale sarà ricalcolato alla consegna.</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={handleForceCompleteShopping} className="bg-orange-600 hover:bg-orange-700">
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Chiudi spesa
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertDialog open={showLocationPrompt} onOpenChange={setShowLocationPrompt}>
           <AlertDialogContent>
