@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Star, TrendingUp, Gift, Crown } from "lucide-react";
+import { ShoppingBag, Star, TrendingUp, Gift, Crown, Loader2 } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
@@ -12,11 +12,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
+const ORDERS_PER_PAGE = 3;
+
 const Home = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
   const [userName, setUserName] = useState<string>("Utente");
   const [orders, setOrders] = useState<any[]>([]);
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -61,13 +65,13 @@ const Home = () => {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(3);
+      .limit(ORDERS_PER_PAGE);
 
     if (userOrders) {
       setOrders(userOrders);
     }
 
-    // Calcola statistiche
+    // Calcola statistiche e conta totale ordini
     const { data: allOrders } = await supabase
       .from("orders")
       .select("total_amount, discount, voucher_discount")
@@ -75,6 +79,7 @@ const Home = () => {
 
     if (allOrders) {
       const totalOrders = allOrders.length;
+      setTotalOrdersCount(totalOrders);
       const totalSaved = allOrders.reduce((sum, order) => 
         sum + (order.discount || 0) + (order.voucher_discount || 0), 0
       );
@@ -101,6 +106,30 @@ const Home = () => {
       setStats(prev => ({ ...prev, activeVouchers: activeVouchers.length }));
     }
   };
+
+  const loadMoreOrders = async () => {
+    if (!session?.user?.id || loadingMore) return;
+    
+    setLoadingMore(true);
+    try {
+      const { data: moreOrders } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .range(orders.length, orders.length + ORDERS_PER_PAGE - 1);
+
+      if (moreOrders && moreOrders.length > 0) {
+        setOrders(prev => [...prev, ...moreOrders]);
+      }
+    } catch (error) {
+      console.error('Error loading more orders:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const hasMoreOrders = orders.length < totalOrdersCount;
 
   const handleOrderClick = () => {
     if (!session) {
@@ -278,7 +307,7 @@ const Home = () => {
                 <div 
                   key={order.id} 
                   className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate('/my-orders')}
+                  onClick={() => navigate('/i-miei-ordini')}
                 >
                   <div className="flex-1">
                     <h3 className="font-semibold">{order.store_name}</h3>
@@ -295,13 +324,23 @@ const Home = () => {
                   </div>
                 </div>
               ))}
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => navigate('/my-orders')}
-              >
-                Vedi tutti gli ordini
-              </Button>
+              {hasMoreOrders && (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={loadMoreOrders}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Caricamento...
+                    </>
+                  ) : (
+                    `Carica altri ordini (${totalOrdersCount - orders.length} rimanenti)`
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
