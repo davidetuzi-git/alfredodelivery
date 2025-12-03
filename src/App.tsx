@@ -10,6 +10,7 @@ import OrderSummary from "./pages/OrderSummary";
 import Checkout from "./pages/Checkout";
 import CardPayment from "./pages/CardPayment";
 import PayPalSuccess from "./pages/PayPalSuccess";
+import StripeSuccess from "./pages/StripeSuccess";
 import OrderTracking from "./pages/OrderTracking";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
@@ -53,6 +54,7 @@ const App = () => (
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/card-payment" element={<CardPayment />} />
           <Route path="/paypal-success" element={<PayPalSuccess />} />
+          <Route path="/stripe-success" element={<StripeSuccess />} />
           <Route path="/tracking" element={<OrderTracking />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/profilo" element={<Profile />} />
