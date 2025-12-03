@@ -44,10 +44,10 @@ const StripeSuccess = () => {
           return;
         }
 
-        // Get pending order data from sessionStorage
-        const pendingOrderStr = sessionStorage.getItem('pendingOrder');
+        // Get pending order data from localStorage (sessionStorage doesn't persist across tabs)
+        const pendingOrderStr = localStorage.getItem('pendingOrder');
         if (!pendingOrderStr) {
-          throw new Error("Dati ordine non trovati");
+          throw new Error("Dati ordine non trovati. Il pagamento è stato completato ma l'ordine non è stato salvato. Contatta l'assistenza.");
         }
 
         const pendingOrder = JSON.parse(pendingOrderStr);
@@ -100,8 +100,8 @@ const StripeSuccess = () => {
           });
         }
 
-        // Clear pending order
-        sessionStorage.removeItem('pendingOrder');
+        // Clear pending order from localStorage
+        localStorage.removeItem('pendingOrder');
 
         setStatus('success');
         
