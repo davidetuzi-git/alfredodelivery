@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
@@ -889,6 +890,7 @@ const Order = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
           <Button
@@ -1652,6 +1654,7 @@ const Order = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 pb-20">
       <Header />
+      <UserSubmenu />
       
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-4xl mx-auto">
