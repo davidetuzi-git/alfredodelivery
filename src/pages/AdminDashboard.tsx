@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle } from "lucide-react";
+import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle, BarChart3 } from "lucide-react";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { DeliverersTab } from "@/components/admin/DeliverersTab";
 import { FinanceTab } from "@/components/admin/FinanceTab";
@@ -14,6 +14,7 @@ import { VouchersTab } from "@/components/admin/VouchersTab";
 import { RiderCostsTab } from "@/components/admin/RiderCostsTab";
 import { ServiceCalendarTab } from "@/components/admin/ServiceCalendarTab";
 import { CustomersTab } from "@/components/admin/CustomersTab";
+import { AdMetricsTab } from "@/components/admin/AdMetricsTab";
 
 interface Order {
   id: string;
@@ -155,7 +156,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 max-w-7xl">
+          <TabsList className="grid w-full grid-cols-10 max-w-7xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Ordini</span>
@@ -187,6 +188,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="vouchers" className="flex items-center gap-2">
               <Ticket className="h-4 w-4" />
               <span className="hidden sm:inline">Voucher</span>
+            </TabsTrigger>
+            <TabsTrigger value="ad-metrics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Pubblicità</span>
             </TabsTrigger>
             <TabsTrigger value="finance" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -228,6 +233,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="vouchers">
             <VouchersTab />
+          </TabsContent>
+
+          <TabsContent value="ad-metrics">
+            <AdMetricsTab />
           </TabsContent>
 
           <TabsContent value="finance">

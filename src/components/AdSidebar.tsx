@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Ad {
   id: string;
@@ -13,7 +15,7 @@ interface Ad {
 
 const sampleAds: Ad[] = [
   {
-    id: "1",
+    id: "esselunga-offerta-speciale",
     storeName: "Esselunga",
     title: "Offerta Speciale",
     description: "Sconto 30% su tutti i prodotti freschi",
@@ -23,7 +25,7 @@ const sampleAds: Ad[] = [
     accentColor: "bg-red-600"
   },
   {
-    id: "2",
+    id: "conad-promo-weekend",
     storeName: "Conad",
     title: "Promo Weekend",
     description: "2x1 su pasta e conserve",
@@ -33,7 +35,7 @@ const sampleAds: Ad[] = [
     accentColor: "bg-orange-500"
   },
   {
-    id: "3",
+    id: "carrefour-sottocosto",
     storeName: "Carrefour",
     title: "Sottocosto",
     description: "Oltre 100 prodotti in offerta",
@@ -43,7 +45,7 @@ const sampleAds: Ad[] = [
     accentColor: "bg-blue-600"
   },
   {
-    id: "4",
+    id: "lidl-settimana-italiana",
     storeName: "Lidl",
     title: "Settimana Italiana",
     description: "Specialità regionali a prezzi speciali",
@@ -53,7 +55,7 @@ const sampleAds: Ad[] = [
     accentColor: "bg-yellow-500"
   },
   {
-    id: "5",
+    id: "eurospin-spesa-intelligente",
     storeName: "Eurospin",
     title: "Spesa Intelligente",
     description: "Risparmia fino al 40% sulla spesa",
@@ -63,7 +65,7 @@ const sampleAds: Ad[] = [
     accentColor: "bg-green-600"
   },
   {
-    id: "6",
+    id: "coop-soci-in-festa",
     storeName: "Coop",
     title: "Soci in Festa",
     description: "Punti doppi su tutta la spesa",
@@ -79,10 +81,52 @@ interface AdSidebarProps {
 }
 
 export const AdSidebar = ({ position }: AdSidebarProps) => {
+  const trackedRef = useRef<Set<string>>(new Set());
+  
   // Show different ads based on position
   const ads = position === 'left' 
     ? sampleAds.filter((_, i) => i % 2 === 0) 
     : sampleAds.filter((_, i) => i % 2 === 1);
+
+  // Track unique impressions
+  useEffect(() => {
+    const trackImpressions = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+
+      for (const ad of ads) {
+        if (trackedRef.current.has(ad.id)) continue;
+        
+        try {
+          await supabase
+            .from('ad_impressions')
+            .upsert(
+              { ad_id: ad.id, user_id: session.user.id },
+              { onConflict: 'ad_id,user_id', ignoreDuplicates: true }
+            );
+          trackedRef.current.add(ad.id);
+        } catch (error) {
+          // Ignore duplicate errors
+        }
+      }
+    };
+
+    trackImpressions();
+  }, [ads]);
+
+  // Track click
+  const handleAdClick = async (adId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) return;
+
+    try {
+      await supabase
+        .from('ad_clicks')
+        .insert({ ad_id: adId, user_id: session.user.id });
+    } catch (error) {
+      console.error('Error tracking click:', error);
+    }
+  };
 
   return (
     <div className="hidden xl:flex flex-col gap-4 w-[200px] flex-shrink-0">
@@ -92,6 +136,7 @@ export const AdSidebar = ({ position }: AdSidebarProps) => {
       {ads.map((ad) => (
         <div
           key={ad.id}
+          onClick={() => handleAdClick(ad.id)}
           className={`${ad.bgColor} rounded-lg p-3 border border-border/50 hover:shadow-md transition-shadow cursor-pointer group`}
         >
           <div className="flex items-center justify-between mb-2">
