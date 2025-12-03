@@ -37,6 +37,7 @@ import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import Loyalty from "./pages/Loyalty";
 import PricingPolicy from "./pages/PricingPolicy";
 import Notifications from "./pages/Notifications";
+import RequestZone from "./pages/RequestZone";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,7 @@ const App = () => (
           <Route path="/fedelta" element={<Loyalty />} />
           <Route path="/prezzi-policy" element={<PricingPolicy />} />
           <Route path="/notifiche" element={<Notifications />} />
+          <Route path="/richiedi-zona" element={<RequestZone />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/deliverer/auth" element={<DelivererAuth />} />
