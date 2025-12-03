@@ -131,7 +131,10 @@ export const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-background" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
+                <DropdownMenuLabel 
+                  className="font-normal cursor-pointer hover:bg-accent rounded-sm transition-colors"
+                  onClick={() => navigate("/profilo")}
+                >
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {getDisplayName()}
