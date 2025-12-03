@@ -141,17 +141,56 @@ const Checkout = () => {
       return;
     }
 
-    // If card payment, redirect to card payment page
+    // If card payment, create Stripe checkout session
     if (paymentMethod === 'card') {
-      navigate("/card-payment", { 
-        state: {
+      setProcessing(true);
+      try {
+        const returnUrl = `${window.location.origin}/stripe-success?session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = `${window.location.origin}/checkout`;
+        
+        const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+          body: { 
+            amount: finalTotal,
+            orderData: {
+              ...orderData.orderData,
+              itemCount,
+              subscription: subscriptionData
+            },
+            returnUrl,
+            cancelUrl
+          }
+        });
+
+        if (error) throw error;
+        
+        // Store order data in sessionStorage for later
+        sessionStorage.setItem('pendingOrder', JSON.stringify({
           ...orderData,
           total: subtotal,
-          deliveryFee: deliveryFee,
-          discount: discount
-        } 
-      });
-      return;
+          deliveryFee,
+          discount,
+          paymentMethod: 'card'
+        }));
+        
+        // Open Stripe checkout in new tab
+        window.open(data.url, '_blank');
+        setProcessing(false);
+        
+        toast({
+          title: "Checkout Stripe aperto",
+          description: "Completa il pagamento nella nuova scheda",
+        });
+        return;
+      } catch (error) {
+        console.error('Stripe error:', error);
+        toast({
+          title: "Errore Stripe",
+          description: "Impossibile avviare il pagamento. Riprova.",
+          variant: "destructive",
+        });
+        setProcessing(false);
+        return;
+      }
     }
 
     // If PayPal, create order and redirect
