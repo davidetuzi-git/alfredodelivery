@@ -241,7 +241,34 @@ const DelivererDashboard = () => {
       .order('delivery_date', { ascending: true });
 
     if (openOrdersData) {
-      setOpenOrders(openOrdersData);
+      // Auto-expire orders that are more than 2 weeks past delivery date
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+      
+      const expiredOrders: Order[] = [];
+      const activeOrders: Order[] = [];
+      
+      for (const order of openOrdersData) {
+        const deliveryDate = new Date(order.delivery_date);
+        if (deliveryDate < twoWeeksAgo) {
+          expiredOrders.push(order);
+        } else {
+          activeOrders.push(order);
+        }
+      }
+      
+      // Update expired orders in database
+      if (expiredOrders.length > 0) {
+        const expiredIds = expiredOrders.map(o => o.id);
+        await supabase
+          .from('orders')
+          .update({ delivery_status: 'expired' })
+          .in('id', expiredIds);
+        
+        console.log(`Auto-expired ${expiredOrders.length} orders older than 2 weeks`);
+      }
+      
+      setOpenOrders(activeOrders);
     }
 
     // Calcola automaticamente lo stato "busy" SOLO se ci sono consegne in corso OGGI
@@ -286,12 +313,12 @@ const DelivererDashboard = () => {
       await loadAvailableOrders(delivererData.latitude, delivererData.longitude);
     }
 
-    // Carica ordini chiusi (completati/cancellati) già assegnati al fattorino
+    // Carica ordini chiusi (completati/cancellati/scaduti) già assegnati al fattorino
     const { data: closedOrdersData } = await supabase
       .from('orders')
       .select('*')
       .eq('deliverer_id', delivererData.id)
-      .in('delivery_status', ['delivered', 'cancelled'])
+      .in('delivery_status', ['delivered', 'cancelled', 'expired'])
       .order('created_at', { ascending: false });
 
     if (closedOrdersData) {
@@ -528,8 +555,33 @@ const DelivererDashboard = () => {
         return 'bg-green-500';
       case 'cancelled':
         return 'bg-red-500';
+      case 'expired':
+        return 'bg-orange-500';
       default:
         return 'bg-gray-500';
+    }
+  };
+
+  const getOrderStatusLabel = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Confermato';
+      case 'assigned':
+        return 'Assegnato';
+      case 'at_store':
+        return 'Al Negozio';
+      case 'shopping_complete':
+        return 'Spesa Completata';
+      case 'on_the_way':
+        return 'In Consegna';
+      case 'delivered':
+        return 'Consegnato';
+      case 'cancelled':
+        return 'Annullato';
+      case 'expired':
+        return 'Scaduto';
+      default:
+        return status;
     }
   };
 
