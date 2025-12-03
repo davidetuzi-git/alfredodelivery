@@ -81,7 +81,13 @@ serve(async (req) => {
       cancel_url: cancelUrl || `${req.headers.get("origin")}/checkout`,
       metadata: {
         user_id: user.id,
-        order_data: JSON.stringify(orderData || {}),
+        // Store only essential fields to stay under 500 char limit
+        item_count: String(orderData?.itemCount || 0),
+        store: (orderData?.store || '').substring(0, 100),
+        delivery_date: orderData?.deliveryDate || '',
+        time_slot: orderData?.timeSlot || '',
+        customer_name: (orderData?.name || '').substring(0, 50),
+        customer_phone: orderData?.phone || '',
       },
     });
 
