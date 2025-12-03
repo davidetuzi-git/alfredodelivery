@@ -119,9 +119,10 @@ const OrderSummary = () => {
   const serviceFee = orderData.serviceFee || 0;
   const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, total: 0 };
   const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '', suggestionReason: null, suggestionDiscount: 0 };
+  const holidaySurcharge = orderData.holidaySurcharge || 0;
   const subscriptionData = orderData.subscription || null;
   const discount = 4.99;
-  const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount - discount;
+  const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount + holidaySurcharge - discount;
 
   const handleProceedToCheckout = () => {
     // Strip imageUrl from items to reduce payload size
@@ -145,6 +146,7 @@ const OrderSummary = () => {
         discount,
         supplements,
         schedulingAdjustment,
+        holidaySurcharge,
         serviceFee,
         subtotal,
         orderData: lightOrderData,
@@ -378,6 +380,15 @@ const OrderSummary = () => {
                 <span className="font-semibold">
                   {schedulingAdjustment.amount > 0 ? '+' : ''}€{schedulingAdjustment.amount.toFixed(2)}
                 </span>
+              </div>
+            )}
+            {holidaySurcharge > 0 && (
+              <div className="flex justify-between text-sm text-red-600 dark:text-red-400">
+                <div className="flex flex-col">
+                  <span>Supplemento festivo</span>
+                  <span className="text-xs opacity-80">Consegna in giorno festivo</span>
+                </div>
+                <span className="font-semibold">+€{holidaySurcharge.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
