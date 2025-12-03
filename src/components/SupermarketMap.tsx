@@ -525,6 +525,51 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
             </div>
           </div>
         )}
+        
+        {/* Route info overlay */}
+        {routeDistance !== null && selectedStore && (
+          <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-72 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl shadow-xl border border-border/50 p-4 z-[1000] animate-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm leading-tight">{selectedStore.name}</p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[180px]">{selectedStore.address}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-muted/50 rounded-lg p-2">
+                <p className="text-lg font-bold text-primary">{routeDistance.toFixed(1)}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">KM</p>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-2">
+                <p className="text-lg font-bold text-primary">{routeDuration ? Math.round(routeDuration) : '-'}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">MIN</p>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-2">
+                <p className="text-lg font-bold text-green-600">€{deliveryFee}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CONS.</p>
+              </div>
+            </div>
+            
+            <div className="mt-3 pt-2 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground text-center">
+                {routeDistance <= 7 
+                  ? '📍 Zona 1 (0-7km) • Consegna standard' 
+                  : routeDistance <= 10 
+                    ? '📍 Zona 2 (7-10km) • Consegna estesa' 
+                    : '📍 Zona 3 (>10km) • Consegna lontana'}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
       
       {!isLoadingStores && filteredStores.length > 0 && (
