@@ -9,6 +9,7 @@ import { UserSubmenu } from "@/components/UserSubmenu";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ServiceAlerts } from "@/components/ServiceAlerts";
 import { AdSidebar } from "@/components/AdSidebar";
+import { AdBannerMobile } from "@/components/AdBannerMobile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -308,6 +309,9 @@ const Home = () => {
           </Button>
         </div>
       </div>
+
+      {/* Mobile/Tablet Ad Banner */}
+      <AdBannerMobile />
 
       <div className="max-w-screen-2xl mx-auto p-6">
         <div className="flex gap-6">
