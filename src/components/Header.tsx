@@ -83,7 +83,7 @@ export const Header = () => {
   };
 
   const navItems = [
-    { path: user ? "/home" : "/", icon: Home, label: "Home" },
+    { path: "/", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
     { path: "/i-miei-ordini", icon: Clock, label: "Ordini" },
     { path: "/prezzi", icon: Search, label: "Prezzi" },
@@ -93,7 +93,7 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link to={user ? "/home" : "/"} className="font-bold text-xl text-primary">
+          <Link to="/" className="font-bold text-xl text-primary">
             ALFREDO
           </Link>
           
