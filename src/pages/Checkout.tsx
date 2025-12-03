@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt, ArrowLeft, AlertCircle, Loader2, Crown } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft, Loader2, Crown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Session } from "@supabase/supabase-js";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -21,21 +19,19 @@ const Checkout = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [acceptsMealVouchers, setAcceptsMealVouchers] = useState(false);
-  const [mealVoucherTypes, setMealVoucherTypes] = useState<string[]>([]);
-  const [loadingStoreInfo, setLoadingStoreInfo] = useState(true);
   const { decrementDelivery } = useSubscription();
   
   
   const orderData = location.state || {};
-  const subtotal = orderData.total || 0;
+  const subtotal = orderData.subtotal || 0;
   const deliveryFee = orderData.deliveryFee || 3.99;
   const discount = orderData.discount || 4.99;
-  const schedulingAdjustment = orderData.orderData?.schedulingAdjustment || { amount: 0, description: '' };
+  const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, holidayFee: 0, total: 0 };
+  const serviceFee = orderData.serviceFee || 0;
+  const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '' };
   const subscriptionData = orderData.orderData?.subscription || null;
   const itemCount = orderData.itemCount || 0;
-  const finalTotal = subtotal;
-  const storeName = orderData.orderData?.store || "";
+  const finalTotal = orderData.total || 0;
 
   // Check authentication first
   useEffect(() => {
@@ -69,41 +65,6 @@ const Checkout = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    const checkStoreVouchers = async () => {
-      if (!storeName) return;
-      
-      setLoadingStoreInfo(true);
-      try {
-        // Extract store name from "Store - Address" format
-        const storeNameOnly = storeName.split(' - ')[0].trim();
-        
-        const { data, error } = await supabase
-          .from('supermarkets')
-          .select('accepts_meal_vouchers, meal_voucher_types')
-          .ilike('name', storeNameOnly)
-          .limit(1)
-          .single();
-        
-        if (!error && data) {
-          setAcceptsMealVouchers(data.accepts_meal_vouchers);
-          setMealVoucherTypes(data.meal_voucher_types as string[] || []);
-        } else {
-          setAcceptsMealVouchers(false);
-          setMealVoucherTypes([]);
-        }
-      } catch (error) {
-        console.error('Error checking store vouchers:', error);
-        setAcceptsMealVouchers(false);
-        setMealVoucherTypes([]);
-      } finally {
-        setLoadingStoreInfo(false);
-      }
-    };
-
-    checkStoreVouchers();
-  }, [storeName]);
-
   const handleBackToOrder = () => {
     navigate("/ordina", { 
       state: { 
@@ -117,16 +78,6 @@ const Checkout = () => {
       toast({
         title: "Errore",
         description: "Seleziona un metodo di pagamento",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if meal vouchers are selected but not accepted
-    if (paymentMethod === 'meal-voucher' && !acceptsMealVouchers) {
-      toast({
-        title: "Metodo non accettato",
-        description: `Il supermercato ${storeName.split(' - ')[0]} non accetta buoni pasto`,
         variant: "destructive",
       });
       return;
@@ -361,9 +312,10 @@ const Checkout = () => {
             )}
 
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Prodotti ({itemCount} articoli)</span>
-              <span className="font-semibold">€{(subtotal - deliveryFee + discount - (schedulingAdjustment.amount || 0)).toFixed(2)}</span>
+              <span className="text-muted-foreground">Subtotale prodotti ({itemCount} articoli)</span>
+              <span className="font-semibold">€{subtotal.toFixed(2)}</span>
             </div>
+            
             <div className="flex justify-between">
               <span className="text-muted-foreground">Costo consegna</span>
               {subscriptionData?.usedDelivery ? (
@@ -372,6 +324,40 @@ const Checkout = () => {
                 <span className="font-semibold">€{deliveryFee.toFixed(2)}</span>
               )}
             </div>
+            
+            {serviceFee > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Costo del servizio</span>
+                <span className="font-semibold">€{serviceFee.toFixed(2)}</span>
+              </div>
+            )}
+            
+            {/* Detailed supplements breakdown */}
+            {supplements.bagFee > 0 && (
+              <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+                <span>Supplemento borse extra</span>
+                <span className="font-semibold">+€{supplements.bagFee.toFixed(2)}</span>
+              </div>
+            )}
+            {supplements.waterFee > 0 && (
+              <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+                <span>Supplemento eccedenza acqua (&gt;9L)</span>
+                <span className="font-semibold">+€{supplements.waterFee.toFixed(2)}</span>
+              </div>
+            )}
+            {supplements.waterOnlyFee > 0 && (
+              <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+                <span>Ordine solo bevande</span>
+                <span className="font-semibold">+€{supplements.waterOnlyFee.toFixed(2)}</span>
+              </div>
+            )}
+            {supplements.holidayFee > 0 && (
+              <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+                <span>Supplemento festività</span>
+                <span className="font-semibold">+€{supplements.holidayFee.toFixed(2)}</span>
+              </div>
+            )}
+            
             {schedulingAdjustment.amount !== 0 && (
               <div className={`flex justify-between ${
                 schedulingAdjustment.amount > 0 
@@ -384,10 +370,12 @@ const Checkout = () => {
                 </span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Sconto fedeltà</span>
-              <span className="font-semibold text-green-600">-€{discount.toFixed(2)}</span>
+            
+            <div className="flex justify-between text-green-600 dark:text-green-400">
+              <span>Sconto fedeltà</span>
+              <span className="font-semibold">-€{discount.toFixed(2)}</span>
             </div>
+            
             <div className="border-t pt-3 flex justify-between text-lg">
               <span className="font-bold">Totale</span>
               <span className="font-bold">€{finalTotal.toFixed(2)}</span>
@@ -400,30 +388,13 @@ const Checkout = () => {
             <CardTitle>Metodo di pagamento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!loadingStoreInfo && !acceptsMealVouchers && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Questo supermercato non accetta buoni pasto. Scegli un altro metodo di pagamento.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {!loadingStoreInfo && acceptsMealVouchers && mealVoucherTypes.length > 0 && (
-              <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950">
-                <AlertCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800 dark:text-green-200">
-                  Buoni pasto accettati: {mealVoucherTypes.join(', ')}
-                </AlertDescription>
-              </Alert>
-            )}
-
             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
               <div className="space-y-3">
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
                   const isMealVoucher = method.id === 'meal-voucher';
-                  const isDisabled = isMealVoucher && !acceptsMealVouchers;
+                  // Meal vouchers are always disabled with "SOON" badge
+                  const isDisabled = isMealVoucher;
                   
                   return (
                     <div
@@ -442,15 +413,17 @@ const Checkout = () => {
                         id={method.id} 
                         disabled={isDisabled}
                       />
-                      <Icon className="h-5 w-5 text-primary" />
+                      <Icon className={`h-5 w-5 ${isDisabled ? 'text-muted-foreground' : 'text-primary'}`} />
                       <div className="flex-1">
                         <Label 
                           htmlFor={method.id} 
-                          className={`font-semibold ${!isDisabled ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                          className={`font-semibold ${!isDisabled ? 'cursor-pointer' : 'cursor-not-allowed'} flex items-center gap-2`}
                         >
                           {method.name}
-                          {isMealVoucher && !acceptsMealVouchers && (
-                            <span className="ml-2 text-xs text-muted-foreground">(Non disponibile)</span>
+                          {isMealVoucher && (
+                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700">
+                              PRESTO DISPONIBILE
+                            </Badge>
                           )}
                         </Label>
                         <p className="text-sm text-muted-foreground">{method.description}</p>

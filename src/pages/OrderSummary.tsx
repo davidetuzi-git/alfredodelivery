@@ -124,13 +124,30 @@ const OrderSummary = () => {
   const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount - discount;
 
   const handleProceedToCheckout = () => {
+    // Strip imageUrl from items to reduce payload size
+    const lightOrderData = {
+      ...orderData,
+      items: items.map(item => ({
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        isEstimated: item.isEstimated,
+        originalName: item.originalName,
+        // Exclude imageUrl to avoid quota/size issues
+      }))
+    };
+    
     navigate("/checkout", {
       state: {
         total,
         itemCount: items.length,
         deliveryFee,
         discount,
-        orderData,
+        supplements,
+        schedulingAdjustment,
+        serviceFee,
+        subtotal,
+        orderData: lightOrderData,
         orderFormData
       }
     });
