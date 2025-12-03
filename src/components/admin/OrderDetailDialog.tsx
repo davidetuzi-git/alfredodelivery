@@ -2,18 +2,29 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, MapPin, Clock, User, Phone, Calendar, ShoppingBag, Truck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Package, MapPin, Clock, User, Phone, Calendar, ShoppingBag, Truck, RefreshCw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface OrderDetailDialogProps {
   order: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOrderUpdate?: () => void;
 }
 
-export const OrderDetailDialog = ({ order, open, onOpenChange }: OrderDetailDialogProps) => {
+export const OrderDetailDialog = ({ order, open, onOpenChange, onOrderUpdate }: OrderDetailDialogProps) => {
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('requested_by_customer');
+  const [isRefunding, setIsRefunding] = useState(false);
+
   if (!order) return null;
 
   const getStatusColor = (status: string) => {
@@ -37,6 +48,54 @@ export const OrderDetailDialog = ({ order, open, onOpenChange }: OrderDetailDial
       default: return status;
     }
   };
+
+  const handleRefund = async (isFullRefund: boolean) => {
+    setIsRefunding(true);
+    try {
+      const amount = isFullRefund ? null : parseFloat(refundAmount);
+      
+      if (!isFullRefund && (!amount || amount <= 0 || amount > order.total_amount)) {
+        toast({
+          title: "Errore",
+          description: "Importo non valido",
+          variant: "destructive"
+        });
+        setIsRefunding(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('refund-stripe-payment', {
+        body: {
+          orderId: order.id,
+          amount: isFullRefund ? null : amount,
+          reason: refundReason
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Rimborso effettuato",
+        description: `Rimborso di €${data.amount.toFixed(2)} completato con successo`,
+      });
+
+      setShowRefundForm(false);
+      setRefundAmount('');
+      onOrderUpdate?.();
+
+    } catch (error: any) {
+      console.error('Refund error:', error);
+      toast({
+        title: "Errore rimborso",
+        description: error.message || "Impossibile elaborare il rimborso",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
+  const canRefund = order.payment_method === 'card' && order.delivery_status !== 'cancelled';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,6 +132,90 @@ export const OrderDetailDialog = ({ order, open, onOpenChange }: OrderDetailDial
               <OrderStatusTracker currentStatus={order.delivery_status} />
             </CardContent>
           </Card>
+
+          {/* Refund Section - Only for card payments */}
+          {canRefund && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5" />
+                    Rimborso
+                  </h3>
+                  {!showRefundForm && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowRefundForm(true)}
+                    >
+                      Gestisci Rimborso
+                    </Button>
+                  )}
+                </div>
+
+                {showRefundForm && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Importo rimborso parziale (€)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={order.total_amount}
+                          placeholder={`Max €${order.total_amount.toFixed(2)}`}
+                          value={refundAmount}
+                          onChange={(e) => setRefundAmount(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Motivo</Label>
+                        <select 
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                          value={refundReason}
+                          onChange={(e) => setRefundReason(e.target.value)}
+                        >
+                          <option value="requested_by_customer">Richiesto dal cliente</option>
+                          <option value="duplicate">Pagamento duplicato</option>
+                          <option value="fraudulent">Fraudolento</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleRefund(false)}
+                        disabled={isRefunding || !refundAmount}
+                      >
+                        {isRefunding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Rimborso Parziale
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => handleRefund(true)}
+                        disabled={isRefunding}
+                      >
+                        {isRefunding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Rimborso Totale (€{order.total_amount.toFixed(2)})
+                      </Button>
+                    </div>
+
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setShowRefundForm(false)}
+                    >
+                      Annulla
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Informazioni Cliente */}
           <Card>
