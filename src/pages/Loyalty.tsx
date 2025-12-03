@@ -4,7 +4,7 @@ import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLoyalty, LOYALTY_LEVELS, LoyaltyLevel } from "@/hooks/useLoyalty";
-import { ArrowLeft, Trophy, Gift, Sparkles, Calendar, TrendingUp, FileText } from "lucide-react";
+import { ArrowLeft, Trophy, Gift, Sparkles, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -153,40 +153,6 @@ const Loyalty = () => {
           </CardContent>
         </Card>
 
-        {/* Special promotions info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Promozioni speciali
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              I membri del programma fedeltà hanno accesso anticipato alle promozioni:
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-3 bg-muted rounded-lg">
-                <span className="text-2xl">🛍️</span>
-                <p className="text-xs mt-1">Black Friday</p>
-              </div>
-              <div className="text-center p-3 bg-muted rounded-lg">
-                <span className="text-2xl">🎄</span>
-                <p className="text-xs mt-1">Natale</p>
-              </div>
-              <div className="text-center p-3 bg-muted rounded-lg">
-                <span className="text-2xl">🎂</span>
-                <p className="text-xs mt-1">Anniversario</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Link to pricing policy */}
-        <Button onClick={() => navigate("/prezzi-policy")} variant="outline" className="w-full" size="lg">
-          <FileText className="h-4 w-4 mr-2" />
-          Vedi Policy Prezzi Completa
-        </Button>
       </div>
 
       <Navigation />
