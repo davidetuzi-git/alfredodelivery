@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload } from "lucide-react";
+import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload, Save, FolderOpen } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -169,6 +169,14 @@ const Order = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [showAlternativesDialog, setShowAlternativesDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  
+  // Saved shopping lists state
+  const [savedLists, setSavedLists] = useState<Array<{ id: string; name: string; items: any; store: string | null; created_at: string }>>([]);
+  const [showSaveListDialog, setShowSaveListDialog] = useState(false);
+  const [showLoadListDialog, setShowLoadListDialog] = useState(false);
+  const [saveListName, setSaveListName] = useState("");
+  const [savingList, setSavingList] = useState(false);
+  const [loadingLists, setLoadingLists] = useState(false);
 
   // Use scheduling pricing hook for smart date suggestions
   const { suggestedDates } = useSchedulingPricing(
@@ -413,6 +421,158 @@ const Order = () => {
       title: "Lista importata",
       description: `${newItems.length} ${newItems.length === 1 ? 'prodotto aggiunto' : 'prodotti aggiunti'}`,
     });
+  };
+
+  // Load saved lists from database
+  const loadSavedLists = async () => {
+    if (!session?.user?.id) return;
+    
+    setLoadingLists(true);
+    try {
+      const { data, error } = await supabase
+        .from('saved_shopping_lists')
+        .select('id, name, items, store, created_at')
+        .eq('user_id', session.user.id)
+        .order('updated_at', { ascending: false });
+      
+      if (error) throw error;
+      setSavedLists(data || []);
+    } catch (error) {
+      console.error('Error loading saved lists:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare le liste salvate",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingLists(false);
+    }
+  };
+
+  // Save current list to database
+  const handleSaveList = async () => {
+    if (!session?.user?.id) return;
+    if (!saveListName.trim()) {
+      toast({
+        title: "Nome richiesto",
+        description: "Inserisci un nome per la lista",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const validItems = items.filter(item => item.name.trim() !== "");
+    if (validItems.length === 0) {
+      toast({
+        title: "Lista vuota",
+        description: "Aggiungi almeno un prodotto prima di salvare",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSavingList(true);
+    try {
+      const { error } = await supabase
+        .from('saved_shopping_lists')
+        .insert({
+          user_id: session.user.id,
+          name: saveListName.trim(),
+          items: validItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            completedName: item.completedName,
+          })),
+          store: store || null,
+          delivery_address: address || null,
+          address_coords: addressCoords || null,
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Lista salvata",
+        description: `"${saveListName}" salvata con ${validItems.length} prodotti`,
+      });
+      
+      setShowSaveListDialog(false);
+      setSaveListName("");
+    } catch (error) {
+      console.error('Error saving list:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile salvare la lista",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingList(false);
+    }
+  };
+
+  // Load a saved list into the form
+  const handleLoadList = async (listId: string) => {
+    const selectedList = savedLists.find(l => l.id === listId);
+    if (!selectedList) return;
+    
+    // Convert saved items back to ShoppingItem format
+    const loadedItems: ShoppingItem[] = selectedList.items.map((item: any) => ({
+      name: item.name,
+      quantity: item.quantity || 1,
+      price: item.price || null,
+      loading: false,
+      suggestion: null,
+      completedName: item.completedName || null,
+    }));
+    
+    setItems(loadedItems.length > 0 ? loadedItems : [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+    
+    // Optionally restore store
+    if (selectedList.store) {
+      setStore(selectedList.store);
+    }
+    
+    // Refresh prices if store is selected
+    if (store || selectedList.store) {
+      loadedItems.forEach((item, index) => {
+        if (item.name.trim()) {
+          fetchPrice(index, item.name);
+        }
+      });
+    }
+    
+    setShowLoadListDialog(false);
+    toast({
+      title: "Lista caricata",
+      description: `"${selectedList.name}" caricata con ${loadedItems.length} prodotti`,
+    });
+  };
+
+  // Delete a saved list
+  const handleDeleteList = async (listId: string, listName: string) => {
+    if (!confirm(`Sei sicuro di voler eliminare "${listName}"?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('saved_shopping_lists')
+        .delete()
+        .eq('id', listId);
+      
+      if (error) throw error;
+      
+      setSavedLists(prev => prev.filter(l => l.id !== listId));
+      toast({
+        title: "Lista eliminata",
+        description: `"${listName}" eliminata`,
+      });
+    } catch (error) {
+      console.error('Error deleting list:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare la lista",
+        variant: "destructive",
+      });
+    }
   };
 
   const updateItemName = (index: number, name: string) => {
@@ -1266,7 +1426,7 @@ const Order = () => {
                       Seleziona prima un supermercato
                     </Badge>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       type="button"
                       variant="outline"
@@ -1275,26 +1435,49 @@ const Order = () => {
                       disabled={!store}
                     >
                       <FileText className="h-4 w-4 mr-2" />
-                      Importa lista
+                      Importa
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadSavedLists();
+                        setShowLoadListDialog(true);
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4 mr-2" />
+                      Carica
                     </Button>
                     {items.length > 0 && items.some(item => item.name.trim() !== "") && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm("Sei sicuro di voler svuotare il carrello?")) {
-                            setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
-                            toast({
-                              title: "Carrello svuotato",
-                              description: "Tutti gli articoli sono stati rimossi",
-                            });
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Svuota carrello
-                      </Button>
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowSaveListDialog(true)}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Salva
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm("Sei sicuro di voler svuotare il carrello?")) {
+                              setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+                              toast({
+                                title: "Carrello svuotato",
+                                description: "Tutti gli articoli sono stati rimossi",
+                              });
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Svuota
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1701,6 +1884,129 @@ const Order = () => {
             >
               <Upload className="h-4 w-4 mr-2" />
               Importa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save List Dialog */}
+      <Dialog open={showSaveListDialog} onOpenChange={setShowSaveListDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Salva lista della spesa</DialogTitle>
+            <DialogDescription>
+              Salva la tua lista per completare l'ordine in un secondo momento
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="list-name">Nome della lista</Label>
+              <Input
+                id="list-name"
+                placeholder="Es. Spesa settimanale"
+                value={saveListName}
+                onChange={(e) => setSaveListName(e.target.value)}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {items.filter(i => i.name.trim() !== "").length} prodotti verranno salvati
+              {store && ` per ${store.split(' - ')[0]}`}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowSaveListDialog(false);
+                setSaveListName("");
+              }}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveList}
+              disabled={savingList || !saveListName.trim()}
+            >
+              {savingList ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Salva lista
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load List Dialog */}
+      <Dialog open={showLoadListDialog} onOpenChange={setShowLoadListDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Carica lista salvata</DialogTitle>
+            <DialogDescription>
+              Seleziona una lista salvata per continuare l'ordine
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4 max-h-[400px] overflow-y-auto">
+            {loadingLists ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : savedLists.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Non hai liste salvate
+              </p>
+            ) : (
+              savedLists.map((list) => {
+                const listItems = Array.isArray(list.items) ? list.items : [];
+                return (
+                  <div
+                    key={list.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 cursor-pointer" onClick={() => handleLoadList(list.id)}>
+                      <p className="font-medium">{list.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {listItems.length} prodotti
+                        {list.store && ` • ${list.store.split(' - ')[0]}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(list.created_at), "d MMM yyyy, HH:mm", { locale: it })}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleLoadList(list.id)}
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteList(list.id, list.name)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowLoadListDialog(false)}
+            >
+              Chiudi
             </Button>
           </DialogFooter>
         </DialogContent>
