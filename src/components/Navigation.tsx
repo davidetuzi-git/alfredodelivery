@@ -5,7 +5,7 @@ export const Navigation = () => {
   const location = useLocation();
   
   const navItems = [
-    { path: "/home", icon: Home, label: "Home" },
+    { path: "/", icon: Home, label: "Home" },
     { path: "/ordina", icon: ShoppingCart, label: "Ordina" },
     { path: "/i-miei-ordini", icon: Clock, label: "Ordini" },
     { path: "/prezzi", icon: Search, label: "Prezzi" },
