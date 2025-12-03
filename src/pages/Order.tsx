@@ -28,6 +28,9 @@ import { useServiceCalendar } from "@/hooks/useServiceCalendar";
 import { useSubscription, SUBSCRIPTION_PLANS } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { isSameDay } from "date-fns";
+import AlcoholVerificationDialog from "@/components/AlcoholVerificationDialog";
+import ResponsibleDrinkingDialog from "@/components/ResponsibleDrinkingDialog";
+import { containsAlcohol, useAlcoholVerification } from "@/hooks/useAlcoholDetection";
 
 interface ShoppingItem {
   name: string;
@@ -169,6 +172,12 @@ const Order = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [showAlternativesDialog, setShowAlternativesDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+  
+  // Alcohol verification state
+  const [showAlcoholVerificationDialog, setShowAlcoholVerificationDialog] = useState(false);
+  const [showResponsibleDrinkingDialog, setShowResponsibleDrinkingDialog] = useState(false);
+  const [alcoholCheckPassed, setAlcoholCheckPassed] = useState(false);
+  const { isVerified: isAlcoholVerified, refreshVerification: refreshAlcoholVerification } = useAlcoholVerification();
   
   // Saved shopping lists state
   const [savedLists, setSavedLists] = useState<Array<{ id: string; name: string; items: any; store: string | null; created_at: string }>>([]);
@@ -901,6 +910,22 @@ const Order = () => {
     
     // Reset pending submit flag
     setPendingSubmit(false);
+
+    // Check for alcohol products and verify age
+    const hasAlcohol = containsAlcohol(validItems);
+    if (hasAlcohol && !alcoholCheckPassed) {
+      // Check if user is verified for alcohol purchases
+      if (!isAlcoholVerified) {
+        setShowAlcoholVerificationDialog(true);
+        return;
+      }
+      // User is verified but hasn't seen the responsible drinking message yet
+      setShowResponsibleDrinkingDialog(true);
+      return;
+    }
+    
+    // Reset alcohol check flag after processing
+    setAlcoholCheckPassed(false);
 
     // Check if there are items without prices (NOT FOUND)
     const itemsWithoutPrice = validItems.filter(item => item.price === null || item.price === undefined);
@@ -2078,6 +2103,32 @@ const Order = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Alcohol Verification Dialog */}
+      <AlcoholVerificationDialog
+        open={showAlcoholVerificationDialog}
+        onOpenChange={setShowAlcoholVerificationDialog}
+        onVerified={() => {
+          refreshAlcoholVerification();
+          // After verification, show responsible drinking dialog
+          setShowResponsibleDrinkingDialog(true);
+        }}
+      />
+
+      {/* Responsible Drinking Dialog */}
+      <ResponsibleDrinkingDialog
+        open={showResponsibleDrinkingDialog}
+        onOpenChange={setShowResponsibleDrinkingDialog}
+        onAccept={() => {
+          setShowResponsibleDrinkingDialog(false);
+          setAlcoholCheckPassed(true);
+          // Re-trigger form submit
+          const form = document.querySelector('form');
+          if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }}
+      />
     </div>
   );
 

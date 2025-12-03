@@ -820,6 +820,9 @@ export type Database = {
         Row: {
           account_status: string | null
           address: string | null
+          alcohol_document_url: string | null
+          alcohol_verified: boolean | null
+          alcohol_verified_at: string | null
           allergies: string | null
           avatar_url: string | null
           city: string | null
@@ -842,6 +845,9 @@ export type Database = {
         Insert: {
           account_status?: string | null
           address?: string | null
+          alcohol_document_url?: string | null
+          alcohol_verified?: boolean | null
+          alcohol_verified_at?: string | null
           allergies?: string | null
           avatar_url?: string | null
           city?: string | null
@@ -864,6 +870,9 @@ export type Database = {
         Update: {
           account_status?: string | null
           address?: string | null
+          alcohol_document_url?: string | null
+          alcohol_verified?: boolean | null
+          alcohol_verified_at?: string | null
           allergies?: string | null
           avatar_url?: string | null
           city?: string | null
