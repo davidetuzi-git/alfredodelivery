@@ -82,6 +82,7 @@ const App = () => (
           <Route path="/partnership-supermercati" element={<SupermarketPartnership />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/deliverer/auth" element={<DelivererAuth />} />
           <Route path="/deliverer-auth" element={<DelivererAuth />} />
           <Route path="/deliverer/dashboard" element={<DelivererDashboard />} />
