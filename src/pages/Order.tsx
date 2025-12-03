@@ -273,22 +273,43 @@ const Order = () => {
 
   // Auto-save form data to sessionStorage whenever it changes
   useEffect(() => {
-    const formData = {
-      name,
-      phone,
-      address,
-      streetNumber,
-      addressNotes,
-      addressCoords,
-      store,
-      deliveryDate: deliveryDate?.toISOString(),
-      timeSlot,
-      items,
-      filteredStores
-    };
-    
-    sessionStorage.setItem('orderFormData', JSON.stringify(formData));
-  }, [name, phone, address, streetNumber, addressNotes, addressCoords, store, deliveryDate, timeSlot, items, filteredStores]);
+    try {
+      // Strip large data (imageUrl) from items to avoid quota exceeded
+      const lightItems = items.map(item => ({
+        name: item.name,
+        price: item.price,
+        loading: false, // Don't persist loading state
+        quantity: item.quantity,
+        suggestion: item.suggestion,
+        completedName: item.completedName,
+        productAvailable: item.productAvailable,
+        suggestedAlternative: item.suggestedAlternative,
+        isEstimated: item.isEstimated,
+        originalName: item.originalName,
+        // Exclude imageUrl to save space
+      }));
+      
+      const formData = {
+        name,
+        phone,
+        address,
+        streetNumber,
+        addressNotes,
+        addressCoords,
+        store,
+        deliveryDate: deliveryDate?.toISOString(),
+        timeSlot,
+        items: lightItems,
+        // Don't save filteredStores - it's dynamic anyway
+      };
+      
+      sessionStorage.setItem('orderFormData', JSON.stringify(formData));
+    } catch (error) {
+      // If quota exceeded, clear old data and try again
+      console.warn('SessionStorage quota exceeded, clearing old data');
+      sessionStorage.removeItem('orderFormData');
+    }
+  }, [name, phone, address, streetNumber, addressNotes, addressCoords, store, deliveryDate, timeSlot, items]);
 
   const timeSlots = [
     "9:00 - 11:00",
