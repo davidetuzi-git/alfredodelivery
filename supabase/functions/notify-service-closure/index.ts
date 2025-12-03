@@ -117,11 +117,40 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailRecipients: string[] = [];
 
-    // Get user emails if needed
+    // Get user emails if needed - checking communication preferences
     if (sendToUsers) {
       const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
       if (!usersError && users?.users) {
-        emailRecipients.push(...users.users.map(u => u.email).filter(Boolean) as string[]);
+        // Get all user IDs with their emails
+        const userMap = new Map(users.users.map(u => [u.id, u.email]));
+        
+        // Get communication preferences for users who have order_updates enabled
+        const { data: prefsData } = await supabase
+          .from('communication_preferences')
+          .select('user_id')
+          .eq('order_updates', true);
+        
+        const usersWithConsent = new Set(prefsData?.map(p => p.user_id) || []);
+        
+        // Also include users who don't have preferences set (default is consent)
+        const { data: allPrefsData } = await supabase
+          .from('communication_preferences')
+          .select('user_id');
+        
+        const usersWithPrefs = new Set(allPrefsData?.map(p => p.user_id) || []);
+        
+        // Add emails of users who either:
+        // 1. Have preferences and order_updates is true
+        // 2. Don't have preferences yet (default consent)
+        for (const [userId, email] of userMap) {
+          if (email) {
+            if (usersWithConsent.has(userId) || !usersWithPrefs.has(userId)) {
+              emailRecipients.push(email);
+            }
+          }
+        }
+        
+        console.log(`Users with consent: ${emailRecipients.length} out of ${users.users.length}`);
       }
     }
 
