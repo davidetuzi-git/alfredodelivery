@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Bell, Mail } from "lucide-react";
+import { Loader2, Save, Bell, Mail, Upload, Camera, ShieldCheck, CheckCircle, Trash2, IdCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
@@ -23,6 +23,9 @@ interface ProfileData {
   dietary_preferences: string;
   delivery_notes: string;
   preferred_store: string;
+  alcohol_verified: boolean;
+  alcohol_document_url: string | null;
+  alcohol_verified_at: string | null;
 }
 
 interface CommunicationPreferences {
@@ -37,7 +40,10 @@ const PersonalData = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     first_name: "",
     last_name: "",
@@ -45,7 +51,10 @@ const PersonalData = () => {
     allergies: "",
     dietary_preferences: "",
     delivery_notes: "",
-    preferred_store: ""
+    preferred_store: "",
+    alcohol_verified: false,
+    alcohol_document_url: null,
+    alcohol_verified_at: null
   });
   const [commPrefs, setCommPrefs] = useState<CommunicationPreferences>({
     order_updates: true,
@@ -97,7 +106,10 @@ const PersonalData = () => {
           allergies: profile.allergies || "",
           dietary_preferences: profile.dietary_preferences || "",
           delivery_notes: profile.delivery_notes || "",
-          preferred_store: profile.preferred_store || ""
+          preferred_store: profile.preferred_store || "",
+          alcohol_verified: profile.alcohol_verified || false,
+          alcohol_document_url: profile.alcohol_document_url || null,
+          alcohol_verified_at: profile.alcohol_verified_at || null
         });
       }
 
@@ -171,8 +183,106 @@ const PersonalData = () => {
     setCommPrefs(prev => ({ ...prev, [field]: value }));
   };
 
-  const updateField = (field: keyof ProfileData, value: string) => {
+  const updateField = (field: keyof ProfileData, value: string | boolean | null) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDocumentUpload = async (file: File) => {
+    if (!file || !userId) return;
+
+    setUploadingDoc(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${userId}/id-document-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('deliverer-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('deliverer-documents')
+        .getPublicUrl(filePath);
+
+      // Update profile with document
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          alcohol_verified: true,
+          alcohol_document_url: urlData.publicUrl,
+          alcohol_verified_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+
+      setProfileData(prev => ({
+        ...prev,
+        alcohol_verified: true,
+        alcohol_document_url: urlData.publicUrl,
+        alcohol_verified_at: new Date().toISOString()
+      }));
+
+      toast({
+        title: "Documento caricato",
+        description: "La tua carta d'identità è stata salvata con successo",
+      });
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare il documento",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleRemoveDocument = async () => {
+    if (!userId) return;
+
+    if (!confirm("Sei sicuro di voler rimuovere il documento d'identità? Dovrai caricarlo nuovamente per acquistare alcolici.")) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          alcohol_verified: false,
+          alcohol_document_url: null,
+          alcohol_verified_at: null
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setProfileData(prev => ({
+        ...prev,
+        alcohol_verified: false,
+        alcohol_document_url: null,
+        alcohol_verified_at: null
+      }));
+
+      toast({
+        title: "Documento rimosso",
+        description: "La tua carta d'identità è stata rimossa",
+      });
+    } catch (error) {
+      console.error('Error removing document:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile rimuovere il documento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleDocumentUpload(file);
+    }
   };
 
   if (loading) {
@@ -257,6 +367,108 @@ const PersonalData = () => {
                 Quando fai un ordine, questo negozio verrà selezionato automaticamente
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* ID Document Section */}
+        <Card className="mt-6 border-amber-200 dark:border-amber-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <IdCard className="h-5 w-5 text-amber-600" />
+              Documento d'identità
+            </CardTitle>
+            <CardDescription>
+              Richiesto per l'acquisto di alcolici (verifica una tantum)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profileData.alcohol_verified && profileData.alcohol_document_url ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div>
+                    <p className="font-medium text-green-800 dark:text-green-200">Documento verificato</p>
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      Verificato il {profileData.alcohol_verified_at ? new Date(profileData.alcohol_verified_at).toLocaleDateString('it-IT') : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRemoveDocument}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Rimuovi documento
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Per acquistare alcolici è necessario caricare un documento d'identità valido per verificare la maggiore età.
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    Documenti accettati: Carta d'identità, Patente, Passaporto
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={uploadingDoc}
+                    className="h-20 flex-col gap-2"
+                  >
+                    {uploadingDoc ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="h-6 w-6" />
+                        <span className="text-xs">Scatta foto</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingDoc}
+                    className="h-20 flex-col gap-2"
+                  >
+                    {uploadingDoc ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6" />
+                        <span className="text-xs">Carica file</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
+                  I tuoi dati sono protetti e trattati secondo il GDPR
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
