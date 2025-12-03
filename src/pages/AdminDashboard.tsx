@@ -34,11 +34,18 @@ interface Order {
 
 interface Deliverer {
   id: string;
+  user_id: string | null;
   name: string;
   phone: string;
+  email?: string;
   status: string;
   current_orders: number;
   max_orders: number;
+  zone?: string;
+  rating?: number;
+  total_deliveries?: number;
+  base_address?: string;
+  created_at?: string;
 }
 
 const AdminDashboard = () => {
