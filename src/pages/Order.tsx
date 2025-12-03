@@ -85,10 +85,24 @@ const Order = () => {
           setPhone(profile.phone);
         }
         
-        // Pre-fill address if not already set
+        // Pre-fill address if not already set and geocode it for map preloading
         if (!savedState?.address && profile.address) {
           const fullAddress = `${profile.address}${profile.city ? ', ' + profile.city : ''}${profile.postal_code ? ', ' + profile.postal_code : ''}`;
           setAddress(fullAddress);
+          
+          // Geocode the address to preload the map
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&countrycodes=it&limit=1`);
+            const data = await response.json();
+            if (data && data.length > 0) {
+              setAddressCoords({
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon)
+              });
+            }
+          } catch (error) {
+            console.error('Error geocoding profile address:', error);
+          }
         }
         
         // Pre-fill preferred store if not already set
