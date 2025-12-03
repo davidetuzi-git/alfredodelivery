@@ -102,6 +102,8 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
       ready_for_pickup: "bg-purple-500/10 text-purple-700 border-purple-500/20",
       in_transit: "bg-orange-500/10 text-orange-700 border-orange-500/20",
       delivered: "bg-green-500/10 text-green-700 border-green-500/20",
+      expired: "bg-red-500/10 text-red-700 border-red-500/20",
+      cancelled: "bg-gray-500/10 text-gray-700 border-gray-500/20",
     };
     return colors[status] || "bg-gray-500/10 text-gray-700 border-gray-500/20";
   };
@@ -113,12 +115,17 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
       ready_for_pickup: "Pronto",
       in_transit: "In Consegna",
       delivered: "Consegnato",
+      expired: "Scaduto",
+      cancelled: "Annullato",
     };
     return labels[status] || status;
   };
 
   const filterByStatus = (status: string) => {
     const now = new Date();
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    
     let filteredOrders = orders;
     
     // Apply status filter
@@ -126,9 +133,12 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
     else if (status === "in_transit") filteredOrders = orders.filter(o => o.delivery_status === "in_transit");
     else if (status === "delivered") filteredOrders = orders.filter(o => o.delivery_status === "delivered");
     else if (status === "expired") {
+      // Include orders explicitly marked as expired OR orders older than 2 weeks still open
       filteredOrders = orders.filter(o => {
+        if (o.delivery_status === "expired") return true;
         const deliveryDate = new Date(o.delivery_date);
-        return deliveryDate < now && o.deliverer_id === null && o.delivery_status === "confirmed";
+        return deliveryDate < twoWeeksAgo && 
+               !['delivered', 'cancelled', 'expired'].includes(o.delivery_status);
       });
     }
     
