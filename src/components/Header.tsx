@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Home, ShoppingCart, Clock, Search, User, LogOut, Package, Settings, LayoutDashboard } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Header = () => {
   const navigate = useNavigate();
+  const { stopImpersonation } = useImpersonation();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -67,6 +69,8 @@ export const Header = () => {
   };
 
   const handleLogout = async () => {
+    // Clear impersonation state before logging out
+    stopImpersonation();
     await supabase.auth.signOut();
     toast({
       title: "Disconnesso",
