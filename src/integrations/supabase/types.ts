@@ -1041,6 +1041,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_shopping_lists: {
+        Row: {
+          address_coords: Json | null
+          created_at: string
+          delivery_address: string | null
+          id: string
+          items: Json
+          name: string
+          store: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_coords?: Json | null
+          created_at?: string
+          delivery_address?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          store?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_coords?: Json | null
+          created_at?: string
+          delivery_address?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          store?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       service_calendar: {
         Row: {
           created_at: string
