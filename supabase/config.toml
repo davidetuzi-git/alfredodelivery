@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.supermarket-partnership-contact]
 verify_jwt = false
+
+[functions.notify-delivery-complete]
+verify_jwt = false
