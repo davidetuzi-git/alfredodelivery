@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Upload, Camera, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react";
 
@@ -14,6 +15,7 @@ interface AlcoholVerificationDialogProps {
 
 const AlcoholVerificationDialog = ({ open, onOpenChange, onVerified }: AlcoholVerificationDialogProps) => {
   const [uploading, setUploading] = useState(false);
+  const [saveToProfile, setSaveToProfile] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,19 +45,25 @@ const AlcoholVerificationDialog = ({ open, onOpenChange, onVerified }: AlcoholVe
         .from('deliverer-documents')
         .getPublicUrl(filePath);
 
-      // Update profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          alcohol_verified: true,
-          alcohol_document_url: urlData.publicUrl,
-          alcohol_verified_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
+      // Update profile only if user agreed to save for future
+      if (saveToProfile) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            alcohol_verified: true,
+            alcohol_document_url: urlData.publicUrl,
+            alcohol_verified_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
 
-      if (updateError) throw updateError;
-
-      toast.success("Documento caricato! Verifica età completata.");
+        if (updateError) throw updateError;
+        
+        toast.success("Documento caricato e salvato! Non dovrai più verificare l'età per i prossimi ordini.");
+      } else {
+        // Just verify for this order, don't save to profile
+        toast.success("Documento verificato per questo ordine.");
+      }
+      
       onVerified();
       onOpenChange(false);
     } catch (error) {
@@ -137,6 +145,23 @@ const AlcoholVerificationDialog = ({ open, onOpenChange, onVerified }: AlcoholVe
                 </>
               )}
             </Button>
+          </div>
+
+          {/* Save to profile checkbox */}
+          <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+            <Checkbox
+              id="save-to-profile"
+              checked={saveToProfile}
+              onCheckedChange={(checked) => setSaveToProfile(checked === true)}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="save-to-profile" className="text-sm font-medium cursor-pointer">
+                Salva nei dati personali per le prossime spese
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Se attivo, non dovrai più caricare il documento per i prossimi ordini con alcolici
+              </p>
+            </div>
           </div>
 
           <input
