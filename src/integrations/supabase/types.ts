@@ -56,6 +56,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_slots: {
+        Row: {
+          created_at: string
+          description: string | null
+          dimensions: string | null
+          id: string
+          location: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dimensions?: string | null
+          id?: string
+          location: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dimensions?: string | null
+          id?: string
+          location?: string
+          name?: string
+        }
+        Relationships: []
+      }
       admin_notifications: {
         Row: {
           created_at: string
@@ -91,6 +118,68 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      advertisements: {
+        Row: {
+          client_name: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          link_url: string
+          payment_amount: number
+          payment_status: string
+          slot_id: string | null
+          start_date: string
+          unique_name: string
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_url: string
+          payment_amount?: number
+          payment_status?: string
+          slot_id?: string | null
+          start_date?: string
+          unique_name: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_url?: string
+          payment_amount?: number
+          payment_status?: string
+          slot_id?: string | null
+          start_date?: string
+          unique_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advertisements_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "ad_slots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       communication_preferences: {
         Row: {
