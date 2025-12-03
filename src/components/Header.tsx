@@ -145,20 +145,20 @@ export const Header = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/profilo")}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profilo")}>
                   <User className="mr-2 h-4 w-4" />
                   Profilo
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/i-miei-ordini")}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/i-miei-ordini")}>
                   <Package className="mr-2 h-4 w-4" />
                   I miei ordini
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/dati-personali")}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dati-personali")}>
                   <Settings className="mr-2 h-4 w-4" />
                   Impostazioni
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
+                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Esci
                 </DropdownMenuItem>
