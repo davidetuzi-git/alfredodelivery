@@ -102,7 +102,7 @@ const PricingPolicy = () => {
                       <div>
                         <p className="font-semibold">{info.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {info.minOrders === 0 ? '0-4' : info.maxOrders ? `${info.minOrders}-${info.maxOrders}` : `${info.minOrders}+`} ordini/mese
+                          {info.maxPoints === null ? `${info.minPoints}+ punti` : `${info.minPoints}-${info.maxPoints} punti`}
                         </p>
                       </div>
                     </div>
@@ -116,10 +116,14 @@ const PricingPolicy = () => {
                 );
               })}
             </div>
-            <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
-              <p className="font-medium mb-1">📌 Esempio:</p>
+            <div className="mt-4 p-3 bg-muted rounded-lg text-sm space-y-2">
+              <p className="font-medium mb-1">📌 Come funziona:</p>
               <p className="text-muted-foreground">
-                Livello Argento con consegna base €10 → Sconto 5% = <strong>€9,50</strong> finale
+                I livelli si raggiungono accumulando punti (1 punto = €1 speso). 
+                Ogni livello ha <strong>validità 12 mesi</strong> dalla data di raggiungimento.
+              </p>
+              <p className="text-muted-foreground">
+                Esempio: Livello Argento con consegna base €10 → Sconto 5% = <strong>€9,50</strong> finale
               </p>
             </div>
           </CardContent>

@@ -5,7 +5,7 @@ import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLoyalty, LOYALTY_LEVELS, LoyaltyLevel } from "@/hooks/useLoyalty";
-import { ArrowLeft, Trophy, Gift, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowLeft, Trophy, Gift, Sparkles, TrendingUp, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -15,6 +15,14 @@ const Loyalty = () => {
   const { loyaltyProfile, transactions, loading, getPointsValue } = useLoyalty();
 
   const levelOrder: LoyaltyLevel[] = ['bronze', 'silver', 'gold', 'platinum'];
+
+  const getPointsRangeText = (level: LoyaltyLevel) => {
+    const info = LOYALTY_LEVELS[level];
+    if (info.maxPoints === null) {
+      return `${info.minPoints}+ punti`;
+    }
+    return `${info.minPoints}-${info.maxPoints} punti`;
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -29,6 +37,23 @@ const Loyalty = () => {
 
         {/* Main loyalty card */}
         <LoyaltyCard />
+
+        {/* Level validity info */}
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800">Validità dei livelli</p>
+                <p className="text-sm text-amber-700">
+                  Ogni livello raggiunto ha una validità di <strong>12 mesi</strong>. 
+                  Dopo questo periodo, se non vengono mantenuti i punti necessari, 
+                  si torna al livello precedente.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* All levels comparison */}
         <Card>
@@ -63,7 +88,7 @@ const Loyalty = () => {
                       )}
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      {info.minOrders === 0 ? '0-4' : info.maxOrders ? `${info.minOrders}-${info.maxOrders}` : `${info.minOrders}+`} ordini/mese
+                      {getPointsRangeText(level)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">

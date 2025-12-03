@@ -39,10 +39,28 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
   const levelInfo = LOYALTY_LEVELS[level];
   const benefits = getBenefits(level);
   const pointsValue = getPointsValue(loyaltyProfile.points_balance);
+  const currentPoints = loyaltyProfile.lifetime_points;
 
-  const progressToNextLevel = benefits.nextLevelThreshold
-    ? Math.min((loyaltyProfile.monthly_orders_count / benefits.nextLevelThreshold) * 100, 100)
-    : 100;
+  // Calculate progress based on points to next level
+  const getProgressToNextLevel = () => {
+    if (level === 'platinum') return 100;
+    
+    const currentMin = levelInfo.minPoints;
+    const nextThreshold = benefits.nextLevelThreshold || levelInfo.maxPoints || currentMin;
+    const range = nextThreshold - currentMin;
+    const progress = currentPoints - currentMin;
+    
+    return Math.min((progress / range) * 100, 100);
+  };
+
+  const progressToNextLevel = getProgressToNextLevel();
+
+  const getNextLevelName = () => {
+    if (level === 'bronze') return 'Argento';
+    if (level === 'silver') return 'Oro';
+    if (level === 'gold') return 'Platino';
+    return null;
+  };
 
   const copyReferralCode = () => {
     navigator.clipboard.writeText(loyaltyProfile.referral_code);
@@ -65,14 +83,14 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
             </div>
             <div className="text-right">
               <p className="text-sm opacity-90">Punti</p>
-              <p className="font-bold text-lg">{loyaltyProfile.points_balance}</p>
+              <p className="font-bold text-lg">{loyaltyProfile.lifetime_points}</p>
             </div>
           </div>
         </div>
         <CardContent className="p-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              {loyaltyProfile.monthly_orders_count} ordini questo mese
+              {loyaltyProfile.points_balance} punti disponibili
             </span>
             {benefits.deliveryDiscount > 0 && (
               <Badge variant="secondary" className="bg-primary/10 text-primary">
@@ -80,11 +98,11 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
               </Badge>
             )}
           </div>
-          {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 && (
+          {benefits.pointsToNextLevel && benefits.pointsToNextLevel > 0 && (
             <div className="mt-3">
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Prossimo livello</span>
-                <span>{benefits.ordersToNextLevel} ordini mancanti</span>
+                <span>Prossimo livello: {getNextLevelName()}</span>
+                <span>{benefits.pointsToNextLevel} punti mancanti</span>
               </div>
               <Progress value={progressToNextLevel} className="h-2" />
             </div>
@@ -112,23 +130,31 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
             </div>
             <div className="text-right">
               <p className="text-sm opacity-90">Punti totali</p>
-              <p className="text-3xl font-bold">{loyaltyProfile.points_balance}</p>
-              <p className="text-xs opacity-75">≈ €{pointsValue.toFixed(2)}</p>
+              <p className="text-3xl font-bold">{loyaltyProfile.lifetime_points}</p>
+              <p className="text-xs opacity-75">({loyaltyProfile.points_balance} disponibili)</p>
             </div>
           </div>
 
           {/* Progress to next level */}
-          {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 && (
+          {benefits.pointsToNextLevel && benefits.pointsToNextLevel > 0 && (
             <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
               <div className="flex justify-between text-sm mb-2">
-                <span>Progresso verso {level === 'bronze' ? 'Argento' : 'Oro'}</span>
+                <span>Progresso verso {getNextLevelName()}</span>
                 <span className="font-semibold">
-                  {loyaltyProfile.monthly_orders_count}/{benefits.nextLevelThreshold} ordini
+                  {currentPoints}/{benefits.nextLevelThreshold} punti
                 </span>
               </div>
               <Progress value={progressToNextLevel} className="h-2 bg-white/30" />
               <p className="text-xs mt-1 opacity-90">
-                {benefits.ordersToNextLevel} ordini per salire di livello
+                {benefits.pointsToNextLevel} punti per salire di livello
+              </p>
+            </div>
+          )}
+          
+          {level === 'platinum' && (
+            <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
+              <p className="text-sm text-center">
+                🎉 Hai raggiunto il livello massimo! Goditi tutti i vantaggi esclusivi.
               </p>
             </div>
           )}
@@ -155,12 +181,12 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-3 bg-primary/5 rounded-lg">
-            <p className="text-2xl font-bold text-primary">{loyaltyProfile.monthly_orders_count}</p>
-            <p className="text-xs text-muted-foreground">Ordini mensili</p>
-          </div>
-          <div className="text-center p-3 bg-primary/5 rounded-lg">
             <p className="text-2xl font-bold text-primary">{loyaltyProfile.lifetime_points}</p>
             <p className="text-xs text-muted-foreground">Punti totali</p>
+          </div>
+          <div className="text-center p-3 bg-primary/5 rounded-lg">
+            <p className="text-2xl font-bold text-primary">{loyaltyProfile.points_balance}</p>
+            <p className="text-xs text-muted-foreground">Punti disponibili</p>
           </div>
           <div className="text-center p-3 bg-primary/5 rounded-lg">
             <p className="text-2xl font-bold text-primary">{benefits.deliveryDiscount}%</p>
@@ -196,14 +222,14 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
             <Sparkles className="h-6 w-6 text-yellow-500" />
             <div>
               <p className="font-medium">
-                {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 
+                {benefits.pointsToNextLevel && benefits.pointsToNextLevel > 0 
                   ? "Sblocca più vantaggi!" 
                   : "Scopri tutti i vantaggi!"
                 }
               </p>
               <p className="text-sm text-muted-foreground">
-                {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 
-                  ? `Ancora ${benefits.ordersToNextLevel} ordini per il prossimo livello`
+                {benefits.pointsToNextLevel && benefits.pointsToNextLevel > 0 
+                  ? `Ancora ${benefits.pointsToNextLevel} punti per il livello ${getNextLevelName()}`
                   : "Vedi tutti i livelli e i benefici"
                 }
               </p>
