@@ -1,18 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Navigation } from "@/components/Navigation";
 import { UserSubmenu } from "@/components/UserSubmenu";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, CreditCard, Camera, Barcode } from "lucide-react";
+import { Plus, Trash2, CreditCard, Camera, Upload, Loader2 } from "lucide-react";
 import BarcodeScanner from "@/components/BarcodeScanner";
+import BarcodeDisplay from "@/components/BarcodeDisplay";
+import { BrowserMultiFormatReader } from "@zxing/library";
 
 // Lista predefinita catene supermercati italiane
 const STORE_CHAINS = [
@@ -49,10 +51,12 @@ interface LoyaltyCard {
 
 const StoreLoyaltyCards = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [cards, setCards] = useState<LoyaltyCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const [newCard, setNewCard] = useState({
     store_chain: "",
     barcode: "",
@@ -94,9 +98,49 @@ const StoreLoyaltyCards = () => {
     toast.success("Barcode acquisito!");
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setProcessingImage(true);
+    try {
+      // Create image from file
+      const imageUrl = URL.createObjectURL(file);
+      const img = new Image();
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      // Use ZXing to decode barcode from image
+      const codeReader = new BrowserMultiFormatReader();
+      const result = await codeReader.decodeFromImageElement(img);
+      
+      if (result) {
+        const barcode = result.getText();
+        setNewCard(prev => ({ ...prev, barcode }));
+        toast.success("Barcode estratto dalla foto!");
+      } else {
+        toast.error("Nessun barcode trovato nella foto");
+      }
+
+      URL.revokeObjectURL(imageUrl);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      toast.error("Impossibile leggere il barcode dalla foto. Riprova con un'immagine più nitida.");
+    } finally {
+      setProcessingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleAddCard = async () => {
     if (!newCard.store_chain || !newCard.barcode) {
-      toast.error("Seleziona la catena e inserisci il barcode");
+      toast.error("Seleziona la catena e acquisisci il barcode");
       return;
     }
 
@@ -173,6 +217,12 @@ const StoreLoyaltyCards = () => {
             </Button>
           </div>
 
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
+            <p className="text-sm">
+              <strong>Come funziona:</strong> Aggiungi le tue carte fedeltà e il nostro shopper le utilizzerà automaticamente durante la spesa per farti accumulare punti!
+            </p>
+          </div>
+
           {cards.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -215,10 +265,7 @@ const StoreLoyaltyCards = () => {
                     </div>
                   </div>
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-3">
-                      <Barcode className="h-5 w-5 text-muted-foreground" />
-                      <code className="text-sm font-mono flex-1">{card.barcode}</code>
-                    </div>
+                    <BarcodeDisplay value={card.barcode} />
                   </CardContent>
                 </Card>
               ))}
@@ -255,23 +302,60 @@ const StoreLoyaltyCards = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Barcode *</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={newCard.barcode}
-                  onChange={(e) => setNewCard(prev => ({ ...prev, barcode: e.target.value }))}
-                  placeholder="Inserisci o scansiona il barcode"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowScanner(true)}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
-              </div>
+              <Label>Barcode Carta *</Label>
+              {newCard.barcode ? (
+                <div className="space-y-3">
+                  <BarcodeDisplay value={newCard.barcode} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNewCard(prev => ({ ...prev, barcode: "" }))}
+                    className="w-full"
+                  >
+                    Scansiona di nuovo
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowScanner(true)}
+                    className="h-20 flex-col gap-2"
+                    disabled={processingImage}
+                  >
+                    <Camera className="h-6 w-6" />
+                    <span className="text-xs">Scansiona</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-20 flex-col gap-2"
+                    disabled={processingImage}
+                  >
+                    {processingImage ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="text-xs">Elaborazione...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6" />
+                        <span className="text-xs">Carica Foto</span>
+                      </>
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -288,7 +372,7 @@ const StoreLoyaltyCards = () => {
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Annulla
             </Button>
-            <Button onClick={handleAddCard} disabled={saving}>
+            <Button onClick={handleAddCard} disabled={saving || !newCard.barcode}>
               {saving ? "Salvataggio..." : "Aggiungi"}
             </Button>
           </DialogFooter>
