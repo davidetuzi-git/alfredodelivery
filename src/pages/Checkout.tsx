@@ -123,8 +123,8 @@ const Checkout = () => {
 
         if (error) throw error;
         
-        // Store order data in sessionStorage for later
-        sessionStorage.setItem('pendingOrder', JSON.stringify({
+        // Store order data in localStorage (persists across tabs unlike sessionStorage)
+        localStorage.setItem('pendingOrder', JSON.stringify({
           ...orderData,
           total: subtotal,
           deliveryFee,
@@ -170,8 +170,8 @@ const Checkout = () => {
 
         if (error) throw error;
         
-        // Store order data in sessionStorage for later
-        sessionStorage.setItem('pendingOrder', JSON.stringify({
+        // Store order data in localStorage (persists across tabs unlike sessionStorage)
+        localStorage.setItem('pendingOrder', JSON.stringify({
           ...orderData,
           total: subtotal,
           deliveryFee,

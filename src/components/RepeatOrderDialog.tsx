@@ -204,7 +204,8 @@ export const RepeatOrderDialog = ({
 
         if (error) throw error;
         
-        sessionStorage.setItem('pendingOrder', JSON.stringify({
+        // Store order data in localStorage (persists across tabs)
+        localStorage.setItem('pendingOrder', JSON.stringify({
           orderData: {
             name: order.customer_name,
             phone: order.customer_phone,
@@ -247,7 +248,8 @@ export const RepeatOrderDialog = ({
 
         if (error) throw error;
         
-        sessionStorage.setItem('pendingOrder', JSON.stringify({
+        // Store order data in localStorage (persists across tabs)
+        localStorage.setItem('pendingOrder', JSON.stringify({
           orderData: {
             name: order.customer_name,
             phone: order.customer_phone,

@@ -44,8 +44,8 @@ const PayPalSuccess = () => {
       }
 
       try {
-        // Retrieve pending order data
-        const orderDataStr = sessionStorage.getItem('pendingOrder');
+        // Retrieve pending order data from localStorage (persists across tabs)
+        const orderDataStr = localStorage.getItem('pendingOrder');
         if (!orderDataStr) {
           throw new Error('Dati ordine non trovati');
         }
@@ -94,8 +94,8 @@ const PayPalSuccess = () => {
           });
         }
 
-        // Clear session storage
-        sessionStorage.removeItem('pendingOrder');
+        // Clear localStorage
+        localStorage.removeItem('pendingOrder');
 
         setStatus('success');
         toast({
