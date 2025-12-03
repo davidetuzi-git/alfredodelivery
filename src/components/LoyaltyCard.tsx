@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLoyalty, LOYALTY_LEVELS, LoyaltyLevel } from "@/hooks/useLoyalty";
 import { Trophy, Gift, Star, ArrowRight, Copy, Check, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface LoyaltyCardProps {
@@ -12,6 +13,7 @@ interface LoyaltyCardProps {
 }
 
 export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
+  const navigate = useNavigate();
   const { loyaltyProfile, loading, getBenefits, getPointsValue } = useLoyalty();
   const [copied, setCopied] = useState(false);
 
@@ -185,21 +187,30 @@ export const LoyaltyCard = ({ compact = false }: LoyaltyCardProps) => {
           </div>
         </div>
 
-        {/* CTA for next level */}
-        {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 && (
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-6 w-6 text-yellow-500" />
-              <div>
-                <p className="font-medium">Sblocca più vantaggi!</p>
-                <p className="text-sm text-muted-foreground">
-                  Ancora {benefits.ordersToNextLevel} ordini per il prossimo livello
-                </p>
-              </div>
+        {/* CTA for next level - always show, clickable to loyalty page */}
+        <div 
+          className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+          onClick={() => navigate("/fedelta")}
+        >
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-6 w-6 text-yellow-500" />
+            <div>
+              <p className="font-medium">
+                {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 
+                  ? "Sblocca più vantaggi!" 
+                  : "Scopri tutti i vantaggi!"
+                }
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {benefits.ordersToNextLevel && benefits.ordersToNextLevel > 0 
+                  ? `Ancora ${benefits.ordersToNextLevel} ordini per il prossimo livello`
+                  : "Vedi tutti i livelli e i benefici"
+                }
+              </p>
             </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
           </div>
-        )}
+          <ArrowRight className="h-5 w-5 text-muted-foreground" />
+        </div>
       </CardContent>
     </Card>
   );
