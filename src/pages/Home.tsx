@@ -7,6 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -28,6 +29,11 @@ const Home = () => {
     activeVouchers: 0
   });
   const { subscription, benefits } = useSubscription();
+  const { loyaltyProfile } = useLoyalty();
+
+  // Get loyalty level info
+  const currentLevel = loyaltyProfile?.current_level || 'bronze';
+  const levelInfo = LOYALTY_LEVELS[currentLevel];
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -186,12 +192,13 @@ const Home = () => {
               <h1 className="text-2xl font-bold mb-1">Ciao, {userName}!</h1>
               <p className="text-muted-foreground">Benvenuto su ALFREDO</p>
             </div>
-            <div className="flex gap-2">
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-primary text-primary" />
-                Cliente Gold
-              </Badge>
-            </div>
+            <Badge 
+              className={`flex items-center gap-1 cursor-pointer ${levelInfo.bgColor} ${levelInfo.textColor} hover:opacity-80 transition-opacity`}
+              onClick={() => navigate("/fedelta")}
+            >
+              <Star className="h-3 w-3 fill-current" />
+              Cliente {levelInfo.name}
+            </Badge>
           </div>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
