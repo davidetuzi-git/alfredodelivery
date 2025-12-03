@@ -39,6 +39,21 @@ interface DelivererRequest {
   document_type: string | null;
 }
 
+interface ActiveOrderInfo {
+  id: string;
+  delivery_status: string;
+  store_name: string;
+  customer_name: string;
+  time_slot: string;
+}
+
+interface DelivererActivity {
+  todayDeliveries: number;
+  weekDeliveries: number;
+  activeOrders: ActiveOrderInfo[];
+  lastDeliveryTime?: string;
+}
+
 interface DelivererDetails {
   deliverer: Deliverer;
   recentOrders: Array<{
@@ -70,11 +85,18 @@ export const DeliverersTab = ({ deliverers: initialDeliverers }: DeliverersTabPr
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [actionDelivererId, setActionDelivererId] = useState<string | null>(null);
+  const [delivererActivities, setDelivererActivities] = useState<Record<string, DelivererActivity>>({});
 
   useEffect(() => {
     fetchRequests();
     fetchDeliverers();
   }, []);
+
+  useEffect(() => {
+    if (deliverers.length > 0) {
+      fetchDelivererActivities();
+    }
+  }, [deliverers]);
 
   const fetchDeliverers = async () => {
     const { data, error } = await supabase
@@ -85,6 +107,59 @@ export const DeliverersTab = ({ deliverers: initialDeliverers }: DeliverersTabPr
     if (!error && data) {
       setDeliverers(data);
     }
+  };
+
+  const fetchDelivererActivities = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const activities: Record<string, DelivererActivity> = {};
+
+    for (const deliverer of deliverers) {
+      // Get active orders (in progress today)
+      const { data: activeOrders } = await supabase
+        .from('orders')
+        .select('id, delivery_status, store_name, customer_name, time_slot')
+        .eq('deliverer_id', deliverer.id)
+        .in('delivery_status', ['assigned', 'at_store', 'shopping_complete', 'on_the_way'])
+        .gte('delivery_date', today.toISOString());
+
+      // Get today's completed deliveries
+      const { data: todayOrders, count: todayCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact' })
+        .eq('deliverer_id', deliverer.id)
+        .eq('delivery_status', 'delivered')
+        .gte('delivery_date', today.toISOString());
+
+      // Get week's deliveries
+      const { count: weekCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact' })
+        .eq('deliverer_id', deliverer.id)
+        .eq('delivery_status', 'delivered')
+        .gte('delivery_date', weekAgo.toISOString());
+
+      // Get last delivery time
+      const { data: lastDelivery } = await supabase
+        .from('orders')
+        .select('status_updated_at')
+        .eq('deliverer_id', deliverer.id)
+        .eq('delivery_status', 'delivered')
+        .order('status_updated_at', { ascending: false })
+        .limit(1);
+
+      activities[deliverer.id] = {
+        todayDeliveries: todayCount || 0,
+        weekDeliveries: weekCount || 0,
+        activeOrders: activeOrders || [],
+        lastDeliveryTime: lastDelivery?.[0]?.status_updated_at,
+      };
+    }
+
+    setDelivererActivities(activities);
   };
 
   const fetchRequests = async () => {
@@ -274,6 +349,31 @@ export const DeliverersTab = ({ deliverers: initialDeliverers }: DeliverersTabPr
     return statusMap[status] || status;
   };
 
+  const getActivityStatusColor = (status: string) => {
+    switch (status) {
+      case 'assigned': return 'bg-blue-500';
+      case 'at_store': return 'bg-yellow-500';
+      case 'shopping_complete': return 'bg-purple-500';
+      case 'on_the_way': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const formatLastActivity = (dateString?: string) => {
+    if (!dateString) return 'Mai';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `${diffMins} min fa`;
+    if (diffHours < 24) return `${diffHours}h fa`;
+    if (diffDays < 7) return `${diffDays}g fa`;
+    return format(date, 'dd/MM', { locale: it });
+  };
+
   return (
     <div className="space-y-6">
       {/* Richieste Pending */}
@@ -456,21 +556,52 @@ export const DeliverersTab = ({ deliverers: initialDeliverers }: DeliverersTabPr
                         </div>
                       )}
 
-                      <div className="pt-2 border-t">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Ordini attivi:</span>
-                          <span className="font-semibold">
-                            {deliverer.current_orders} / {deliverer.max_orders}
-                          </span>
+                      {/* Activity Section */}
+                      <div className="pt-2 border-t space-y-2">
+                        {/* Stats row */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">Oggi:</span>
+                            <span className="font-semibold">{delivererActivities[deliverer.id]?.todayDeliveries || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">Settimana:</span>
+                            <span className="font-semibold">{delivererActivities[deliverer.id]?.weekDeliveries || 0}</span>
+                          </div>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-primary h-2 rounded-full transition-all"
-                            style={{ 
-                              width: `${(deliverer.current_orders / deliverer.max_orders) * 100}%` 
-                            }}
-                          />
-                        </div>
+
+                        {/* Active orders */}
+                        {delivererActivities[deliverer.id]?.activeOrders && 
+                         delivererActivities[deliverer.id].activeOrders.length > 0 ? (
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground">In corso:</span>
+                            {delivererActivities[deliverer.id].activeOrders.map((order) => (
+                              <div 
+                                key={order.id} 
+                                className="flex items-center gap-2 bg-muted/50 rounded px-2 py-1"
+                              >
+                                <div 
+                                  className={`w-2 h-2 rounded-full ${getActivityStatusColor(order.delivery_status)} animate-pulse`} 
+                                />
+                                <span className="text-xs font-medium truncate flex-1">
+                                  {getOrderStatusLabel(order.delivery_status)}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {order.store_name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>Ultima consegna:</span>
+                            <span className="font-medium">
+                              {formatLastActivity(delivererActivities[deliverer.id]?.lastDeliveryTime)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
