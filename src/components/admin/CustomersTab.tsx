@@ -3,11 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, ShoppingCart, Crown, Mail, Phone, MapPin, Heart, Bell } from "lucide-react";
+import { Search, User, ShoppingCart, Crown, Mail, Phone, MapPin, Heart, Bell, Ban, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface Customer {
   id: string;
@@ -52,6 +55,9 @@ export const CustomersTab = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetails | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [actionCustomerId, setActionCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCustomers();
@@ -262,6 +268,52 @@ export const CustomersTab = () => {
     }
   };
 
+  const handleBlockUser = async () => {
+    if (!actionCustomerId) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ account_status: "blocked" })
+        .eq("id", actionCustomerId);
+
+      if (error) throw error;
+
+      toast.success("Utente bloccato con successo");
+      setBlockDialogOpen(false);
+      setActionCustomerId(null);
+      loadCustomers();
+      if (selectedCustomer?.profile.id === actionCustomerId) {
+        setDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Error blocking user:", error);
+      toast.error("Errore nel blocco dell'utente");
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!actionCustomerId) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", actionCustomerId);
+
+      if (error) throw error;
+
+      toast.success("Utente eliminato con successo");
+      setDeleteDialogOpen(false);
+      setActionCustomerId(null);
+      loadCustomers();
+      if (selectedCustomer?.profile.id === actionCustomerId) {
+        setDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Errore nell'eliminazione dell'utente");
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -374,9 +426,35 @@ export const CustomersTab = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Dettagli Cliente
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Dettagli Cliente
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setActionCustomerId(selectedCustomer?.profile.id || null);
+                    setBlockDialogOpen(true);
+                  }}
+                >
+                  <Ban className="h-4 w-4 mr-1" />
+                  Blocca
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setActionCustomerId(selectedCustomer?.profile.id || null);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Elimina
+                </Button>
+              </div>
             </DialogTitle>
           </DialogHeader>
 
@@ -541,6 +619,42 @@ export const CustomersTab = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Block User Dialog */}
+      <AlertDialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bloccare questo utente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'utente non potrà più accedere alla piattaforma. Questa azione può essere annullata in seguito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlockUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Blocca Utente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare definitivamente questo utente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione eliminerà permanentemente l'utente e tutti i suoi dati associati. Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
