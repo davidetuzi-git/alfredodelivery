@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,8 +48,21 @@ serve(async (req) => {
 
     logStep("Admin verified", { userId: userData.user.id });
 
-    const { orderId, amount, reason } = await req.json();
+    const { orderId, amount, reason, refundPassword } = await req.json();
     
+    // Verify dedicated refund password
+    const expectedPassword = Deno.env.get("REFUND_PASSWORD");
+    if (!expectedPassword) {
+      throw new Error("Password rimborso non configurata nel sistema");
+    }
+    
+    if (!refundPassword || refundPassword !== expectedPassword) {
+      logStep("Invalid refund password attempt", { userId: userData.user.id });
+      throw new Error("Password rimborso non valida");
+    }
+
+    logStep("Refund password verified");
+
     if (!orderId) {
       throw new Error("ID ordine mancante");
     }
@@ -76,26 +90,23 @@ serve(async (req) => {
     });
 
     // Search for the payment intent related to this order
-    // We'll search by metadata or by amount and date
     const payments = await stripe.paymentIntents.list({
       limit: 50,
     });
 
-    // Find the payment for this order (by matching amount and approximate time)
+    // Find the payment for this order
     const orderTotal = Math.round(order.total_amount * 100);
     const orderDate = new Date(order.created_at);
     
     let paymentIntent = payments.data.find((pi: any) => {
       const piDate = new Date(pi.created * 1000);
       const timeDiff = Math.abs(piDate.getTime() - orderDate.getTime());
-      // Match by amount and within 1 hour of order creation
       return pi.amount === orderTotal && 
              timeDiff < 3600000 && 
              pi.status === 'succeeded';
     });
 
     if (!paymentIntent) {
-      // Try to find by metadata if available
       paymentIntent = payments.data.find((pi: any) => 
         pi.metadata?.user_id === order.user_id && 
         pi.status === 'succeeded'
@@ -111,7 +122,72 @@ serve(async (req) => {
     // Calculate refund amount
     const refundAmountCents = amount 
       ? Math.round(amount * 100) 
-      : paymentIntent.amount; // Full refund if no amount specified
+      : paymentIntent.amount;
+
+    // Send confirmation email to admin before processing
+    const adminEmail = Deno.env.get("ADMIN_EMAIL");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    
+    if (!adminEmail || !resendApiKey) {
+      throw new Error("Configurazione email admin mancante");
+    }
+
+    const resend = new Resend(resendApiKey);
+    const refundAmountEuro = (refundAmountCents / 100).toFixed(2);
+    const isFullRefund = refundAmountCents >= paymentIntent.amount;
+
+    // Send notification email to admin
+    const { error: emailError } = await resend.emails.send({
+      from: "Alfredo <onboarding@resend.dev>",
+      to: [adminEmail],
+      subject: `🔔 Rimborso ${isFullRefund ? 'Totale' : 'Parziale'} Effettuato - Ordine ${order.pickup_code}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #dc2626;">⚠️ Notifica Rimborso</h1>
+          
+          <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h2 style="margin-top: 0;">Dettagli Rimborso</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;"><strong>Ordine:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;">${order.pickup_code}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;"><strong>Cliente:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;">${order.customer_name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;"><strong>Tipo:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;">${isFullRefund ? 'Rimborso Totale' : 'Rimborso Parziale'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;"><strong>Importo:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca; font-size: 18px; color: #dc2626;"><strong>€${refundAmountEuro}</strong></td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;"><strong>Motivo:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #fecaca;">${reason === 'duplicate' ? 'Pagamento duplicato' : reason === 'fraudulent' ? 'Fraudolento' : 'Richiesto dal cliente'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;"><strong>Admin:</strong></td>
+                <td style="padding: 8px 0;">${userData.user.email}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 12px;">
+            Data/Ora: ${new Date().toLocaleString('it-IT', { timeZone: 'Europe/Rome' })}
+          </p>
+        </div>
+      `,
+    });
+
+    if (emailError) {
+      logStep("Email sending failed", { error: emailError });
+      // Continue with refund even if email fails, but log the error
+    } else {
+      logStep("Confirmation email sent to admin", { adminEmail });
+    }
 
     // Create refund
     const refund = await stripe.refunds.create({
@@ -125,8 +201,6 @@ serve(async (req) => {
     logStep("Refund created", { refundId: refund.id, amount: refundAmountCents });
 
     // Update order status if fully refunded
-    const isFullRefund = refundAmountCents >= paymentIntent.amount;
-    
     if (isFullRefund) {
       await supabaseClient
         .from('orders')
@@ -143,8 +217,8 @@ serve(async (req) => {
       type: 'refund',
       title: 'Rimborso effettuato',
       message: isFullRefund 
-        ? `Il tuo ordine è stato completamente rimborsato (€${(refundAmountCents / 100).toFixed(2)})`
-        : `Hai ricevuto un rimborso parziale di €${(refundAmountCents / 100).toFixed(2)}`,
+        ? `Il tuo ordine è stato completamente rimborsato (€${refundAmountEuro})`
+        : `Hai ricevuto un rimborso parziale di €${refundAmountEuro}`,
       data: { 
         order_id: orderId, 
         refund_amount: refundAmountCents / 100,
