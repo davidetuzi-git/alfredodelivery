@@ -6,6 +6,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Mapping di province e capoluoghi regionali italiani
+const PROVINCE_TO_REGION: Record<string, { region: string; capital: string }> = {
+  'roma': { region: 'Lazio', capital: 'Roma' },
+  'milano': { region: 'Lombardia', capital: 'Milano' },
+  'napoli': { region: 'Campania', capital: 'Napoli' },
+  'torino': { region: 'Piemonte', capital: 'Torino' },
+  'palermo': { region: 'Sicilia', capital: 'Palermo' },
+  'genova': { region: 'Liguria', capital: 'Genova' },
+  'bologna': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'firenze': { region: 'Toscana', capital: 'Firenze' },
+  'bari': { region: 'Puglia', capital: 'Bari' },
+  'catania': { region: 'Sicilia', capital: 'Palermo' },
+  'venezia': { region: 'Veneto', capital: 'Venezia' },
+  'verona': { region: 'Veneto', capital: 'Venezia' },
+  'messina': { region: 'Sicilia', capital: 'Palermo' },
+  'padova': { region: 'Veneto', capital: 'Venezia' },
+  'trieste': { region: 'Friuli-Venezia Giulia', capital: 'Trieste' },
+  'brescia': { region: 'Lombardia', capital: 'Milano' },
+  'parma': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'modena': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'reggio emilia': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'reggio calabria': { region: 'Calabria', capital: 'Catanzaro' },
+  'perugia': { region: 'Umbria', capital: 'Perugia' },
+  'livorno': { region: 'Toscana', capital: 'Firenze' },
+  'ravenna': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'cagliari': { region: 'Sardegna', capital: 'Cagliari' },
+  'foggia': { region: 'Puglia', capital: 'Bari' },
+  'rimini': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'salerno': { region: 'Campania', capital: 'Napoli' },
+  'ferrara': { region: 'Emilia-Romagna', capital: 'Bologna' },
+  'sassari': { region: 'Sardegna', capital: 'Cagliari' },
+  'latina': { region: 'Lazio', capital: 'Roma' },
+  'anzio': { region: 'Lazio', capital: 'Roma' },
+  'nettuno': { region: 'Lazio', capital: 'Roma' },
+  'aprilia': { region: 'Lazio', capital: 'Roma' },
+  'pomezia': { region: 'Lazio', capital: 'Roma' },
+  'monza': { region: 'Lombardia', capital: 'Milano' },
+  'bergamo': { region: 'Lombardia', capital: 'Milano' },
+  'como': { region: 'Lombardia', capital: 'Milano' },
+  'varese': { region: 'Lombardia', capital: 'Milano' },
+  'pescara': { region: 'Abruzzo', capital: "L'Aquila" },
+  'teramo': { region: 'Abruzzo', capital: "L'Aquila" },
+  'chieti': { region: 'Abruzzo', capital: "L'Aquila" },
+  "l'aquila": { region: 'Abruzzo', capital: "L'Aquila" },
+  'avezzano': { region: 'Abruzzo', capital: "L'Aquila" },
+};
+
+// Catene discount simili per fallback
+const SIMILAR_CHAINS: Record<string, string[]> = {
+  'eurospin': ['md', 'lidl', 'penny', 'aldi', "in's"],
+  'lidl': ['eurospin', 'md', 'penny', 'aldi'],
+  'md': ['eurospin', 'lidl', 'penny', 'aldi'],
+  'penny': ['lidl', 'eurospin', 'md', 'aldi'],
+  'aldi': ['lidl', 'eurospin', 'md', 'penny'],
+  "in's": ['eurospin', 'md', 'lidl'],
+  'conad': ['coop', 'esselunga', 'carrefour', 'pam'],
+  'coop': ['conad', 'esselunga', 'carrefour', 'pam'],
+  'esselunga': ['coop', 'conad', 'carrefour', 'pam'],
+  'carrefour': ['coop', 'conad', 'esselunga', 'pam'],
+  'pam': ['coop', 'conad', 'carrefour', 'esselunga'],
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,6 +94,10 @@ serve(async (req) => {
     // Estrai città/provincia dall'indirizzo
     const locationMatch = storeAddress.match(/,\s*([^,]+)$/);
     const city = locationMatch ? locationMatch[1].trim() : '';
+    const cityLower = city.toLowerCase();
+    
+    // Determina la regione e il capoluogo
+    const regionInfo = PROVINCE_TO_REGION[cityLower] || { region: 'Italia', capital: city };
     
     const normalizedProduct = product.trim().toLowerCase();
     const normalizedStore = chainName.toLowerCase();
@@ -42,81 +108,93 @@ serve(async (req) => {
     console.log(`Catena: ${chainName}`);
     console.log(`Indirizzo: ${storeAddress}`);
     console.log(`Città: ${city}`);
+    console.log(`Regione: ${regionInfo.region}, Capoluogo: ${regionInfo.capital}`);
 
     // FASE 1: Cache (30 giorni, qualsiasi punto vendita della stessa catena)
-    console.log('\n🔍 Cache...');
+    console.log('\n🔍 FASE 1: Ricerca in cache...');
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: cachedPrice } = await supabase
       .from('product_prices')
       .select('*')
-      .ilike('product_name', normalizedProduct)
-      .ilike('store_name', normalizedStore)
+      .ilike('product_name', `%${normalizedProduct}%`)
+      .ilike('store_name', `%${normalizedStore}%`)
       .gte('created_at', thirtyDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    let foundPrice = 2.99; // Fallback default
+    let foundPrice: number | null = null;
     let priceFromCache = false;
+    let priceSource = 'unknown';
     
     if (cachedPrice) {
       console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
       foundPrice = cachedPrice.price;
       priceFromCache = true;
+      priceSource = 'cache';
     } else {
       console.log('✗ Non in cache');
     }
 
-    // FASE 2: Ricerca AI solo se non in cache
+    // FASE 2-5: Ricerca AI con cascata geografica
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!priceFromCache) {
       if (!LOVABLE_API_KEY) {
         return new Response(
-          JSON.stringify({ error: 'Prezzo non trovato', notFound: true }),
+          JSON.stringify({ error: 'API key non configurata', notFound: true }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      console.log('\n💡 Ricerca AI con CASCATA GEOGRAFICA...');
+      const similarChains = SIMILAR_CHAINS[normalizedStore] || [];
       
-      const searchPrompt = `Trova il prezzo di "${product}" presso ${chainName}.
-Negozio: ${storeAddress}
-Città: ${city || 'Italia'}
+      // Prompt migliorato per ricerca reale
+      const searchPrompt = `SEI UN ESPERTO DI PREZZI SUPERMERCATI ITALIANI.
 
-STRATEGIA DI RICERCA OBBLIGATORIA (in ordine):
+PRODOTTO DA CERCARE: "${product}"
+CATENA: ${chainName}
+CITTÀ: ${city}
+PROVINCIA/REGIONE: ${regionInfo.region}
+CAPOLUOGO REGIONALE: ${regionInfo.capital}
 
-1️⃣ CERCA PRIMA: Prezzo ${chainName} a ${city}
-   - Volantino digitale ${chainName} zona ${city}
-   - Offerte ${chainName} punto vendita a ${city}
-   
-2️⃣ SE NON TROVI: Prezzo ${chainName} in provincia di ${city}
-   - Volantini ${chainName} città limitrofe
-   - Prezzi ${chainName} nella provincia
-   
-3️⃣ SE NON TROVI: Prezzo ${chainName} nel capoluogo di regione
-   - Verifica il capoluogo della regione dove si trova ${city}
-   - Cerca volantini ${chainName} del capoluogo regionale
+🔴 STRATEGIA DI RICERCA OBBLIGATORIA (SEGUI QUESTO ORDINE):
 
-4️⃣ SE ${chainName} NON È CATENA FAMOSA: Usa catena simile
-   - Identifica la catena più simile a ${chainName} (es: Eurospin→MD, Conad→Coop, Lidl→Penny)
-   - Cerca prezzi della catena simile con stessa strategia geografica
+STEP 1 - CITTÀ LOCALE:
+Cerca il prezzo REALE di "${product}" nei volantini/listini ${chainName} di ${city}.
+- Controlla volantini settimanali ${chainName}
+- Verifica prezzi pubblicati su siti ufficiali
 
-5️⃣ FALLBACK FINALE: Stima realistica
-   - Basati su range prezzi tipici per quel prodotto in Italia
-   - Considera il tipo di catena (discount, premium, normale)
+STEP 2 - PROVINCIA:
+Se Step 1 fallisce, cerca nei ${chainName} della provincia di ${city}.
+- Volantini ${chainName} città vicine
 
-REGOLE:
-- DEVI SEMPRE rispondere con un numero (es: 2.99)
-- Preferisci prezzi reali da volantini/siti ufficiali
-- Se stimi, usa prezzi ragionevoli per il tipo di prodotto
+STEP 3 - CAPOLUOGO REGIONALE:
+Se Step 2 fallisce, cerca nei ${chainName} di ${regionInfo.capital}.
+- ${chainName} ${regionInfo.capital} prezzi correnti
 
-Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
+STEP 4 - CATENE SIMILI:
+Se ${chainName} non vende "${product}", cerca in catene SIMILI:
+${similarChains.length > 0 ? `Catene simili a ${chainName}: ${similarChains.join(', ')}` : 'Cerca in altre catene discount/supermercati'}
 
+STEP 5 - MEDIA NAZIONALE:
+Solo come ULTIMA RISORSA, fornisci il prezzo medio italiano per "${product}".
+
+⚠️ REGOLE TASSATIVE:
+1. DEVI fornire UN NUMERO (es: 1.29)
+2. Preferisci SEMPRE prezzi da volantini reali
+3. Per prodotti base (latte, pane, pasta): i prezzi discount sono 0.69-1.50€
+4. NON inventare prezzi impossibili
+5. Considera che ${chainName} è ${normalizedStore.includes('eurospin') || normalizedStore.includes('lidl') || normalizedStore.includes('md') || normalizedStore.includes('penny') ? 'un DISCOUNT (prezzi bassi)' : 'un supermercato tradizionale'}
+
+RISPONDI SOLO CON IL NUMERO DEL PREZZO (es: 1.29)`;
+
+      console.log('\n💡 FASE 2-5: Ricerca AI con cascata geografica...');
+      
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -130,8 +208,8 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
               role: 'user', 
               content: searchPrompt 
             }],
-            temperature: 0.2,
-            max_tokens: 100,
+            temperature: 0.1, // Più deterministico
+            max_tokens: 50,
           }),
           signal: controller.signal,
         });
@@ -141,7 +219,7 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
         if (response.ok) {
           const data = await response.json();
           const aiResponse = data.choices[0].message.content.trim();
-          console.log(`  AI Prezzo: ${aiResponse}`);
+          console.log(`  AI Risposta: ${aiResponse}`);
 
           const priceMatch = aiResponse.match(/(\d+[.,]\d{1,2})/);
           
@@ -149,17 +227,40 @@ Rispondi SOLO con il numero del prezzo in euro (es: 2.99)`;
             const parsedPrice = parseFloat(priceMatch[1].replace(',', '.'));
             if (parsedPrice >= 0.10 && parsedPrice <= 500) {
               foundPrice = parsedPrice;
-              console.log(`✓ Prezzo trovato/stimato: €${foundPrice}`);
-            } else {
-              console.log(`⚠️ Prezzo fuori range, uso fallback: €${foundPrice}`);
+              priceSource = 'ai_search';
+              console.log(`✓ Prezzo trovato: €${foundPrice}`);
             }
-          } else {
-            console.log(`⚠️ Nessun prezzo valido nella risposta, uso fallback: €${foundPrice}`);
           }
+        } else {
+          console.log(`✗ Errore AI: ${response.status}`);
         }
       } catch (error) {
         const errorMsg = error instanceof Error && error.name === 'AbortError' ? 'Timeout' : String(error);
-        console.error('Errore/Timeout AI:', errorMsg);
+        console.error('Errore AI:', errorMsg);
+      }
+      
+      // Fallback con prezzo medio per categoria se ancora nullo
+      if (foundPrice === null) {
+        console.log('\n⚠️ Fallback: stima prezzo per categoria...');
+        const productLower = product.toLowerCase();
+        
+        // Prezzi medi per categoria in discount
+        if (productLower.includes('latte')) foundPrice = 1.09;
+        else if (productLower.includes('pane')) foundPrice = 1.29;
+        else if (productLower.includes('pasta')) foundPrice = 0.89;
+        else if (productLower.includes('riso')) foundPrice = 1.49;
+        else if (productLower.includes('uova') || productLower.includes('uovo')) foundPrice = 2.29;
+        else if (productLower.includes('burro')) foundPrice = 2.49;
+        else if (productLower.includes('olio')) foundPrice = 5.99;
+        else if (productLower.includes('zucchero')) foundPrice = 1.19;
+        else if (productLower.includes('caffè') || productLower.includes('caffe')) foundPrice = 3.99;
+        else if (productLower.includes('acqua')) foundPrice = 0.29;
+        else if (productLower.includes('birra')) foundPrice = 1.29;
+        else if (productLower.includes('vino')) foundPrice = 3.99;
+        else foundPrice = 2.49; // Prezzo medio generico
+        
+        priceSource = 'category_estimate';
+        console.log(`  Prezzo stimato per categoria: €${foundPrice}`);
       }
     }
         
@@ -361,11 +462,14 @@ Alta qualità, realistica, professionale.`;
         });
     }
 
+    const finalPrice = foundPrice ?? 2.49; // Ultimate fallback
+    
     const responseData = { 
-      price: foundPrice,
-      priceInfo: `€${foundPrice.toFixed(2)}`,
+      price: finalPrice,
+      priceInfo: `€${finalPrice.toFixed(2)}`,
       cached: priceFromCache,
       estimated: !priceFromCache,
+      priceSource,
       completedProduct: completedProductName,
       productAvailable,
       suggestedAlternative,
