@@ -1808,6 +1808,22 @@ const Order = () => {
                   "Procedi al pagamento"
                 )}
               </Button>
+
+              {/* Save order for later button - smaller than main button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setShowSaveListDialog(true);
+                  setSaveListName(`Ordine del ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: it })}`);
+                }}
+                disabled={items.filter(i => i.name.trim() !== "").length === 0}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Salva ordine per dopo
+              </Button>
             </form>
           </CardContent>
         </Card>
