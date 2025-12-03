@@ -44,8 +44,15 @@ const PayPalSuccess = () => {
       }
 
       try {
-        // Retrieve pending order data from localStorage (persists across tabs)
-        const orderDataStr = localStorage.getItem('pendingOrder');
+        // Retrieve pending order data from localStorage with retry logic
+        // Sometimes localStorage needs a moment to be available after redirect
+        let orderDataStr: string | null = null;
+        for (let i = 0; i < 5; i++) {
+          orderDataStr = localStorage.getItem('pendingOrder');
+          if (orderDataStr) break;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
         if (!orderDataStr) {
           throw new Error('Dati ordine non trovati');
         }

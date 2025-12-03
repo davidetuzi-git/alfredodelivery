@@ -44,8 +44,15 @@ const StripeSuccess = () => {
           return;
         }
 
-        // Get pending order data from localStorage (sessionStorage doesn't persist across tabs)
-        const pendingOrderStr = localStorage.getItem('pendingOrder');
+        // Get pending order data from localStorage with retry logic
+        // Sometimes localStorage needs a moment to be available after redirect
+        let pendingOrderStr: string | null = null;
+        for (let i = 0; i < 5; i++) {
+          pendingOrderStr = localStorage.getItem('pendingOrder');
+          if (pendingOrderStr) break;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
         if (!pendingOrderStr) {
           throw new Error("Dati ordine non trovati. Il pagamento è stato completato ma l'ordine non è stato salvato. Contatta l'assistenza.");
         }
