@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Ticket, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -10,7 +11,17 @@ const StripeSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [pickupCode, setPickupCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { decrementDelivery } = useSubscription();
+
+  const copyCode = () => {
+    if (pickupCode) {
+      navigator.clipboard.writeText(pickupCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     const processPayment = async () => {
@@ -50,11 +61,12 @@ const StripeSuccess = () => {
         const { data: codeData, error: codeError } = await supabase.rpc('generate_pickup_code');
         if (codeError) throw codeError;
 
-        const pickupCode = codeData;
+        const generatedCode = codeData;
+        setPickupCode(generatedCode);
 
         // Save order
         const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
-          pickup_code: pickupCode,
+          pickup_code: generatedCode,
           user_id: session.user.id,
           customer_name: orderData.name,
           customer_phone: orderData.phone,
@@ -98,10 +110,10 @@ const StripeSuccess = () => {
           description: "Il tuo ordine è stato confermato",
         });
 
-        // Redirect to tracking after delay
+        // Redirect to tracking after 4 seconds (longer to show confirmation)
         setTimeout(() => {
-          navigate("/tracking", { state: { pickupCode } });
-        }, 2000);
+          navigate("/tracking", { state: { pickupCode: generatedCode } });
+        }, 4000);
 
       } catch (error) {
         console.error('Error processing payment:', error);
@@ -125,32 +137,83 @@ const StripeSuccess = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>
+          <CardTitle className="text-2xl">
             {status === 'processing' && "Elaborazione pagamento..."}
-            {status === 'success' && "Pagamento completato!"}
+            {status === 'success' && "Ordine Confermato!"}
             {status === 'error' && "Errore pagamento"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
+        <CardContent className="flex flex-col items-center gap-6">
           {status === 'processing' && (
             <>
-              <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              <Loader2 className="h-20 w-20 animate-spin text-primary" />
               <p className="text-muted-foreground text-center">
                 Stiamo elaborando il tuo pagamento...
               </p>
             </>
           )}
+          
           {status === 'success' && (
             <>
-              <CheckCircle className="h-16 w-16 text-green-500" />
-              <p className="text-muted-foreground text-center">
-                Il tuo ordine è stato confermato. Verrai reindirizzato alla pagina di tracking.
+              <div className="relative">
+                <CheckCircle className="h-20 w-20 text-green-500" />
+                <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
+                  <Check className="h-4 w-4 text-white" />
+                </div>
+              </div>
+              
+              <div className="text-center space-y-2">
+                <p className="text-lg font-medium text-foreground">
+                  Pagamento completato con successo!
+                </p>
+                <p className="text-muted-foreground">
+                  Il tuo ordine è stato confermato e sarà elaborato a breve.
+                </p>
+              </div>
+
+              {pickupCode && (
+                <Card className="w-full border-2 border-primary bg-primary/5">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Ticket className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Codice Ritiro
+                      </span>
+                    </div>
+                    <p className="text-4xl font-bold tracking-wider text-center text-primary mb-4">
+                      {pickupCode}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={copyCode}
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Copiato!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copia codice
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              <p className="text-sm text-muted-foreground text-center animate-pulse">
+                Reindirizzamento alla pagina di tracking...
               </p>
             </>
           )}
+          
           {status === 'error' && (
             <>
-              <XCircle className="h-16 w-16 text-destructive" />
+              <XCircle className="h-20 w-20 text-destructive" />
               <p className="text-muted-foreground text-center">
                 Si è verificato un errore. Verrai reindirizzato al checkout.
               </p>
