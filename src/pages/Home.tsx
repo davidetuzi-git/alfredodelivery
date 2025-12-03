@@ -7,6 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
+import { ServiceAlerts } from "@/components/ServiceAlerts";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useLoyalty, LOYALTY_LEVELS } from "@/hooks/useLoyalty";
 import { useNavigate } from "react-router-dom";
@@ -286,6 +287,9 @@ const Home = () => {
       </div>
 
       <div className="max-w-screen-xl mx-auto p-6 space-y-6">
+        {/* Service Alerts - blocked dates and holidays */}
+        <ServiceAlerts />
+
         {/* Subscription Banner - show only if no active subscription */}
         {!subscription && (
           <SubscriptionBanner />
