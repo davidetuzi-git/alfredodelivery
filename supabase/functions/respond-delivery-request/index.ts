@@ -231,47 +231,14 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      return new Response(
-        `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Consegna rifiutata</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
-                background: #f6f9fc;
-              }
-              .container {
-                background: white;
-                padding: 48px;
-                border-radius: 16px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                text-align: center;
-                max-width: 500px;
-              }
-              h1 { color: #ef4444; font-size: 48px; margin: 0 0 24px 0; }
-              p { color: #666; font-size: 18px; line-height: 1.6; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>❌</h1>
-              <h2>Consegna rifiutata</h2>
-              <p>Hai rifiutato questa consegna. Riceverai nuove opportunità presto!</p>
-            </div>
-          </body>
-        </html>
-        `,
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "text/html; charset=UTF-8" } }
-      );
+      // Redirect to deliverer auth page after rejection
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          'Location': 'https://alfredodelivery.lovable.app/deliverer/auth'
+        }
+      });
     }
   } catch (error: any) {
     console.error("Error in respond-delivery-request:", error);
