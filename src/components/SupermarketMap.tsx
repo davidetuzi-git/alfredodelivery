@@ -349,12 +349,14 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
     if (!mapContainerRef.current) return;
 
     const center: [number, number] = addressLocation || userLocation || [41.9028, 12.4964];
+    // Zoom 12 shows approximately 10km radius nicely
+    const initialZoom = addressLocation ? 12 : 11;
 
     if (!mapRef.current) {
       // Create map
       const map = L.map(mapContainerRef.current, {
         center,
-        zoom: 14,
+        zoom: initialZoom,
         scrollWheelZoom: false,
       });
 
@@ -364,8 +366,8 @@ const SupermarketMap: React.FC<SupermarketMapProps> = ({ onSelectStore, delivery
 
       mapRef.current = map;
     } else {
-      // Update center
-      mapRef.current.setView(center, 14);
+      // Update center and zoom to show 10km area
+      mapRef.current.setView(center, initialZoom);
     }
 
     // Clear existing markers and circles
