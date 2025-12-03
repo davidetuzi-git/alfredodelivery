@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MapPin, Store } from "lucide-react";
@@ -75,6 +76,7 @@ const ReportStore = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">Segnala Supermercato</h1>

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -206,6 +207,7 @@ const MyOrders = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">I miei ordini</h1>

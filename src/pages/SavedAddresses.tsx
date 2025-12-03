@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
+import { Navigation } from "@/components/Navigation";
 
 interface SavedAddress {
   id: string;
@@ -176,16 +179,10 @@ const SavedAddresses = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Header />
+      <UserSubmenu />
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
         <div className="max-w-2xl mx-auto">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/profilo")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Indietro
-          </Button>
           <h1 className="text-3xl font-bold">Indirizzi Salvati</h1>
         </div>
       </div>
@@ -295,6 +292,7 @@ const SavedAddresses = () => {
           )}
         </div>
       </div>
+      <Navigation />
     </div>
   );
 };

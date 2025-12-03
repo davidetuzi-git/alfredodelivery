@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
+import { UserSubmenu } from "@/components/UserSubmenu";
 import { ArrowLeft, Check, Crown, Sparkles, Clock, Gift, Shield, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -108,16 +109,9 @@ const Subscriptions = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header />
+      <UserSubmenu />
       
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate(-1)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Indietro
-        </Button>
 
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
