@@ -2,19 +2,19 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Store, Handshake, ChevronRight } from "lucide-react";
+import { MapPin, Handshake, ChevronRight } from "lucide-react";
 
 const banners = [
   {
-    id: "report-store",
-    icon: Store,
-    title: "Non trovi il tuo supermercato?",
-    description: "Segnalacelo e lo aggiungeremo alla nostra rete!",
-    buttonText: "Segnala",
-    route: "/segnala-supermercato",
-    bgGradient: "from-blue-500/10 via-blue-500/5 to-transparent",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800"
+    id: "zone-expansion",
+    icon: MapPin,
+    title: "Il nostro servizio non copre ancora la tua zona?",
+    description: "Richiedi l'attivazione del servizio nella tua area!",
+    buttonText: "Richiedi Zona",
+    route: "/richiedi-zona",
+    bgGradient: "from-orange-500/10 via-orange-500/5 to-transparent",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    borderColor: "border-orange-200 dark:border-orange-800"
   },
   {
     id: "supermarket-partner",
