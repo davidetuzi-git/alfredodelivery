@@ -421,7 +421,7 @@ const Order = () => {
     // Parse the text - split by newlines and filter empty lines
     const lines = textToImport
       .split('\n')
-      .map(line => line.trim())
+      .map(line => line.replace(/\r/g, '').trim())
       .filter(line => line.length > 0);
 
     if (lines.length === 0) {
@@ -434,13 +434,29 @@ const Order = () => {
     }
 
     // Convert lines to shopping items
-    const newItems: ShoppingItem[] = lines.map(line => {
-      // Try to extract quantity if format is like "2x latte" or "3 pane"
-      const qtyMatch = line.match(/^(\d+)\s*[x×]\s*(.+)$/i) || line.match(/^(\d+)\s+(.+)$/);
-      
-      if (qtyMatch) {
-        const quantity = parseInt(qtyMatch[1]);
-        const name = qtyMatch[2].trim();
+    const newItems: ShoppingItem[] = lines.map(rawLine => {
+      // Remove common bullet prefixes
+      const line = rawLine.replace(/^[-•*]\s+/, '').trim();
+
+      // 1) Quantity prefix: "2x Latte" or "3 Pane"
+      const qtyPrefixMatch = line.match(/^(\d+)\s*[x×]\s*(.+)$/i) || line.match(/^(\d+)\s+(.+)$/);
+      if (qtyPrefixMatch) {
+        const quantity = parseInt(qtyPrefixMatch[1]);
+        const name = qtyPrefixMatch[2].trim();
+        return {
+          name,
+          price: null,
+          loading: false,
+          quantity: quantity > 0 ? quantity : 1,
+          suggestion: null,
+        };
+      }
+
+      // 2) Dash/en-dash quantity: "Pane – 1 pezzo" / "Latte - 2"
+      const dashQtyMatch = line.match(/^(.+?)\s*[–-]\s*(\d+)\b/);
+      if (dashQtyMatch) {
+        const name = dashQtyMatch[1].trim();
+        const quantity = parseInt(dashQtyMatch[2]);
         return {
           name,
           price: null,
@@ -462,12 +478,14 @@ const Order = () => {
     // Replace current items with imported ones
     setItems(newItems);
 
-    // Fetch prices for all items
-    newItems.forEach((item, index) => {
-      if (item.name.trim()) {
-        fetchPrice(index, item.name);
-      }
-    });
+    // Fetch prices for all items (only if a store is selected)
+    if (store) {
+      newItems.forEach((item, index) => {
+        if (item.name.trim()) {
+          fetchPrice(index, item.name);
+        }
+      });
+    }
 
     // Close dialog and reset
     setShowImportDialog(false);
@@ -1633,7 +1651,6 @@ const Order = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowImportDialog(true)}
-                      disabled={!store}
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Importa
@@ -2048,7 +2065,7 @@ const Order = () => {
                 <Input
                   id="import-file"
                   type="file"
-                  accept=".txt,text/plain"
+                  accept=".txt,text/plain,text/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
