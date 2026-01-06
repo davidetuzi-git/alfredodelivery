@@ -349,12 +349,30 @@ const Order = () => {
     // If a file was selected, read its content
     if (importFile) {
       try {
-        const fileText = await importFile.text();
+        // Read file as ArrayBuffer first to handle different encodings
+        const arrayBuffer = await importFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Detect UTF-16 BOM and decode accordingly
+        let fileText: string;
+        if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
+          // UTF-16 LE
+          fileText = new TextDecoder('utf-16le').decode(arrayBuffer);
+        } else if (uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
+          // UTF-16 BE
+          fileText = new TextDecoder('utf-16be').decode(arrayBuffer);
+        } else {
+          // Default to UTF-8
+          fileText = new TextDecoder('utf-8').decode(arrayBuffer);
+        }
+        
         textToImport = fileText;
+        console.log('File content loaded:', fileText.substring(0, 200));
       } catch (error) {
+        console.error('Error reading file:', error);
         toast({
           title: "Errore",
-          description: "Impossibile leggere il file",
+          description: "Impossibile leggere il file. Assicurati che sia un file di testo (.txt)",
           variant: "destructive",
         });
         return;
@@ -1872,7 +1890,7 @@ const Order = () => {
                 <Input
                   id="import-file"
                   type="file"
-                  accept=".txt,.doc,.docx,text/plain"
+                  accept=".txt,text/plain"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
