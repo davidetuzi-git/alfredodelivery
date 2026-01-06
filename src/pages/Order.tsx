@@ -991,9 +991,6 @@ const Order = () => {
       setShowAlternativesDialog(true);
       return;
     }
-    
-    // Reset pending submit flag
-    setPendingSubmit(false);
 
     // Check for alcohol products and verify age
     const hasAlcohol = containsAlcohol(validItems);
@@ -1008,7 +1005,9 @@ const Order = () => {
       return;
     }
     
-    // Reset alcohol check flag after processing
+    // Reset flags ONLY after all dialogs have been handled successfully
+    // This prevents dialogs from re-appearing when form is re-submitted
+    setPendingSubmit(false);
     setAlcoholCheckPassed(false);
 
     // Check if there are items without prices (NOT FOUND)
