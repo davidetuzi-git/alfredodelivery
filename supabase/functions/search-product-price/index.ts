@@ -365,7 +365,7 @@ serve(async (req) => {
       if (scrapeResult.price !== null) {
         foundPrice = scrapeResult.price;
         priceSource = scrapeResult.source;
-        if (scrapeResult.productName) completedProductName = scrapeResult.productName;
+        // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
       }
 
       // FASE 3: Scraping nella provincia
@@ -376,7 +376,7 @@ serve(async (req) => {
         if (scrapeResult.price !== null) {
           foundPrice = scrapeResult.price;
           priceSource = scrapeResult.source;
-          if (scrapeResult.productName) completedProductName = scrapeResult.productName;
+          // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
         }
       }
 
@@ -388,7 +388,7 @@ serve(async (req) => {
         if (scrapeResult.price !== null) {
           foundPrice = scrapeResult.price;
           priceSource = scrapeResult.source;
-          if (scrapeResult.productName) completedProductName = scrapeResult.productName;
+          // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
         }
       }
 
