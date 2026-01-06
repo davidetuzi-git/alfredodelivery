@@ -15,6 +15,14 @@ interface ShoppingItem {
   quantity: number;
 }
 
+interface ComparisonItem {
+  name: string;
+  price: number;
+  quantity: number;
+  isEstimated?: boolean;
+  notFound?: boolean;
+}
+
 const CompareStores = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,9 +32,10 @@ const CompareStores = () => {
   
   const [compareStore, setCompareStore] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [comparison, setComparison] = useState<{
-    current: { store: string; total: number; items: Array<{ name: string; price: number; quantity: number }> };
-    compare: { store: string; total: number; items: Array<{ name: string; price: number; quantity: number }> };
+    current: { store: string; total: number; items: ComparisonItem[] };
+    compare: { store: string; total: number; items: ComparisonItem[]; estimatedCount: number; notFoundCount: number };
   } | null>(null);
 
   // Use nearby stores from the map (within 10km) - filter out current store
@@ -54,18 +63,30 @@ const CompareStores = () => {
     }
 
     setLoading(true);
-    setComparison(null); // Reset previous comparison
+    setComparison(null);
+    setLoadingProgress({ current: 0, total: validItems.length });
     
     try {
-      const currentItems = validItems.map(item => ({
+      // Current store items - prices already known
+      const currentItems: ComparisonItem[] = validItems.map(item => ({
         name: item.name,
         price: item.price!,
-        quantity: item.quantity
+        quantity: item.quantity,
+        isEstimated: false,
+        notFound: false
       }));
       
-      const compareItems: Array<{ name: string; price: number; quantity: number }> = [];
+      // Compare store items - need to fetch ALL prices fresh
+      const compareItems: ComparisonItem[] = [];
+      let estimatedCount = 0;
+      let notFoundCount = 0;
       
-      for (const item of validItems) {
+      for (let i = 0; i < validItems.length; i++) {
+        const item = validItems[i];
+        setLoadingProgress({ current: i + 1, total: validItems.length });
+        
+        console.log(`[Confronto] Ricerca prezzo ${i + 1}/${validItems.length}: "${item.name}" presso ${compareStore}`);
+        
         const { data, error } = await supabase.functions.invoke('search-product-price', {
           body: { 
             product: item.name.trim(),
@@ -73,23 +94,45 @@ const CompareStores = () => {
           }
         });
 
-        if (!error && data?.price && !data?.needsDetails) {
+        console.log(`[Confronto] Risposta per "${item.name}":`, { 
+          price: data?.price, 
+          isEstimated: data?.isEstimated,
+          source: data?.priceSource,
+          error 
+        });
+
+        if (!error && data?.price !== undefined && data?.price !== null) {
+          const isEstimated = data?.isEstimated === true || 
+                              data?.priceSource === 'category_estimate' || 
+                              data?.priceSource === 'ai_search';
+          
+          if (isEstimated) estimatedCount++;
+          
           compareItems.push({
             name: item.name,
             price: data.price,
-            quantity: item.quantity
+            quantity: item.quantity,
+            isEstimated,
+            notFound: false
           });
         } else {
+          // Price NOT found - mark as not found, don't use original price!
+          notFoundCount++;
           compareItems.push({
             name: item.name,
-            price: item.price || 0,
-            quantity: item.quantity
+            price: 0, // Use 0 to indicate not found
+            quantity: item.quantity,
+            isEstimated: false,
+            notFound: true
           });
         }
       }
 
+      // Calculate totals (excluding not found items from compare total)
       const currentTotal = currentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const compareTotal = compareItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const compareTotal = compareItems
+        .filter(item => !item.notFound)
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
       setComparison({
         current: {
@@ -100,7 +143,9 @@ const CompareStores = () => {
         compare: {
           store: compareStore,
           total: compareTotal,
-          items: compareItems
+          items: compareItems,
+          estimatedCount,
+          notFoundCount
         }
       });
     } catch (error) {
@@ -169,12 +214,26 @@ const CompareStores = () => {
             </Button>
             
             {loading && (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
                 <p className="text-sm text-amber-800 dark:text-amber-200 text-center">
                   ⏳ <strong>Confronto in corso...</strong>
                 </p>
-                <p className="text-xs text-amber-600 dark:text-amber-300 text-center mt-1">
-                  A seconda del numero di prodotti nella tua lista, il confronto può richiedere da alcuni secondi ad alcuni minuti. Non chiudere questa pagina.
+                {loadingProgress.total > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-amber-600 dark:text-amber-300">
+                      <span>Prodotto {loadingProgress.current} di {loadingProgress.total}</span>
+                      <span>{Math.round((loadingProgress.current / loadingProgress.total) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-amber-200 dark:bg-amber-800 rounded-full h-2">
+                      <div 
+                        className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-amber-600 dark:text-amber-300 text-center">
+                  A seconda del numero di prodotti, il confronto può richiedere da alcuni secondi ad alcuni minuti.
                 </p>
               </div>
             )}
@@ -202,6 +261,20 @@ const CompareStores = () => {
                   {comparison.compare.total < comparison.current.total && (
                     <p className="text-sm text-green-600 dark:text-green-400 mt-1">✓ Più conveniente</p>
                   )}
+                  {(comparison.compare.estimatedCount > 0 || comparison.compare.notFoundCount > 0) && (
+                    <div className="mt-2 text-xs space-y-1">
+                      {comparison.compare.estimatedCount > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400">
+                          ⚠️ {comparison.compare.estimatedCount} prezzi stimati
+                        </p>
+                      )}
+                      {comparison.compare.notFoundCount > 0 && (
+                        <p className="text-red-600 dark:text-red-400">
+                          ❌ {comparison.compare.notFoundCount} prezzi non trovati
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -224,21 +297,46 @@ const CompareStores = () => {
                       const diff = compareItemTotal - currentItemTotal;
                       
                       return (
-                        <TableRow key={index}>
+                        <TableRow key={index} className={compareItem.notFound ? 'bg-red-50 dark:bg-red-950/20' : compareItem.isEstimated ? 'bg-amber-50 dark:bg-amber-950/20' : ''}>
                           <TableCell>
                             {item.name}
                             <span className="text-xs text-muted-foreground ml-2">(x{item.quantity})</span>
+                            {compareItem.notFound && (
+                              <span className="text-xs text-red-500 ml-2">❌ Non trovato</span>
+                            )}
+                            {compareItem.isEstimated && !compareItem.notFound && (
+                              <span className="text-xs text-amber-500 ml-2">⚠️ Stimato</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">€{currentItemTotal.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">€{compareItemTotal.toFixed(2)}</TableCell>
-                          <TableCell className={`text-right font-medium ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-green-600' : ''}`}>
-                            {diff > 0 ? `+€${diff.toFixed(2)}` : diff < 0 ? `-€${Math.abs(diff).toFixed(2)}` : '-'}
+                          <TableCell className={`text-right ${compareItem.notFound ? 'text-red-500' : compareItem.isEstimated ? 'text-amber-600' : ''}`}>
+                            {compareItem.notFound ? 'N/D' : `€${compareItemTotal.toFixed(2)}`}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${compareItem.notFound ? 'text-muted-foreground' : diff > 0 ? 'text-red-600' : diff < 0 ? 'text-green-600' : ''}`}>
+                            {compareItem.notFound ? '-' : diff > 0 ? `+€${diff.toFixed(2)}` : diff < 0 ? `-€${Math.abs(diff).toFixed(2)}` : '-'}
                           </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
+                
+                {/* Legend */}
+                {(comparison.compare.estimatedCount > 0 || comparison.compare.notFoundCount > 0) && (
+                  <div className="mt-4 p-3 rounded-lg bg-muted/50 text-xs space-y-1">
+                    <p className="font-medium text-muted-foreground">Legenda:</p>
+                    <div className="flex flex-wrap gap-4">
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 bg-amber-100 dark:bg-amber-900 rounded"></span>
+                        <span className="text-amber-600">⚠️ Stimato</span> = prezzo non verificato, basato su stime AI
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 bg-red-100 dark:bg-red-900 rounded"></span>
+                        <span className="text-red-500">❌ Non trovato</span> = prezzo non disponibile
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {comparison.current.total !== comparison.compare.total && (
