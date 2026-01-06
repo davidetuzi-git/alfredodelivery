@@ -25,6 +25,32 @@
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
       overflow: hidden;
     }
+    .lang-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .lang-btn {
+      padding: 8px 20px;
+      border: 2px solid #0088cc;
+      background: white;
+      color: #0088cc;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover {
+      background: #e0f2fe;
+    }
+    .lang-btn.active {
+      background: #0088cc;
+      color: white;
+    }
     .header {
       background: linear-gradient(135deg, #0088cc 0%, #00a8e8 100%);
       color: white;
@@ -93,7 +119,7 @@
     .step p {
       margin-bottom: 12px;
     }
-    .step ul {
+    .step ul, .step ol {
       margin-left: 20px;
       margin-bottom: 12px;
     }
@@ -127,15 +153,6 @@
     }
     .success strong {
       color: #047857;
-    }
-    .screenshot-placeholder {
-      background: #f1f5f9;
-      border: 2px dashed #cbd5e1;
-      border-radius: 12px;
-      padding: 40px;
-      text-align: center;
-      color: #64748b;
-      margin: 16px 0;
     }
     .bot-link {
       display: inline-block;
@@ -176,6 +193,19 @@
       font-size: 18px;
       color: #0088cc;
     }
+    .chat-example {
+      background: #f1f5f9;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      margin-top: 12px;
+    }
+    .lang-it, .lang-en {
+      display: none;
+    }
+    .lang-it.active, .lang-en.active {
+      display: block;
+    }
     @media print {
       body {
         padding: 0;
@@ -184,6 +214,9 @@
       .container {
         box-shadow: none;
         border-radius: 0;
+      }
+      .lang-toggle {
+        display: none;
       }
       .bot-link {
         background: none;
@@ -196,122 +229,276 @@
 </head>
 <body>
   <div class="container">
+    <!-- Language Toggle -->
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLanguage('it')" id="btn-it">🇮🇹 Italiano</button>
+      <button class="lang-btn" onclick="setLanguage('en')" id="btn-en">🇬🇧 English</button>
+    </div>
+
     <div class="header">
       <div class="logo">📱</div>
-      <h1>Guida Connessione Telegram</h1>
-      <p>Sistema di notifiche per fattorini Alfredo</p>
+      <h1 class="lang-it active">Guida Connessione Telegram</h1>
+      <h1 class="lang-en">Telegram Connection Guide</h1>
+      <p class="lang-it active">Sistema di notifiche per fattorini Alfredo</p>
+      <p class="lang-en">Notification system for Alfredo delivery drivers</p>
     </div>
     
     <div class="content">
-      <div class="intro">
-        <p><strong>Perché collegare Telegram?</strong> Collegando il tuo account Telegram, riceverai notifiche istantanee quando ci sono nuove consegne disponibili nella tua zona. Potrai accettare o rifiutare le consegne direttamente dalla chat!</p>
-      </div>
+      <!-- ITALIAN VERSION -->
+      <div class="lang-it active">
+        <div class="intro">
+          <p><strong>Perché collegare Telegram?</strong> Collegando il tuo account Telegram, riceverai notifiche istantanee quando ci sono nuove consegne disponibili nella tua zona. Potrai accettare o rifiutare le consegne direttamente dalla chat!</p>
+        </div>
 
-      <h2><span class="step-number">1</span> Installa Telegram</h2>
-      <div class="step">
-        <p>Se non hai già Telegram, scaricalo gratuitamente:</p>
-        <ul>
-          <li><strong>iPhone:</strong> Cerca "Telegram" nell'App Store</li>
-          <li><strong>Android:</strong> Cerca "Telegram" nel Google Play Store</li>
-          <li><strong>Computer:</strong> Visita <a href="https://desktop.telegram.org" target="_blank">desktop.telegram.org</a></li>
+        <h2><span class="step-number">1</span> Installa Telegram</h2>
+        <div class="step">
+          <p>Se non hai già Telegram, scaricalo gratuitamente:</p>
+          <ul>
+            <li><strong>iPhone:</strong> Cerca "Telegram" nell'App Store</li>
+            <li><strong>Android:</strong> Cerca "Telegram" nel Google Play Store</li>
+            <li><strong>Computer:</strong> Visita <a href="https://desktop.telegram.org" target="_blank">desktop.telegram.org</a></li>
+          </ul>
+          <p>Crea un account usando il tuo numero di telefono.</p>
+        </div>
+
+        <h2><span class="step-number">2</span> Cerca il Bot Alfredo</h2>
+        <div class="step">
+          <p>Apri Telegram e cerca il nostro bot ufficiale:</p>
+          <p style="font-size: 24px; text-align: center; margin: 20px 0;">
+            🔍 Cerca: <span class="highlight">@AlfredoDeliveryBot</span>
+          </p>
+          <p><strong>Oppure clicca direttamente su questo link:</strong></p>
+          <p style="text-align: center;">
+            <a href="https://t.me/AlfredoDeliveryBot" class="bot-link" target="_blank">
+              🤖 Apri @AlfredoDeliveryBot
+            </a>
+          </p>
+          <div class="warning">
+            <strong>⚠️ Attenzione:</strong> Assicurati che il nome del bot sia esattamente <span class="highlight">@AlfredoDeliveryBot</span>. Non rispondere a bot con nomi simili che potrebbero essere tentativi di truffa.
+          </div>
+          <div class="warning">
+            <strong>⚠️ Il bot non esiste ancora?</strong> Il bot deve essere creato dall'amministratore della piattaforma usando BotFather su Telegram. Contatta il supporto se il link non funziona.
+          </div>
+        </div>
+
+        <h2><span class="step-number">3</span> Avvia la Conversazione</h2>
+        <div class="step">
+          <p>Una volta aperta la chat con il bot:</p>
+          <ol>
+            <li>Clicca sul pulsante <strong>"AVVIA"</strong> o <strong>"START"</strong> in basso</li>
+            <li>Oppure scrivi il comando: <span class="highlight">/start</span></li>
+          </ol>
+          <p style="margin-top: 16px;">Il bot ti risponderà con un messaggio contenente il tuo <strong>Chat ID</strong>:</p>
+          <div class="chat-example">
+            Ciao [Nome]! 👋<br><br>
+            Il tuo Chat ID è: <strong style="background: #fef3c7; padding: 4px 8px;">123456789</strong><br><br>
+            Copia questo numero e salvalo nelle impostazioni della tua dashboard fattorino per ricevere notifiche automatiche su Telegram!
+          </div>
+        </div>
+
+        <h2><span class="step-number">4</span> Copia il tuo Chat ID</h2>
+        <div class="step">
+          <p>Il <strong>Chat ID</strong> è un numero univoco (es. <span class="highlight">123456789</span>) che identifica la tua chat.</p>
+          <p><strong>Come copiarlo:</strong></p>
+          <ul>
+            <li>Su smartphone: tieni premuto sul numero e seleziona "Copia"</li>
+            <li>Su computer: seleziona il numero e premi Ctrl+C (Windows) o Cmd+C (Mac)</li>
+          </ul>
+          <div class="warning">
+            <strong>⚠️ Importante:</strong> Non condividere il tuo Chat ID con nessuno! È un identificativo personale.
+          </div>
+        </div>
+
+        <h2><span class="step-number">5</span> Inserisci il Chat ID nella Dashboard</h2>
+        <div class="step">
+          <p>Ora devi collegare il Chat ID al tuo profilo fattorino:</p>
+          <ol>
+            <li>Accedi alla tua <strong>Dashboard Fattorino</strong> su Alfredo</li>
+            <li>Vai alla scheda <strong>"Profilo"</strong></li>
+            <li>Cerca il campo <strong>"Telegram Chat ID"</strong></li>
+            <li>Incolla il numero che hai copiato</li>
+            <li>Clicca <strong>"Salva modifiche"</strong></li>
+          </ol>
+          <div class="success">
+            <strong>✅ Fatto!</strong> Da ora in poi riceverai le notifiche delle nuove consegne direttamente su Telegram. Potrai accettarle o rifiutarle con un semplice click!
+          </div>
+        </div>
+
+        <h2>📋 Checklist Finale</h2>
+        <ul class="checklist">
+          <li>Ho installato Telegram sul mio dispositivo</li>
+          <li>Ho cercato e trovato @AlfredoDeliveryBot</li>
+          <li>Ho avviato la conversazione con /start</li>
+          <li>Ho ricevuto il mio Chat ID dal bot</li>
+          <li>Ho copiato il Chat ID</li>
+          <li>Ho inserito il Chat ID nella mia Dashboard Fattorino</li>
+          <li>Ho salvato le modifiche</li>
         </ul>
-        <p>Crea un account usando il tuo numero di telefono.</p>
-      </div>
 
-      <h2><span class="step-number">2</span> Cerca il Bot Alfredo</h2>
-      <div class="step">
-        <p>Apri Telegram e cerca il nostro bot ufficiale:</p>
-        <p style="font-size: 24px; text-align: center; margin: 20px 0;">
-          🔍 Cerca: <span class="highlight">@AlfredoDeliveryBot</span>
-        </p>
-        <p><strong>Oppure clicca direttamente su questo link:</strong></p>
-        <p style="text-align: center;">
-          <a href="https://t.me/AlfredoDeliveryBot" class="bot-link" target="_blank">
-            🤖 Apri @AlfredoDeliveryBot
-          </a>
-        </p>
-        <div class="warning">
-          <strong>⚠️ Attenzione:</strong> Assicurati che il nome del bot sia esattamente <span class="highlight">@AlfredoDeliveryBot</span>. Non rispondere a bot con nomi simili che potrebbero essere tentativi di truffa.
+        <h2>❓ Domande Frequenti</h2>
+        <div class="step">
+          <p><strong>Non ricevo il messaggio dopo /start. Cosa faccio?</strong></p>
+          <p>Assicurati di aver premuto "Avvia" o scritto esattamente <span class="highlight">/start</span>. Se ancora non funziona, riprova dopo qualche minuto o contatta l'assistenza.</p>
+        </div>
+        <div class="step">
+          <p><strong>Ho cambiato telefono. Devo rifare tutto?</strong></p>
+          <p>No, il tuo Chat ID rimane lo stesso. Basta accedere a Telegram con lo stesso account.</p>
+        </div>
+        <div class="step">
+          <p><strong>Posso disattivare le notifiche temporaneamente?</strong></p>
+          <p>Sì, puoi silenziare la chat del bot da Telegram. Le notifiche continueranno ad arrivare ma senza suono. Per bloccare completamente, rimuovi il Chat ID dalla tua dashboard.</p>
+        </div>
+        <div class="step">
+          <p><strong>Ho bisogno di aiuto!</strong></p>
+          <p>Contatta l'assistenza Alfredo tramite email o telefono. Siamo qui per aiutarti!</p>
         </div>
       </div>
 
-      <h2><span class="step-number">3</span> Avvia la Conversazione</h2>
-      <div class="step">
-        <p>Una volta aperta la chat con il bot:</p>
-        <ol>
-          <li>Clicca sul pulsante <strong>"AVVIA"</strong> o <strong>"START"</strong> in basso</li>
-          <li>Oppure scrivi il comando: <span class="highlight">/start</span></li>
-        </ol>
-        <p style="margin-top: 16px;">Il bot ti risponderà con un messaggio contenente il tuo <strong>Chat ID</strong>:</p>
-        <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; font-family: monospace; margin-top: 12px;">
-          Ciao [Nome]! 👋<br><br>
-          Il tuo Chat ID è: <strong style="background: #fef3c7; padding: 4px 8px;">123456789</strong><br><br>
-          Copia questo numero e salvalo nelle impostazioni della tua dashboard fattorino per ricevere notifiche automatiche su Telegram!
+      <!-- ENGLISH VERSION -->
+      <div class="lang-en">
+        <div class="intro">
+          <p><strong>Why connect Telegram?</strong> By connecting your Telegram account, you'll receive instant notifications when new deliveries are available in your area. You can accept or reject deliveries directly from the chat!</p>
         </div>
-      </div>
 
-      <h2><span class="step-number">4</span> Copia il tuo Chat ID</h2>
-      <div class="step">
-        <p>Il <strong>Chat ID</strong> è un numero univoco (es. <span class="highlight">123456789</span>) che identifica la tua chat.</p>
-        <p><strong>Come copiarlo:</strong></p>
-        <ul>
-          <li>Su smartphone: tieni premuto sul numero e seleziona "Copia"</li>
-          <li>Su computer: seleziona il numero e premi Ctrl+C (Windows) o Cmd+C (Mac)</li>
+        <h2><span class="step-number">1</span> Install Telegram</h2>
+        <div class="step">
+          <p>If you don't have Telegram yet, download it for free:</p>
+          <ul>
+            <li><strong>iPhone:</strong> Search "Telegram" in the App Store</li>
+            <li><strong>Android:</strong> Search "Telegram" in Google Play Store</li>
+            <li><strong>Computer:</strong> Visit <a href="https://desktop.telegram.org" target="_blank">desktop.telegram.org</a></li>
+          </ul>
+          <p>Create an account using your phone number.</p>
+        </div>
+
+        <h2><span class="step-number">2</span> Find the Alfredo Bot</h2>
+        <div class="step">
+          <p>Open Telegram and search for our official bot:</p>
+          <p style="font-size: 24px; text-align: center; margin: 20px 0;">
+            🔍 Search: <span class="highlight">@AlfredoDeliveryBot</span>
+          </p>
+          <p><strong>Or click directly on this link:</strong></p>
+          <p style="text-align: center;">
+            <a href="https://t.me/AlfredoDeliveryBot" class="bot-link" target="_blank">
+              🤖 Open @AlfredoDeliveryBot
+            </a>
+          </p>
+          <div class="warning">
+            <strong>⚠️ Warning:</strong> Make sure the bot name is exactly <span class="highlight">@AlfredoDeliveryBot</span>. Don't respond to bots with similar names that could be scam attempts.
+          </div>
+          <div class="warning">
+            <strong>⚠️ Bot doesn't exist yet?</strong> The bot must be created by the platform administrator using BotFather on Telegram. Contact support if the link doesn't work.
+          </div>
+        </div>
+
+        <h2><span class="step-number">3</span> Start the Conversation</h2>
+        <div class="step">
+          <p>Once you've opened the chat with the bot:</p>
+          <ol>
+            <li>Click the <strong>"START"</strong> button at the bottom</li>
+            <li>Or type the command: <span class="highlight">/start</span></li>
+          </ol>
+          <p style="margin-top: 16px;">The bot will reply with a message containing your <strong>Chat ID</strong>:</p>
+          <div class="chat-example">
+            Hello [Name]! 👋<br><br>
+            Your Chat ID is: <strong style="background: #fef3c7; padding: 4px 8px;">123456789</strong><br><br>
+            Copy this number and save it in your delivery driver dashboard settings to receive automatic notifications on Telegram!
+          </div>
+        </div>
+
+        <h2><span class="step-number">4</span> Copy Your Chat ID</h2>
+        <div class="step">
+          <p>The <strong>Chat ID</strong> is a unique number (e.g., <span class="highlight">123456789</span>) that identifies your chat.</p>
+          <p><strong>How to copy it:</strong></p>
+          <ul>
+            <li>On smartphone: long-press on the number and select "Copy"</li>
+            <li>On computer: select the number and press Ctrl+C (Windows) or Cmd+C (Mac)</li>
+          </ul>
+          <div class="warning">
+            <strong>⚠️ Important:</strong> Don't share your Chat ID with anyone! It's a personal identifier.
+          </div>
+        </div>
+
+        <h2><span class="step-number">5</span> Enter the Chat ID in the Dashboard</h2>
+        <div class="step">
+          <p>Now you need to link the Chat ID to your driver profile:</p>
+          <ol>
+            <li>Log in to your <strong>Delivery Driver Dashboard</strong> on Alfredo</li>
+            <li>Go to the <strong>"Profile"</strong> tab</li>
+            <li>Find the <strong>"Telegram Chat ID"</strong> field</li>
+            <li>Paste the number you copied</li>
+            <li>Click <strong>"Save changes"</strong></li>
+          </ol>
+          <div class="success">
+            <strong>✅ Done!</strong> From now on, you'll receive notifications about new deliveries directly on Telegram. You can accept or reject them with a simple click!
+          </div>
+        </div>
+
+        <h2>📋 Final Checklist</h2>
+        <ul class="checklist">
+          <li>I installed Telegram on my device</li>
+          <li>I searched and found @AlfredoDeliveryBot</li>
+          <li>I started the conversation with /start</li>
+          <li>I received my Chat ID from the bot</li>
+          <li>I copied the Chat ID</li>
+          <li>I entered the Chat ID in my Delivery Driver Dashboard</li>
+          <li>I saved the changes</li>
         </ul>
-        <div class="warning">
-          <strong>⚠️ Importante:</strong> Non condividere il tuo Chat ID con nessuno! È un identificativo personale.
+
+        <h2>❓ Frequently Asked Questions</h2>
+        <div class="step">
+          <p><strong>I don't receive a message after /start. What should I do?</strong></p>
+          <p>Make sure you pressed "Start" or typed exactly <span class="highlight">/start</span>. If it still doesn't work, try again after a few minutes or contact support.</p>
         </div>
-      </div>
-
-      <h2><span class="step-number">5</span> Inserisci il Chat ID nella Dashboard</h2>
-      <div class="step">
-        <p>Ora devi collegare il Chat ID al tuo profilo fattorino:</p>
-        <ol>
-          <li>Accedi alla tua <strong>Dashboard Fattorino</strong> su Alfredo</li>
-          <li>Vai alla scheda <strong>"Profilo"</strong></li>
-          <li>Cerca il campo <strong>"Telegram Chat ID"</strong></li>
-          <li>Incolla il numero che hai copiato</li>
-          <li>Clicca <strong>"Salva modifiche"</strong></li>
-        </ol>
-        <div class="success">
-          <strong>✅ Fatto!</strong> Da ora in poi riceverai le notifiche delle nuove consegne direttamente su Telegram. Potrai accettarle o rifiutarle con un semplice click!
+        <div class="step">
+          <p><strong>I changed my phone. Do I need to redo everything?</strong></p>
+          <p>No, your Chat ID remains the same. Just log in to Telegram with the same account.</p>
         </div>
-      </div>
-
-      <h2>📋 Checklist Finale</h2>
-      <ul class="checklist">
-        <li>Ho installato Telegram sul mio dispositivo</li>
-        <li>Ho cercato e trovato @AlfredoDeliveryBot</li>
-        <li>Ho avviato la conversazione con /start</li>
-        <li>Ho ricevuto il mio Chat ID dal bot</li>
-        <li>Ho copiato il Chat ID</li>
-        <li>Ho inserito il Chat ID nella mia Dashboard Fattorino</li>
-        <li>Ho salvato le modifiche</li>
-      </ul>
-
-      <h2>❓ Domande Frequenti</h2>
-      <div class="step">
-        <p><strong>Non ricevo il messaggio dopo /start. Cosa faccio?</strong></p>
-        <p>Assicurati di aver premuto "Avvia" o scritto esattamente <span class="highlight">/start</span>. Se ancora non funziona, riprova dopo qualche minuto o contatta l'assistenza.</p>
-      </div>
-      <div class="step">
-        <p><strong>Ho cambiato telefono. Devo rifare tutto?</strong></p>
-        <p>No, il tuo Chat ID rimane lo stesso. Basta accedere a Telegram con lo stesso account.</p>
-      </div>
-      <div class="step">
-        <p><strong>Posso disattivare le notifiche temporaneamente?</strong></p>
-        <p>Sì, puoi silenziare la chat del bot da Telegram. Le notifiche continueranno ad arrivare ma senza suono. Per bloccare completamente, rimuovi il Chat ID dalla tua dashboard.</p>
-      </div>
-      <div class="step">
-        <p><strong>Ho bisogno di aiuto!</strong></p>
-        <p>Contatta l'assistenza Alfredo tramite email o telefono. Siamo qui per aiutarti!</p>
+        <div class="step">
+          <p><strong>Can I temporarily disable notifications?</strong></p>
+          <p>Yes, you can mute the bot chat on Telegram. Notifications will continue to arrive but without sound. To completely block them, remove the Chat ID from your dashboard.</p>
+        </div>
+        <div class="step">
+          <p><strong>I need help!</strong></p>
+          <p>Contact Alfredo support via email or phone. We're here to help!</p>
+        </div>
       </div>
     </div>
     
     <div class="footer">
-      <p><strong>Alfredo</strong> - Sistema di gestione consegne</p>
-      <p style="margin-top: 8px;">Documento aggiornato al 2026 | Versione 1.0</p>
+      <p><strong>Alfredo</strong> - <span class="lang-it active">Sistema di gestione consegne</span><span class="lang-en">Delivery management system</span></p>
+      <p style="margin-top: 8px;"><span class="lang-it active">Documento aggiornato al 2026</span><span class="lang-en">Document updated 2026</span> | Version 1.1</p>
     </div>
   </div>
+
+  <script>
+    function setLanguage(lang) {
+      // Toggle button active states
+      document.getElementById('btn-it').classList.toggle('active', lang === 'it');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      
+      // Toggle content visibility
+      document.querySelectorAll('.lang-it').forEach(el => {
+        el.classList.toggle('active', lang === 'it');
+      });
+      document.querySelectorAll('.lang-en').forEach(el => {
+        el.classList.toggle('active', lang === 'en');
+      });
+      
+      // Update HTML lang attribute
+      document.documentElement.lang = lang;
+      
+      // Save preference
+      localStorage.setItem('alfredo-guide-lang', lang);
+    }
+    
+    // Load saved preference
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedLang = localStorage.getItem('alfredo-guide-lang');
+      if (savedLang) {
+        setLanguage(savedLang);
+      }
+    });
+  </script>
 </body>
 </html>
