@@ -56,6 +56,83 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
 // Tutte le catene supportate per fallback
 const ALL_CHAINS = ['eurospin', 'lidl', 'conad', 'coop', 'esselunga', 'carrefour', 'pam', 'md', 'penny', 'aldi'];
 
+// Prezzi tipici prodotti base discount (2025, Italia) - usati come fallback ultimo
+const BASIC_PRODUCT_PRICES: Record<string, number> = {
+  // Uova
+  'uova': 2.29, 'uova 6': 1.49, 'uova 10': 2.49, 'uova 12': 2.99,
+  // Latte
+  'latte': 1.29, 'latte intero': 1.35, 'latte parzialmente scremato': 1.29, 'latte scremato': 1.25, 'latte fresco': 1.69,
+  // Pane
+  'pane': 1.49, 'pane casereccio': 1.99, 'pane integrale': 2.29, 'pancarrè': 1.49,
+  // Pasta
+  'pasta': 0.89, 'spaghetti': 0.89, 'penne': 0.89, 'rigatoni': 0.89, 'fusilli': 0.89,
+  // Riso
+  'riso': 1.79, 'riso arborio': 2.49, 'riso carnaroli': 2.99,
+  // Olio
+  'olio': 5.99, 'olio extravergine': 6.99, 'olio di oliva': 5.99, 'olio di semi': 2.49,
+  // Burro
+  'burro': 2.49, 'burro 250g': 2.99,
+  // Zucchero
+  'zucchero': 1.29, 'zucchero 1kg': 1.29,
+  // Farina
+  'farina': 0.99, 'farina 00': 0.99, 'farina 1kg': 1.19,
+  // Sale
+  'sale': 0.49, 'sale fino': 0.49, 'sale grosso': 0.49,
+  // Caffè
+  'caffè': 3.49, 'caffè 250g': 2.99, 'caffè moka': 3.49,
+  // Cioccolato
+  'cioccolato': 1.49, 'cioccolata': 1.49, 'cioccolato 100g': 1.49, 'cioccolata 100g': 1.49, 'tavoletta cioccolato': 1.49,
+  // Acqua
+  'acqua': 0.35, 'acqua 1.5l': 0.35, 'acqua 6x1.5l': 1.99,
+  // Pomodori
+  'pomodori pelati': 0.79, 'passata': 0.99, 'passata di pomodoro': 0.99,
+  // Tonno
+  'tonno': 1.99, 'tonno in scatola': 1.99, 'tonno 3x80g': 2.49,
+  // Yogurt
+  'yogurt': 0.59, 'yogurt greco': 1.49, 'yogurt bianco': 0.99,
+  // Formaggio
+  'mozzarella': 1.49, 'parmigiano': 3.99, 'grana': 3.99, 'formaggio': 2.49,
+  // Frutta
+  'mele': 1.99, 'banane': 1.49, 'arance': 1.79, 'pere': 2.29,
+  // Verdura
+  'insalata': 1.29, 'pomodori': 1.99, 'zucchine': 1.79, 'carote': 0.99, 'patate': 1.49,
+  // Carne
+  'pollo': 5.99, 'petto di pollo': 7.99, 'macinato': 5.49, 'carne macinata': 5.49,
+};
+
+// Funzione per trovare prezzo base
+function getBasicProductPrice(product: string): number | null {
+  const productLower = product.toLowerCase().trim();
+  
+  // Match esatto
+  if (BASIC_PRODUCT_PRICES[productLower]) {
+    return BASIC_PRODUCT_PRICES[productLower];
+  }
+  
+  // Match parziale - cerca la chiave più lunga che corrisponde
+  let bestMatch: { key: string; price: number } | null = null;
+  for (const [key, price] of Object.entries(BASIC_PRODUCT_PRICES)) {
+    if (productLower.includes(key) || key.includes(productLower)) {
+      if (!bestMatch || key.length > bestMatch.key.length) {
+        bestMatch = { key, price };
+      }
+    }
+  }
+  
+  return bestMatch?.price || null;
+}
+
+// Estrai formato dal nome prodotto (es: 100g, 1L, 6 uova)
+function extractFormat(product: string): { format: string | null; unit: string | null } {
+  const formatRegex = /(\d+)\s*(g|gr|kg|ml|l|lt|cl|pz|uova|pezzi|confezione)/i;
+  const match = product.match(formatRegex);
+  
+  if (match) {
+    return { format: match[0], unit: match[2].toLowerCase() };
+  }
+  return { format: null, unit: null };
+}
+
 // Funzione principale: usa ricerca web mirata su volantini
 async function scrapeProductPrice(
   product: string, 
@@ -63,6 +140,9 @@ async function scrapeProductPrice(
   city: string,
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; productName: string | null }> {
+  
+  // Estrai formato dal prodotto cercato (es: 100g, 1L)
+  const productFormat = extractFormat(product);
   
   // Ricerca mirata: site:doveconviene.it per avere prezzi reali dai volantini
   const queries = [
@@ -131,16 +211,30 @@ async function scrapeProductPrice(
           
           // Prezzo realistico per supermercato discount (0.30€ - 15€ per prodotti base)
           if (price >= 0.30 && price <= 15) {
-            // Estrai il contesto intorno al prezzo
-            const startIdx = Math.max(0, match.index - 50);
-            const endIdx = Math.min(content.length, match.index + 30);
+            // Estrai il contesto intorno al prezzo (più ampio per catturare formato)
+            const startIdx = Math.max(0, match.index - 80);
+            const endIdx = Math.min(content.length, match.index + 40);
             const context = content.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
             
             // Verifica che il contesto contenga parole del prodotto
             const contextLower = context.toLowerCase();
             const isRelevant = productWords.some(w => contextLower.includes(w));
             
-            if (isRelevant || hasChain) {
+            // NUOVO: Verifica match formato se specificato
+            let formatMatch = true;
+            if (productFormat.format) {
+              const contextFormat = extractFormat(context);
+              // Se il prodotto ha un formato, il contesto deve avere lo stesso formato o simile
+              if (contextFormat.format) {
+                // Confronta unità
+                if (productFormat.unit !== contextFormat.unit) {
+                  formatMatch = false;
+                  console.log(`⚠️ Formato non corrispondente: cercato ${productFormat.format}, trovato ${contextFormat.format}`);
+                }
+              }
+            }
+            
+            if ((isRelevant || hasChain) && formatMatch) {
               console.log(`💰 Prezzo trovato: €${price} - "${context.substring(0, 60)}..."`);
               validPrices.push({ price, source: url, context });
             }
@@ -450,6 +544,22 @@ serve(async (req) => {
         isEstimated = true;
         aiConfidence = aiResult.confidence;
         console.log(`✓ Prezzo AI: €${foundPrice} (confidence: ${aiConfidence})`);
+      }
+    }
+
+    // ========================================
+    // FASE 6.5: Fallback prodotti base (prezzi tipici discount +10%)
+    // ========================================
+    if (foundPrice === null) {
+      console.log(`\n🛒 FASE 6.5: Verifica prodotti base...`);
+      const basicPrice = getBasicProductPrice(product);
+      
+      if (basicPrice !== null) {
+        // Aggiungi 10% di margine sicurezza
+        foundPrice = Math.round(basicPrice * 1.10 * 100) / 100;
+        priceSource = 'basic_product_fallback';
+        isEstimated = true;
+        console.log(`✓ Prezzo base: €${basicPrice} + 10% = €${foundPrice}`);
       }
     }
 
