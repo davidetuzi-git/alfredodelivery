@@ -23,7 +23,7 @@ import {
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw, Edit, XCircle } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw, Edit, XCircle, Download, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -52,6 +52,7 @@ interface Order {
   deliverer_name: string | null;
   deliverer_phone: string | null;
   items: any;
+  payment_method: string | null;
 }
 
 const MyOrders = () => {
@@ -70,6 +71,7 @@ const MyOrders = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   // Get order ID from location state (when navigating from Home)
   const openOrderId = (location.state as { openOrderId?: string })?.openOrderId;
@@ -290,6 +292,44 @@ const MyOrders = () => {
     e.stopPropagation();
     setOrderToCancel(order);
     setCancelDialogOpen(true);
+  };
+
+  const handleDownloadReceipt = async (order: Order) => {
+    setDownloadingReceipt(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-receipt', {
+        body: { orderId: order.id, sendEmail: false }
+      });
+
+      if (error) throw error;
+
+      if (data?.receiptHTML) {
+        // Create a blob and download the receipt as HTML
+        const blob = new Blob([data.receiptHTML], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Ricevuta_${order.pickup_code}.html`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Ricevuta scaricata",
+          description: "La ricevuta è stata salvata sul tuo dispositivo",
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile scaricare la ricevuta",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingReceipt(false);
+    }
   };
 
   const activeOrders = orders.filter(
@@ -666,6 +706,23 @@ const MyOrders = () => {
                     }}
                   >
                     Traccia ordine in tempo reale
+                  </Button>
+                )}
+
+                {/* Download Receipt Button for card payments */}
+                {selectedOrder.payment_method === 'card' && (
+                  <Button 
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleDownloadReceipt(selectedOrder)}
+                    disabled={downloadingReceipt}
+                  >
+                    {downloadingReceipt ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-2" />
+                    )}
+                    {downloadingReceipt ? "Generazione..." : "Scarica ricevuta"}
                   </Button>
                 )}
 
