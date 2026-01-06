@@ -37,6 +37,18 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Order not found");
     }
 
+    // Get supermarket address if available
+    let storeDisplay = order.store_name;
+    const { data: supermarket } = await supabase
+      .from("supermarkets")
+      .select("address")
+      .eq("name", order.store_name)
+      .maybeSingle();
+    
+    if (supermarket?.address) {
+      storeDisplay = `${order.store_name} - ${supermarket.address}`;
+    }
+
     if (!order.latitude || !order.longitude) {
       throw new Error("Order location not set");
     }
@@ -173,7 +185,7 @@ C'è una nuova consegna disponibile nella tua zona:
 🔑 *Codice Ritiro:* \`${order.pickup_code}\`
 📅 *Data:* ${new Date(order.delivery_date).toLocaleDateString("it-IT")}
 🕐 *Orario:* ${order.time_slot}
-🏪 *Ritiro:* ${order.store_name}
+🏪 *Ritiro:* ${storeDisplay}
 📍 *Consegna:* ${order.delivery_address}
 ${bonusMessage}
 
