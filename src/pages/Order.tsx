@@ -173,6 +173,9 @@ const Order = () => {
   const [showAlternativesDialog, setShowAlternativesDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   
+  // Flexible delivery option "Let Alfredo decide"
+  const [flexibleDelivery, setFlexibleDelivery] = useState(false);
+  
   // Alcohol verification state
   const [showAlcoholVerificationDialog, setShowAlcoholVerificationDialog] = useState(false);
   const [showResponsibleDrinkingDialog, setShowResponsibleDrinkingDialog] = useState(false);
@@ -334,6 +337,33 @@ const Order = () => {
     "15:00 - 17:00",
     "17:00 - 19:00"
   ];
+
+  // Check if cart contains refrigerated/frozen products
+  const REFRIGERATED_KEYWORDS = [
+    'latte', 'yogurt', 'formaggio', 'burro', 'mozzarella', 'ricotta', 'panna',
+    'affettato', 'prosciutto', 'salame', 'mortadella', 'speck', 'bresaola',
+    'wurstel', 'würstel', 'salsiccia', 'carne', 'pollo', 'manzo', 'maiale',
+    'pesce', 'salmone', 'tonno fresco', 'gamberi', 'cozze', 'vongole',
+    'surgelat', 'congelat', 'gelato', 'ghiacciolo', 'frozen',
+    'fresco', 'freschi', 'fresche', 'insalata', 'verdura',
+    'uova', 'uovo'
+  ];
+  
+  const hasRefrigeratedProducts = (): boolean => {
+    return items.some(item => {
+      const nameLower = item.name.toLowerCase();
+      return REFRIGERATED_KEYWORDS.some(keyword => nameLower.includes(keyword));
+    });
+  };
+
+  const getRefrigeratedProductsList = (): string[] => {
+    return items
+      .filter(item => {
+        const nameLower = item.name.toLowerCase();
+        return REFRIGERATED_KEYWORDS.some(keyword => nameLower.includes(keyword));
+      })
+      .map(item => item.name);
+  };
 
   const addItem = () => {
     setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
@@ -881,13 +911,26 @@ const Order = () => {
       errors.add('store');
       errorMessages.push('Supermercato');
     }
-    if (!deliveryDate) {
-      errors.add('deliveryDate');
-      errorMessages.push('Data di consegna');
+    // Validate date/time only if not using flexible delivery
+    if (!flexibleDelivery) {
+      if (!deliveryDate) {
+        errors.add('deliveryDate');
+        errorMessages.push('Data di consegna');
+      }
+      if (!timeSlot) {
+        errors.add('timeSlot');
+        errorMessages.push('Fascia oraria');
+      }
     }
-    if (!timeSlot) {
-      errors.add('timeSlot');
-      errorMessages.push('Fascia oraria');
+    
+    // Validate flexible delivery doesn't have refrigerated products
+    if (flexibleDelivery && hasRefrigeratedProducts()) {
+      toast({
+        title: "Errore",
+        description: "La consegna flessibile non è disponibile per ordini con prodotti freschi, refrigerati o surgelati. Rimuovi questi prodotti o scegli una data specifica.",
+        variant: "destructive",
+      });
+      return;
     }
     if (validItems.length === 0) {
       errors.add('items');
@@ -1080,12 +1123,19 @@ const Order = () => {
     const serviceFee = calculateServiceFee(finalItems);
     
     // Calculate scheduling adjustment (discount or surcharge based on delivery date)
-    const schedulingAdjustmentForOrder = calculateSchedulingAdjustment(deliveryDate);
-    const suggestionDiscount = suggestedDates.find(s => isSameDay(s.date, deliveryDate!));
-    const holidayInfoForOrder = isDateHoliday(deliveryDate);
-    const holidaySurcharge = holidayInfoForOrder.isHoliday ? (holidayInfoForOrder.surcharge || 10) : 0;
-    const totalSchedulingAdjustment = (schedulingAdjustmentForOrder?.amount || 0) + 
+    // For flexible delivery, apply maximum discount of -€5.00
+    let schedulingAdjustmentForOrder = deliveryDate ? calculateSchedulingAdjustment(deliveryDate) : null;
+    let suggestionDiscount = deliveryDate ? suggestedDates.find(s => isSameDay(s.date, deliveryDate)) : null;
+    let holidayInfoForOrder = deliveryDate ? isDateHoliday(deliveryDate) : { isHoliday: false };
+    let holidaySurcharge = holidayInfoForOrder.isHoliday ? (holidayInfoForOrder.surcharge || 10) : 0;
+    let totalSchedulingAdjustment = (schedulingAdjustmentForOrder?.amount || 0) + 
       (suggestionDiscount ? -suggestionDiscount.extraDiscount : 0);
+    
+    // If using flexible delivery, override with maximum discount
+    if (flexibleDelivery) {
+      totalSchedulingAdjustment = -5; // Maximum discount
+      holidaySurcharge = 0; // No holiday surcharge for flexible
+    }
     
     navigate("/riepilogo-ordine", { 
       state: { 
@@ -1094,8 +1144,9 @@ const Order = () => {
           phone,
           address: fullAddress,
           store,
-          deliveryDate: deliveryDate.toISOString(),
-          timeSlot,
+          deliveryDate: flexibleDelivery ? null : deliveryDate?.toISOString(),
+          timeSlot: flexibleDelivery ? null : timeSlot,
+          flexibleDelivery,
           items: finalItems.map(item => ({
             name: item.name,
             price: item.price || 0,
@@ -1116,12 +1167,14 @@ const Order = () => {
           deliveryDistance,
           serviceFee,
           holidaySurcharge,
-          holidayName: holidayInfoForOrder.isHoliday ? holidayInfoForOrder.name : null,
+          holidayName: holidayInfoForOrder.isHoliday ? (holidayInfoForOrder as any).name : null,
           schedulingAdjustment: {
             amount: totalSchedulingAdjustment,
-            description: schedulingAdjustmentForOrder?.description || '',
-            suggestionReason: suggestionDiscount?.reason || null,
-            suggestionDiscount: suggestionDiscount?.extraDiscount || 0
+            description: flexibleDelivery 
+              ? 'Consegna flessibile: Alfredo sceglie la data migliore' 
+              : (schedulingAdjustmentForOrder?.description || ''),
+            suggestionReason: flexibleDelivery ? 'Massimo risparmio con consegna flessibile' : (suggestionDiscount?.reason || null),
+            suggestionDiscount: flexibleDelivery ? 5 : (suggestionDiscount?.extraDiscount || 0)
           },
           latitude: addressCoords?.lat || null,
           longitude: addressCoords?.lon || null,
@@ -1147,8 +1200,9 @@ const Order = () => {
           addressNotes,
           addressCoords,
           store,
-          deliveryDate: deliveryDate.toISOString(),
-          timeSlot,
+          deliveryDate: flexibleDelivery ? null : deliveryDate?.toISOString(),
+          timeSlot: flexibleDelivery ? null : timeSlot,
+          flexibleDelivery,
           items: finalItems,
           filteredStores
         }
@@ -1425,45 +1479,145 @@ const Order = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <Label>Data di consegna</Label>
-                <DeliveryDatePicker
-                  value={deliveryDate}
-                  onChange={(date) => {
-                    setDeliveryDate(date);
-                    if (fieldErrors.has('deliveryDate')) {
-                      const newErrors = new Set(fieldErrors);
-                      newErrors.delete('deliveryDate');
-                      setFieldErrors(newErrors);
+                
+                {/* Flexible Delivery Option */}
+                <div 
+                  className={cn(
+                    "p-4 rounded-lg border-2 cursor-pointer transition-all",
+                    flexibleDelivery 
+                      ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
+                      : "border-dashed border-muted-foreground/30 hover:border-primary/50"
+                  )}
+                  onClick={() => {
+                    if (hasRefrigeratedProducts()) {
+                      toast({
+                        title: "Opzione non disponibile",
+                        description: "La consegna flessibile non è disponibile per ordini con prodotti freschi, refrigerati o surgelati.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    setFlexibleDelivery(!flexibleDelivery);
+                    if (!flexibleDelivery) {
+                      setDeliveryDate(undefined);
+                      setTimeSlot("");
                     }
                   }}
-                  suggestedDates={suggestedDates}
-                  hasError={fieldErrors.has('deliveryDate')}
-                />
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                      flexibleDelivery ? "border-green-500 bg-green-500" : "border-muted-foreground/50"
+                    )}>
+                      {flexibleDelivery && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-sm flex items-center gap-2">
+                          🎯 Lascia decidere ad Alfredo
+                          <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
+                            -€5,00
+                          </Badge>
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        L'opzione più economica! Consegna entro 7 giorni con notifica 24h prima.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {flexibleDelivery && (
+                    <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 space-y-2 text-xs">
+                      <p className="font-medium text-green-700 dark:text-green-300">📋 Condizioni:</p>
+                      <ul className="space-y-1 text-muted-foreground list-disc list-inside">
+                        <li>Consegna garantita entro <strong>7 giorni</strong> dalla data di richiesta</li>
+                        <li>Verrai notificato con almeno <strong>24 ore di preavviso</strong></li>
+                        <li>Puoi rifiutare la data proposta <strong>una sola volta</strong></li>
+                        <li>In caso di rifiuto, riprogrammazione entro i <strong>4 giorni successivi</strong></li>
+                        <li className="text-amber-600 dark:text-amber-400">
+                          ⚠️ Non disponibile per prodotti freschi, refrigerati o surgelati
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warning if refrigerated products detected */}
+                {flexibleDelivery && hasRefrigeratedProducts() && (
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                      ⚠️ Prodotti non compatibili rilevati:
+                    </p>
+                    <ul className="text-xs text-red-600 dark:text-red-400 mt-1 list-disc list-inside">
+                      {getRefrigeratedProductsList().slice(0, 5).map((name, idx) => (
+                        <li key={idx}>{name}</li>
+                      ))}
+                      {getRefrigeratedProductsList().length > 5 && (
+                        <li>...e altri {getRefrigeratedProductsList().length - 5} prodotti</li>
+                      )}
+                    </ul>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                      Rimuovi questi prodotti o scegli una data specifica.
+                    </p>
+                  </div>
+                )}
+
+                {/* Standard date picker - hidden when flexible delivery is selected */}
+                {!flexibleDelivery && (
+                  <>
+                    <div className="relative flex items-center my-2">
+                      <div className="flex-grow border-t border-muted-foreground/20"></div>
+                      <span className="px-3 text-xs text-muted-foreground">oppure scegli una data</span>
+                      <div className="flex-grow border-t border-muted-foreground/20"></div>
+                    </div>
+                    <DeliveryDatePicker
+                      value={deliveryDate}
+                      onChange={(date) => {
+                        setDeliveryDate(date);
+                        if (fieldErrors.has('deliveryDate')) {
+                          const newErrors = new Set(fieldErrors);
+                          newErrors.delete('deliveryDate');
+                          setFieldErrors(newErrors);
+                        }
+                      }}
+                      suggestedDates={suggestedDates}
+                      hasError={fieldErrors.has('deliveryDate')}
+                    />
+                  </>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="timeSlot">Fascia oraria</Label>
-                <Select value={timeSlot} onValueChange={(value) => {
-                  setTimeSlot(value);
-                  if (fieldErrors.has('timeSlot')) {
-                    const newErrors = new Set(fieldErrors);
-                    newErrors.delete('timeSlot');
-                    setFieldErrors(newErrors);
-                  }
-                }}>
-                  <SelectTrigger id="timeSlot" className={cn(fieldErrors.has('timeSlot') && "border-destructive animate-shake")}>
-                    <SelectValue placeholder="Seleziona una fascia oraria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Time slot - only show if not flexible delivery */}
+              {!flexibleDelivery && (
+                <div className="space-y-2">
+                  <Label htmlFor="timeSlot">Fascia oraria</Label>
+                  <Select value={timeSlot} onValueChange={(value) => {
+                    setTimeSlot(value);
+                    if (fieldErrors.has('timeSlot')) {
+                      const newErrors = new Set(fieldErrors);
+                      newErrors.delete('timeSlot');
+                      setFieldErrors(newErrors);
+                    }
+                  }}>
+                    <SelectTrigger id="timeSlot" className={cn(fieldErrors.has('timeSlot') && "border-destructive animate-shake")}>
+                      <SelectValue placeholder="Seleziona una fascia oraria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeSlots.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-3" id="items">
                 <div className="flex items-center justify-between">

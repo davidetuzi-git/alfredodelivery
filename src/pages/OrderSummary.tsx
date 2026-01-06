@@ -213,23 +213,62 @@ const OrderSummary = () => {
                   <p className="font-semibold text-sm">{orderData.store}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Data di Consegna</p>
-                  <p className="font-semibold text-sm">
-                    {format(new Date(orderData.deliveryDate), "PPP", { locale: it })}
-                  </p>
+              
+              {orderData.flexibleDelivery ? (
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <Calendar className="h-4 w-4 text-green-500" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Data di Consegna</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-green-600 dark:text-green-400">
+                        🎯 Lascia decidere ad Alfredo
+                      </p>
+                      <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
+                        -€5,00
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Consegna entro 7 giorni, notifica 24h prima
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Orario</p>
-                  <p className="font-semibold text-sm">{orderData.timeSlot}</p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Data di Consegna</p>
+                      <p className="font-semibold text-sm">
+                        {orderData.deliveryDate 
+                          ? format(new Date(orderData.deliveryDate), "PPP", { locale: it })
+                          : "Da definire"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Orario</p>
+                      <p className="font-semibold text-sm">{orderData.timeSlot || "Da definire"}</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+            
+            {/* Flexible delivery conditions */}
+            {orderData.flexibleDelivery && (
+              <div className="mt-4 p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
+                  📋 Condizioni consegna flessibile:
+                </p>
+                <ul className="text-xs text-green-600 dark:text-green-400 space-y-1 list-disc list-inside">
+                  <li>Consegna garantita entro 7 giorni dalla richiesta</li>
+                  <li>Notifica almeno 24 ore prima della consegna</li>
+                  <li>Possibilità di rifiuto: 1 volta (riprogrammazione entro 4 giorni)</li>
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
 
