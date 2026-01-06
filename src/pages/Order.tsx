@@ -339,14 +339,19 @@ const Order = () => {
   ];
 
   // Check if cart contains refrigerated/frozen products
+  // Nota: manteniamo la lista volutamente “stretta” per evitare falsi positivi (es. uova, latte UHT).
   const REFRIGERATED_KEYWORDS = [
-    'latte', 'yogurt', 'formaggio', 'burro', 'mozzarella', 'ricotta', 'panna',
+    // Dairy davvero da frigo
+    'yogurt', 'formaggio', 'burro', 'mozzarella', 'ricotta', 'panna',
+    'latte fresco', 'latte pastorizzato', 'latte microfiltrato',
+
+    // Salumi / carne / pesce
     'affettato', 'prosciutto', 'salame', 'mortadella', 'speck', 'bresaola',
     'wurstel', 'würstel', 'salsiccia', 'carne', 'pollo', 'manzo', 'maiale',
     'pesce', 'salmone', 'tonno fresco', 'gamberi', 'cozze', 'vongole',
+
+    // Surgelati
     'surgelat', 'congelat', 'gelato', 'ghiacciolo', 'frozen',
-    'fresco', 'freschi', 'fresche', 'insalata', 'verdura',
-    'uova', 'uovo'
   ];
   
   const hasRefrigeratedProducts = (): boolean => {

@@ -132,7 +132,8 @@ serve(async (req) => {
       console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
       foundPrice = cachedPrice.price;
       priceFromCache = true;
-      priceSource = 'cache';
+      // Mantieni la provenienza originale salvata in cache (es: ai_search, category_estimate, ...)
+      priceSource = (cachedPrice.source as string) ?? 'cache';
     } else {
       console.log('✗ Non in cache');
     }
@@ -446,20 +447,29 @@ Alta qualità, realistica, professionale.`;
       }
     }
         
-    // Salva in cache solo se non era già in cache
-    if (!priceFromCache) {
-      await supabase
+    // Salva in cache solo se abbiamo un prezzo “buono” (evita di fissare per 30 giorni fallback tipo 2.49)
+    if (!priceFromCache && foundPrice !== null && priceSource === 'ai_search') {
+      const { error: upsertError } = await supabase
         .from('product_prices')
         .upsert({
           product_name: normalizedProduct,
           store_name: normalizedStore,
           store_address: normalizedAddress,
           price: foundPrice,
-          source: 'ai_estimate',
+          source: priceSource,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'product_name,store_name,store_address'
         });
+
+      if (upsertError) {
+        console.log('⚠️ Cache upsert fallito:', upsertError.message);
+      }
+    }
+
+    // Se non abbiamo trovato nulla, manteniamo un fallback, ma lo etichettiamo chiaramente
+    if (foundPrice === null) {
+      priceSource = 'ultimate_fallback';
     }
 
     const finalPrice = foundPrice ?? 2.49; // Ultimate fallback
@@ -468,7 +478,8 @@ Alta qualità, realistica, professionale.`;
       price: finalPrice,
       priceInfo: `€${finalPrice.toFixed(2)}`,
       cached: priceFromCache,
-      estimated: !priceFromCache,
+      // Qualsiasi cosa che non sia "cache" va considerata una stima
+      estimated: priceSource !== 'cache',
       priceSource,
       completedProduct: completedProductName,
       productAvailable,
