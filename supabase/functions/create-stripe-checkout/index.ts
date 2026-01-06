@@ -79,6 +79,11 @@ serve(async (req) => {
       mode: "payment",
       success_url: returnUrl || `${req.headers.get("origin")}/stripe-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${req.headers.get("origin")}/checkout`,
+      // Statement descriptor shown on customer's bank/card statement and SMS
+      payment_intent_data: {
+        statement_descriptor: "AlfredoDel",
+        statement_descriptor_suffix: "Spesa",
+      },
       metadata: {
         user_id: user.id,
         // Store only essential fields to stay under 500 char limit
