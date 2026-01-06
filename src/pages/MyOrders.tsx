@@ -436,7 +436,19 @@ const MyOrders = () => {
 
                   {/* Action Buttons for Active Orders */}
                   {filterTab === 'active' && (
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex gap-2 mt-4 flex-wrap">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/tracking", { state: { pickupCode: order.pickup_code } });
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Vedi stato
+                      </Button>
                       {canEditOrder(order) && (
                         <Button 
                           variant="outline" 
@@ -457,12 +469,6 @@ const MyOrders = () => {
                         >
                           <XCircle className="h-4 w-4 mr-2" />
                           Annulla
-                        </Button>
-                      )}
-                      {!canEditOrder(order) && !canCancelOrder(order) && (
-                        <Button variant="outline" size="sm" className="w-full">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Vedi dettagli
                         </Button>
                       )}
                     </div>
