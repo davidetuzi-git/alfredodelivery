@@ -132,14 +132,8 @@ const Checkout = () => {
           paymentMethod: 'card'
         }));
         
-        // Open Stripe checkout in new tab
-        window.open(data.url, '_blank');
-        setProcessing(false);
-        
-        toast({
-          title: "Checkout Stripe aperto",
-          description: "Completa il pagamento nella nuova scheda",
-        });
+        // Redirect to Stripe checkout in same tab (no more confusing multiple tabs)
+        window.location.href = data.url;
         return;
       } catch (error) {
         console.error('Stripe error:', error);

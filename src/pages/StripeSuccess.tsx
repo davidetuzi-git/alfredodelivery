@@ -117,10 +117,10 @@ const StripeSuccess = () => {
           description: "Il tuo ordine è stato confermato",
         });
 
-        // Redirect to tracking after 4 seconds (longer to show confirmation)
+        // Redirect to tracking after 3 seconds to show confirmation
         setTimeout(() => {
           navigate("/tracking", { state: { pickupCode: generatedCode } });
-        }, 4000);
+        }, 3000);
 
       } catch (error) {
         console.error('Error processing payment:', error);
