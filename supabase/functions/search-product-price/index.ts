@@ -56,231 +56,7 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
 // Tutte le catene supportate per fallback
 const ALL_CHAINS = ['eurospin', 'lidl', 'conad', 'coop', 'esselunga', 'carrefour', 'pam', 'md', 'penny', 'aldi'];
 
-// URL ufficiali dei volantini per catena
-const CHAIN_FLYER_URLS: Record<string, string[]> = {
-  'eurospin': [
-    'https://www.eurospin.it/volantino/',
-    'https://www.doveconviene.it/volantino/eurospin'
-  ],
-  'lidl': [
-    'https://www.lidl.it/offerte',
-    'https://www.doveconviene.it/volantino/lidl'
-  ],
-  'conad': [
-    'https://www.conad.it/offerte-e-promozioni.html',
-    'https://www.doveconviene.it/volantino/conad'
-  ],
-  'coop': [
-    'https://www.e-coop.it/offerte',
-    'https://www.doveconviene.it/volantino/coop'
-  ],
-  'esselunga': [
-    'https://www.esselunga.it/cms/offerte/volantino.html',
-    'https://www.doveconviene.it/volantino/esselunga'
-  ],
-  'carrefour': [
-    'https://www.carrefour.it/volantino',
-    'https://www.doveconviene.it/volantino/carrefour'
-  ],
-  'pam': [
-    'https://www.pampanorama.it/volantino',
-    'https://www.doveconviene.it/volantino/pam'
-  ],
-  'md': [
-    'https://www.mdspa.it/volantino/',
-    'https://www.doveconviene.it/volantino/md-discount'
-  ],
-  'penny': [
-    'https://www.penny.it/offerte',
-    'https://www.doveconviene.it/volantino/penny-market'
-  ],
-  'aldi': [
-    'https://www.aldi.it/offerte.html',
-    'https://www.doveconviene.it/volantino/aldi'
-  ],
-};
-
-// Funzione per fare scraping DIRETTO dal sito del supermercato
-async function scrapeDirectFromChain(
-  product: string, 
-  chainName: string, 
-  FIRECRAWL_API_KEY: string
-): Promise<{ price: number | null; source: string; productName: string | null }> {
-  const chainLower = chainName.toLowerCase();
-  const flyerUrls = CHAIN_FLYER_URLS[chainLower] || [];
-  
-  console.log(`\n🎯 SCRAPING DIRETTO: ${chainName}`);
-  console.log(`📍 URL volantini: ${flyerUrls.length}`);
-
-  for (const flyerUrl of flyerUrls) {
-    console.log(`\n📄 Scraping: ${flyerUrl}`);
-    
-    try {
-      // Usa Firecrawl per fare scraping diretto della pagina del volantino
-      const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: flyerUrl,
-          formats: ['markdown'],
-          onlyMainContent: true,
-          waitFor: 2000,
-        }),
-      });
-
-      if (!scrapeResponse.ok) {
-        console.log(`✗ Scrape failed: ${scrapeResponse.status}`);
-        continue;
-      }
-
-      const scrapeData = await scrapeResponse.json();
-      const content = scrapeData.data?.markdown || scrapeData.markdown || '';
-      
-      if (!content) {
-        console.log('✗ Nessun contenuto trovato');
-        continue;
-      }
-
-      console.log(`📊 Contenuto: ${content.length} caratteri`);
-      
-      // Cerca il prodotto nel contenuto
-      const productWords = product.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      const contentLower = content.toLowerCase();
-      
-      // Trova tutte le sezioni che contengono il prodotto
-      const lines = content.split('\n');
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].toLowerCase();
-        const lineOriginal = lines[i];
-        
-        // Verifica se questa riga contiene parole chiave del prodotto
-        const matchedWords = productWords.filter(word => line.includes(word));
-        
-        if (matchedWords.length >= 1) {
-          console.log(`🔍 Riga match: "${lineOriginal.substring(0, 100)}..."`);
-          
-          // Cerca il prezzo in questa riga e nelle 3 righe successive
-          const searchBlock = lines.slice(i, i + 4).join(' ');
-          
-          const pricePatterns = [
-            /€\s*(\d+)[,.](\d{2})/,
-            /(\d+)[,.](\d{2})\s*€/,
-            /(\d+)[,.](\d{2})/,
-          ];
-
-          for (const pattern of pricePatterns) {
-            const match = searchBlock.match(pattern);
-            if (match) {
-              const priceStr = `${match[1]}.${match[2]}`;
-              const price = parseFloat(priceStr);
-              
-              // Prezzo realistico per supermercato (0.20€ - 50€)
-              if (price >= 0.20 && price <= 50) {
-                console.log(`✅ PREZZO TROVATO: €${price} per "${product}" su ${flyerUrl}`);
-                return {
-                  price,
-                  source: `volantino:${chainName}:${flyerUrl}`,
-                  productName: lineOriginal.trim().substring(0, 60)
-                };
-              }
-            }
-          }
-        }
-      }
-      
-    } catch (error) {
-      console.error(`Errore scraping ${flyerUrl}:`, error);
-    }
-  }
-  
-  return { price: null, source: 'not_in_flyer', productName: null };
-}
-
-// Funzione per cercare su DoveConviene (aggregatore volantini affidabile)
-async function searchDoveConviene(
-  product: string, 
-  chainName: string,
-  FIRECRAWL_API_KEY: string
-): Promise<{ price: number | null; source: string; productName: string | null }> {
-  // DoveConviene ha una ricerca prodotto specifica
-  const searchUrl = `https://www.doveconviene.it/ricerca?q=${encodeURIComponent(product)}+${encodeURIComponent(chainName)}`;
-  
-  console.log(`\n🔎 Ricerca DoveConviene: ${searchUrl}`);
-  
-  try {
-    const searchResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: searchUrl,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-    });
-
-    if (!searchResponse.ok) {
-      console.log(`✗ DoveConviene search failed: ${searchResponse.status}`);
-      return { price: null, source: 'doveconviene_failed', productName: null };
-    }
-
-    const searchData = await searchResponse.json();
-    const content = searchData.data?.markdown || searchData.markdown || '';
-    
-    if (!content) {
-      return { price: null, source: 'no_content', productName: null };
-    }
-
-    console.log(`📊 DoveConviene contenuto: ${content.length} caratteri`);
-    
-    // Cerca prezzi nel contenuto
-    const productLower = product.toLowerCase();
-    const chainLower = chainName.toLowerCase();
-    const lines = content.split('\n');
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      
-      // Cerca righe che contengono sia il prodotto che la catena
-      if (line.includes(productLower.split(' ')[0]) || 
-          (line.includes(chainLower) && i > 0 && lines[i-1].toLowerCase().includes(productLower.split(' ')[0]))) {
-        
-        const searchBlock = lines.slice(Math.max(0, i-2), i + 3).join(' ');
-        
-        const priceMatch = searchBlock.match(/€\s*(\d+)[,.](\d{2})|(\d+)[,.](\d{2})\s*€/);
-        if (priceMatch) {
-          const euros = priceMatch[1] || priceMatch[3];
-          const cents = priceMatch[2] || priceMatch[4];
-          const price = parseFloat(`${euros}.${cents}`);
-          
-          if (price >= 0.20 && price <= 50) {
-            console.log(`✅ DoveConviene PREZZO: €${price}`);
-            return {
-              price,
-              source: `doveconviene:${chainName}`,
-              productName: lines[i].trim().substring(0, 60)
-            };
-          }
-        }
-      }
-    }
-    
-    return { price: null, source: 'not_found_doveconviene', productName: null };
-    
-  } catch (error) {
-    console.error('Errore DoveConviene:', error);
-    return { price: null, source: 'doveconviene_error', productName: null };
-  }
-}
-
-// Funzione principale di ricerca prezzo (ora con scraping diretto)
+// Funzione principale: usa ricerca web mirata su volantini
 async function scrapeProductPrice(
   product: string, 
   chainName: string, 
@@ -288,76 +64,113 @@ async function scrapeProductPrice(
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; productName: string | null }> {
   
-  // STEP 1: Prova scraping diretto dal volantino ufficiale
-  console.log(`\n${'─'.repeat(40)}`);
-  console.log(`STEP 1: Volantino ufficiale ${chainName}`);
-  let result = await scrapeDirectFromChain(product, chainName, FIRECRAWL_API_KEY);
-  if (result.price !== null) return result;
+  // Ricerca mirata: site:doveconviene.it per avere prezzi reali dai volantini
+  const queries = [
+    `site:doveconviene.it "${product}" ${chainName} prezzo €`,
+    `site:promoqui.it "${product}" ${chainName} prezzo`,
+    `"${product}" ${chainName} volantino prezzo € 2025`,
+  ];
   
-  // STEP 2: Prova DoveConviene (aggregatore affidabile)
-  console.log(`\n${'─'.repeat(40)}`);
-  console.log(`STEP 2: DoveConviene`);
-  result = await searchDoveConviene(product, chainName, FIRECRAWL_API_KEY);
-  if (result.price !== null) return result;
+  console.log(`\n🔍 Ricerca prezzo: ${product} @ ${chainName}`);
   
-  // STEP 3: Ricerca generica come ultimo tentativo
-  console.log(`\n${'─'.repeat(40)}`);
-  console.log(`STEP 3: Ricerca web generica`);
-  
-  const searchQuery = `"${product}" prezzo ${chainName} volantino 2025`;
-  
-  try {
-    const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: 5,
-        lang: 'it',
-        country: 'IT',
-        scrapeOptions: { formats: ['markdown'] }
-      }),
-    });
+  for (const searchQuery of queries) {
+    console.log(`📌 Query: ${searchQuery}`);
+    
+    try {
+      const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          limit: 8,
+          lang: 'it',
+          country: 'IT',
+          scrapeOptions: { formats: ['markdown'] }
+        }),
+      });
 
-    if (searchResponse.ok) {
+      if (!searchResponse.ok) {
+        console.log(`✗ Search failed: ${searchResponse.status}`);
+        continue;
+      }
+
       const searchData = await searchResponse.json();
+      const results = searchData.data || [];
+      console.log(`📊 Trovati ${results.length} risultati`);
       
-      if (searchData.data) {
-        for (const item of searchData.data) {
-          const content = (item.markdown || '') + ' ' + (item.title || '');
-          const url = item.url || '';
+      // Raccogli tutti i prezzi validi
+      const validPrices: { price: number; source: string; context: string }[] = [];
+      
+      for (const item of results) {
+        const content = (item.markdown || '') + ' ' + (item.title || '') + ' ' + (item.description || '');
+        const url = item.url || '';
+        const contentLower = content.toLowerCase();
+        const chainLower = chainName.toLowerCase();
+        const productLower = product.toLowerCase();
+        
+        // Verifica pertinenza: deve contenere sia il prodotto che la catena
+        const hasChain = contentLower.includes(chainLower);
+        const productWords = productLower.split(/\s+/).filter(w => w.length > 2);
+        const hasProduct = productWords.some(w => contentLower.includes(w));
+        
+        if (!hasProduct) {
+          continue;
+        }
+        
+        // Estrai TUTTI i prezzi dal contenuto
+        const priceRegex = /€\s*(\d{1,2})[,.](\d{2})|(\d{1,2})[,.](\d{2})\s*€/g;
+        let match;
+        
+        while ((match = priceRegex.exec(content)) !== null) {
+          const euros = match[1] || match[3];
+          const cents = match[2] || match[4];
+          const price = parseFloat(`${euros}.${cents}`);
           
-          // Verifica che sia effettivamente del supermercato richiesto
-          if (!url.toLowerCase().includes(chainName.toLowerCase()) && 
-              !content.toLowerCase().includes(chainName.toLowerCase())) {
-            continue;
-          }
-          
-          const priceMatch = content.match(/€\s*(\d+)[,.](\d{2})|(\d+)[,.](\d{2})\s*€/);
-          if (priceMatch) {
-            const euros = priceMatch[1] || priceMatch[3];
-            const cents = priceMatch[2] || priceMatch[4];
-            const price = parseFloat(`${euros}.${cents}`);
+          // Prezzo realistico per supermercato discount (0.30€ - 15€ per prodotti base)
+          if (price >= 0.30 && price <= 15) {
+            // Estrai il contesto intorno al prezzo
+            const startIdx = Math.max(0, match.index - 50);
+            const endIdx = Math.min(content.length, match.index + 30);
+            const context = content.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
             
-            if (price >= 0.20 && price <= 50) {
-              console.log(`✅ Web search PREZZO: €${price} da ${url}`);
-              return {
-                price,
-                source: `web:${chainName}:${url}`,
-                productName: null
-              };
+            // Verifica che il contesto contenga parole del prodotto
+            const contextLower = context.toLowerCase();
+            const isRelevant = productWords.some(w => contextLower.includes(w));
+            
+            if (isRelevant || hasChain) {
+              console.log(`💰 Prezzo trovato: €${price} - "${context.substring(0, 60)}..."`);
+              validPrices.push({ price, source: url, context });
             }
           }
         }
       }
+      
+      // Se abbiamo prezzi validi, prendi la mediana (più affidabile del minimo)
+      if (validPrices.length > 0) {
+        validPrices.sort((a, b) => a.price - b.price);
+        
+        // Prendi la mediana o il secondo più basso se ci sono abbastanza dati
+        const idx = Math.min(1, Math.floor(validPrices.length / 2));
+        const bestPrice = validPrices[idx];
+        
+        console.log(`✅ PREZZO SELEZIONATO: €${bestPrice.price} (${validPrices.length} prezzi trovati)`);
+        
+        return {
+          price: bestPrice.price,
+          source: `verified:${chainName}:${bestPrice.source}`,
+          productName: bestPrice.context.substring(0, 60)
+        };
+      }
+      
+    } catch (error) {
+      console.error(`Errore ricerca:`, error);
     }
-  } catch (error) {
-    console.error('Errore ricerca web:', error);
   }
   
+  console.log(`❌ Nessun prezzo trovato per ${product}`);
   return { price: null, source: 'not_found', productName: null };
 }
 
