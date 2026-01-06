@@ -782,6 +782,26 @@ const DelivererDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>📚 Guide & Risorse</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <a 
+                href="/docs/guida-telegram-fattorini.html" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-primary/5 transition-colors"
+              >
+                <span className="text-2xl">📱</span>
+                <div>
+                  <p className="font-medium">Guida Connessione Telegram</p>
+                  <p className="text-xs text-muted-foreground">Come ricevere notifiche delle consegne</p>
+                </div>
+              </a>
+            </CardContent>
+          </Card>
         </div>
 
         {notifications.length > 0 && (

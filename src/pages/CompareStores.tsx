@@ -54,6 +54,7 @@ const CompareStores = () => {
     }
 
     setLoading(true);
+    setComparison(null); // Reset previous comparison
     
     try {
       const currentItems = validItems.map(item => ({
@@ -166,6 +167,17 @@ const CompareStores = () => {
                 "Confronta prezzi"
               )}
             </Button>
+            
+            {loading && (
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-800 dark:text-amber-200 text-center">
+                  ⏳ <strong>Confronto in corso...</strong>
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-300 text-center mt-1">
+                  A seconda del numero di prodotti nella tua lista, il confronto può richiedere da alcuni secondi ad alcuni minuti. Non chiudere questa pagina.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guida Connessione Telegram - Alfredo Fattorini</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f8fafc;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #0088cc 0%, #00a8e8 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      opacity: 0.9;
+      font-size: 16px;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      background: white;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+    .content {
+      padding: 40px;
+    }
+    .intro {
+      background: #e0f2fe;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border-left: 4px solid #0088cc;
+    }
+    .intro p {
+      color: #0369a1;
+    }
+    h2 {
+      color: #0088cc;
+      font-size: 22px;
+      margin: 30px 0 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .step-number {
+      background: #0088cc;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .step {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .step p {
+      margin-bottom: 12px;
+    }
+    .step ul {
+      margin-left: 20px;
+      margin-bottom: 12px;
+    }
+    .step li {
+      margin-bottom: 8px;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: 600;
+      color: #92400e;
+    }
+    .warning {
+      background: #fef3c7;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #f59e0b;
+      margin: 20px 0;
+    }
+    .warning strong {
+      color: #92400e;
+    }
+    .success {
+      background: #d1fae5;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #10b981;
+      margin: 20px 0;
+    }
+    .success strong {
+      color: #047857;
+    }
+    .screenshot-placeholder {
+      background: #f1f5f9;
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      color: #64748b;
+      margin: 16px 0;
+    }
+    .bot-link {
+      display: inline-block;
+      background: #0088cc;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      margin: 10px 0;
+    }
+    .bot-link:hover {
+      background: #006699;
+    }
+    .footer {
+      background: #f1f5f9;
+      padding: 24px 40px;
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+    }
+    .checklist li {
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .checklist li:last-child {
+      border-bottom: none;
+    }
+    .checklist li::before {
+      content: "☐";
+      font-size: 18px;
+      color: #0088cc;
+    }
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+      .container {
+        box-shadow: none;
+        border-radius: 0;
+      }
+      .bot-link {
+        background: none;
+        color: #0088cc;
+        padding: 0;
+        text-decoration: underline;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">📱</div>
+      <h1>Guida Connessione Telegram</h1>
+      <p>Sistema di notifiche per fattorini Alfredo</p>
+    </div>
+    
+    <div class="content">
+      <div class="intro">
+        <p><strong>Perché collegare Telegram?</strong> Collegando il tuo account Telegram, riceverai notifiche istantanee quando ci sono nuove consegne disponibili nella tua zona. Potrai accettare o rifiutare le consegne direttamente dalla chat!</p>
+      </div>
+
+      <h2><span class="step-number">1</span> Installa Telegram</h2>
+      <div class="step">
+        <p>Se non hai già Telegram, scaricalo gratuitamente:</p>
+        <ul>
+          <li><strong>iPhone:</strong> Cerca "Telegram" nell'App Store</li>
+          <li><strong>Android:</strong> Cerca "Telegram" nel Google Play Store</li>
+          <li><strong>Computer:</strong> Visita <a href="https://desktop.telegram.org" target="_blank">desktop.telegram.org</a></li>
+        </ul>
+        <p>Crea un account usando il tuo numero di telefono.</p>
+      </div>
+
+      <h2><span class="step-number">2</span> Cerca il Bot Alfredo</h2>
+      <div class="step">
+        <p>Apri Telegram e cerca il nostro bot ufficiale:</p>
+        <p style="font-size: 24px; text-align: center; margin: 20px 0;">
+          🔍 Cerca: <span class="highlight">@AlfredoDeliveryBot</span>
+        </p>
+        <p><strong>Oppure clicca direttamente su questo link:</strong></p>
+        <p style="text-align: center;">
+          <a href="https://t.me/AlfredoDeliveryBot" class="bot-link" target="_blank">
+            🤖 Apri @AlfredoDeliveryBot
+          </a>
+        </p>
+        <div class="warning">
+          <strong>⚠️ Attenzione:</strong> Assicurati che il nome del bot sia esattamente <span class="highlight">@AlfredoDeliveryBot</span>. Non rispondere a bot con nomi simili che potrebbero essere tentativi di truffa.
+        </div>
+      </div>
+
+      <h2><span class="step-number">3</span> Avvia la Conversazione</h2>
+      <div class="step">
+        <p>Una volta aperta la chat con il bot:</p>
+        <ol>
+          <li>Clicca sul pulsante <strong>"AVVIA"</strong> o <strong>"START"</strong> in basso</li>
+          <li>Oppure scrivi il comando: <span class="highlight">/start</span></li>
+        </ol>
+        <p style="margin-top: 16px;">Il bot ti risponderà con un messaggio contenente il tuo <strong>Chat ID</strong>:</p>
+        <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; font-family: monospace; margin-top: 12px;">
+          Ciao [Nome]! 👋<br><br>
+          Il tuo Chat ID è: <strong style="background: #fef3c7; padding: 4px 8px;">123456789</strong><br><br>
+          Copia questo numero e salvalo nelle impostazioni della tua dashboard fattorino per ricevere notifiche automatiche su Telegram!
+        </div>
+      </div>
+
+      <h2><span class="step-number">4</span> Copia il tuo Chat ID</h2>
+      <div class="step">
+        <p>Il <strong>Chat ID</strong> è un numero univoco (es. <span class="highlight">123456789</span>) che identifica la tua chat.</p>
+        <p><strong>Come copiarlo:</strong></p>
+        <ul>
+          <li>Su smartphone: tieni premuto sul numero e seleziona "Copia"</li>
+          <li>Su computer: seleziona il numero e premi Ctrl+C (Windows) o Cmd+C (Mac)</li>
+        </ul>
+        <div class="warning">
+          <strong>⚠️ Importante:</strong> Non condividere il tuo Chat ID con nessuno! È un identificativo personale.
+        </div>
+      </div>
+
+      <h2><span class="step-number">5</span> Inserisci il Chat ID nella Dashboard</h2>
+      <div class="step">
+        <p>Ora devi collegare il Chat ID al tuo profilo fattorino:</p>
+        <ol>
+          <li>Accedi alla tua <strong>Dashboard Fattorino</strong> su Alfredo</li>
+          <li>Vai alla scheda <strong>"Profilo"</strong></li>
+          <li>Cerca il campo <strong>"Telegram Chat ID"</strong></li>
+          <li>Incolla il numero che hai copiato</li>
+          <li>Clicca <strong>"Salva modifiche"</strong></li>
+        </ol>
+        <div class="success">
+          <strong>✅ Fatto!</strong> Da ora in poi riceverai le notifiche delle nuove consegne direttamente su Telegram. Potrai accettarle o rifiutarle con un semplice click!
+        </div>
+      </div>
+
+      <h2>📋 Checklist Finale</h2>
+      <ul class="checklist">
+        <li>Ho installato Telegram sul mio dispositivo</li>
+        <li>Ho cercato e trovato @AlfredoDeliveryBot</li>
+        <li>Ho avviato la conversazione con /start</li>
+        <li>Ho ricevuto il mio Chat ID dal bot</li>
+        <li>Ho copiato il Chat ID</li>
+        <li>Ho inserito il Chat ID nella mia Dashboard Fattorino</li>
+        <li>Ho salvato le modifiche</li>
+      </ul>
+
+      <h2>❓ Domande Frequenti</h2>
+      <div class="step">
+        <p><strong>Non ricevo il messaggio dopo /start. Cosa faccio?</strong></p>
+        <p>Assicurati di aver premuto "Avvia" o scritto esattamente <span class="highlight">/start</span>. Se ancora non funziona, riprova dopo qualche minuto o contatta l'assistenza.</p>
+      </div>
+      <div class="step">
+        <p><strong>Ho cambiato telefono. Devo rifare tutto?</strong></p>
+        <p>No, il tuo Chat ID rimane lo stesso. Basta accedere a Telegram con lo stesso account.</p>
+      </div>
+      <div class="step">
+        <p><strong>Posso disattivare le notifiche temporaneamente?</strong></p>
+        <p>Sì, puoi silenziare la chat del bot da Telegram. Le notifiche continueranno ad arrivare ma senza suono. Per bloccare completamente, rimuovi il Chat ID dalla tua dashboard.</p>
+      </div>
+      <div class="step">
+        <p><strong>Ho bisogno di aiuto!</strong></p>
+        <p>Contatta l'assistenza Alfredo tramite email o telefono. Siamo qui per aiutarti!</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p><strong>Alfredo</strong> - Sistema di gestione consegne</p>
+      <p style="margin-top: 8px;">Documento aggiornato al 2026 | Versione 1.0</p>
+    </div>
+  </div>
+</body>
+</html>
