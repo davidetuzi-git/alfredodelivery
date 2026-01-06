@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload, Save, FolderOpen } from "lucide-react";
+import { Plus, X, Loader2, Trash2, ArrowLeft, ShoppingBag, AlertCircle, Receipt, FileText, Upload, Save, FolderOpen, Calendar } from "lucide-react";
 import SupermarketMap, { stores, calculateDistance } from "@/components/SupermarketMap";
 import PriceComparison from "@/components/PriceComparison";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -1566,13 +1566,13 @@ const Order = () => {
                   )}
                 </div>
 
-                {/* Warning if refrigerated products detected */}
+                {/* Warning if refrigerated products detected with flexible delivery */}
                 {flexibleDelivery && hasRefrigeratedProducts() && (
-                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 space-y-3">
                     <p className="text-sm font-medium text-red-700 dark:text-red-300">
                       ⚠️ Prodotti non compatibili rilevati:
                     </p>
-                    <ul className="text-xs text-red-600 dark:text-red-400 mt-1 list-disc list-inside">
+                    <ul className="text-xs text-red-600 dark:text-red-400 list-disc list-inside">
                       {getRefrigeratedProductsList().slice(0, 5).map((name, idx) => (
                         <li key={idx}>{name}</li>
                       ))}
@@ -1580,24 +1580,40 @@ const Order = () => {
                         <li>...e altri {getRefrigeratedProductsList().length - 5} prodotti</li>
                       )}
                     </ul>
-                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                    <p className="text-xs text-red-600 dark:text-red-400">
                       Rimuovi questi prodotti o scegli una data specifica.
                     </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/50"
+                      onClick={() => setFlexibleDelivery(false)}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Scegli una data specifica
+                    </Button>
                   </div>
                 )}
 
-                {/* Standard date picker - hidden when flexible delivery is selected */}
-                {!flexibleDelivery && (
+                {/* Standard date picker - show when flexible delivery is NOT selected OR when there are refrigerated products */}
+                {(!flexibleDelivery || hasRefrigeratedProducts()) && (
                   <>
-                    <div className="relative flex items-center my-2">
-                      <div className="flex-grow border-t border-muted-foreground/20"></div>
-                      <span className="px-3 text-xs text-muted-foreground">oppure scegli una data</span>
-                      <div className="flex-grow border-t border-muted-foreground/20"></div>
-                    </div>
+                    {flexibleDelivery && hasRefrigeratedProducts() ? null : (
+                      <div className="relative flex items-center my-2">
+                        <div className="flex-grow border-t border-muted-foreground/20"></div>
+                        <span className="px-3 text-xs text-muted-foreground">oppure scegli una data</span>
+                        <div className="flex-grow border-t border-muted-foreground/20"></div>
+                      </div>
+                    )}
                     <DeliveryDatePicker
                       value={deliveryDate}
                       onChange={(date) => {
                         setDeliveryDate(date);
+                        // Auto-disable flexible delivery when user picks a date
+                        if (date && flexibleDelivery) {
+                          setFlexibleDelivery(false);
+                        }
                         if (fieldErrors.has('deliveryDate')) {
                           const newErrors = new Set(fieldErrors);
                           newErrors.delete('deliveryDate');
@@ -1611,12 +1627,16 @@ const Order = () => {
                 )}
               </div>
 
-              {/* Time slot - only show if not flexible delivery */}
-              {!flexibleDelivery && (
+              {/* Time slot - show if not flexible delivery OR if there are refrigerated products (must choose specific date/time) */}
+              {(!flexibleDelivery || hasRefrigeratedProducts()) && (
                 <div className="space-y-2">
                   <Label htmlFor="timeSlot">Fascia oraria</Label>
                   <Select value={timeSlot} onValueChange={(value) => {
                     setTimeSlot(value);
+                    // Auto-disable flexible delivery when user picks a time slot
+                    if (value && flexibleDelivery) {
+                      setFlexibleDelivery(false);
+                    }
                     if (fieldErrors.has('timeSlot')) {
                       const newErrors = new Set(fieldErrors);
                       newErrors.delete('timeSlot');
