@@ -56,6 +56,65 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
 // Tutte le catene supportate per fallback
 const ALL_CHAINS = ['eurospin', 'lidl', 'conad', 'coop', 'esselunga', 'carrefour', 'pam', 'md', 'penny', 'aldi'];
 
+// Range di prezzo realistico per categoria prodotto (min, max)
+const PRICE_RANGES: Record<string, { min: number; max: number }> = {
+  // Panificazione
+  'pane': { min: 0.50, max: 3.50 },
+  'baguette': { min: 0.50, max: 2.50 },
+  'focaccia': { min: 1.00, max: 4.00 },
+  'panino': { min: 0.30, max: 2.00 },
+  'grissini': { min: 0.80, max: 3.00 },
+  // Latticini
+  'latte': { min: 0.80, max: 3.00 },
+  'yogurt': { min: 0.30, max: 2.50 },
+  'burro': { min: 1.50, max: 5.00 },
+  'formaggio': { min: 1.00, max: 15.00 },
+  'mozzarella': { min: 0.80, max: 5.00 },
+  'parmigiano': { min: 3.00, max: 25.00 },
+  // Frutta e verdura
+  'mela': { min: 0.50, max: 4.00 },
+  'banana': { min: 0.80, max: 2.50 },
+  'insalata': { min: 0.80, max: 3.00 },
+  'pomodoro': { min: 0.80, max: 4.00 },
+  'patate': { min: 0.80, max: 3.00 },
+  // Pasta e riso
+  'pasta': { min: 0.50, max: 4.00 },
+  'spaghetti': { min: 0.50, max: 3.00 },
+  'riso': { min: 1.00, max: 5.00 },
+  // Bevande
+  'acqua': { min: 0.20, max: 1.50 },
+  'coca cola': { min: 1.00, max: 3.00 },
+  'birra': { min: 0.60, max: 3.00 },
+  'vino': { min: 2.00, max: 20.00 },
+  'succo': { min: 0.80, max: 3.00 },
+  // Carne
+  'pollo': { min: 3.00, max: 12.00 },
+  'manzo': { min: 5.00, max: 25.00 },
+  'maiale': { min: 4.00, max: 15.00 },
+  'prosciutto': { min: 1.50, max: 8.00 },
+  'salame': { min: 1.50, max: 6.00 },
+  // Uova
+  'uova': { min: 1.50, max: 5.00 },
+  // Surgelati
+  'gelato': { min: 1.50, max: 6.00 },
+  'pizza': { min: 1.50, max: 5.00 },
+  // Default generico
+  'default': { min: 0.30, max: 50.00 },
+};
+
+// Funzione per ottenere il range di prezzo appropriato
+function getPriceRange(productName: string): { min: number; max: number } {
+  const productLower = productName.toLowerCase();
+  
+  for (const [keyword, range] of Object.entries(PRICE_RANGES)) {
+    if (keyword !== 'default' && productLower.includes(keyword)) {
+      return range;
+    }
+  }
+  
+  return PRICE_RANGES['default'];
+}
+
 // Funzione per fare scraping con Firecrawl
 async function scrapeProductPrice(
   product: string, 
@@ -63,9 +122,13 @@ async function scrapeProductPrice(
   city: string,
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; productName: string | null }> {
-  const searchQuery = `${product} prezzo ${chainName} ${city} supermercato`;
+  const searchQuery = `${product} prezzo ${chainName} volantino offerta`;
   
   console.log(`🔍 Firecrawl search: "${searchQuery}"`);
+
+  // Ottieni il range di prezzo realistico per questo prodotto
+  const priceRange = getPriceRange(product);
+  console.log(`📊 Range prezzo atteso: €${priceRange.min} - €${priceRange.max}`);
 
   try {
     const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
@@ -76,7 +139,7 @@ async function scrapeProductPrice(
       },
       body: JSON.stringify({
         query: searchQuery,
-        limit: 5,
+        limit: 10,
         lang: 'it',
         country: 'IT',
         scrapeOptions: {
@@ -93,10 +156,24 @@ async function scrapeProductPrice(
     const searchData = await searchResponse.json();
     console.log(`📊 Firecrawl trovati ${searchData.data?.length || 0} risultati`);
 
+    // Collezioniamo tutti i prezzi validi trovati
+    const validPrices: { price: number; source: string; productName: string | null }[] = [];
+
     if (searchData.data && searchData.data.length > 0) {
       for (const result of searchData.data) {
         const content = result.markdown || result.description || '';
         const title = result.title || '';
+        const url = result.url || '';
+        
+        // Verifica che il risultato sia pertinente (contenga il nome del prodotto o simile)
+        const productWords = product.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const contentLower = (content + ' ' + title).toLowerCase();
+        const isRelevant = productWords.some(word => contentLower.includes(word));
+        
+        if (!isRelevant) {
+          console.log(`⏭️ Risultato non pertinente: ${title.substring(0, 50)}`);
+          continue;
+        }
         
         const pricePatterns = [
           /€\s*(\d+)[,.](\d{2})/g,
@@ -112,21 +189,32 @@ async function scrapeProductPrice(
             const priceStr = `${match[1]}.${match[2]}`;
             const price = parseFloat(priceStr);
             
-            if (price >= 0.10 && price <= 100) {
-              console.log(`✓ Prezzo trovato: €${price} da ${result.url || 'unknown'}`);
+            // Usa il range di prezzo realistico per categoria
+            if (price >= priceRange.min && price <= priceRange.max) {
+              console.log(`✓ Prezzo valido: €${price} (range: €${priceRange.min}-€${priceRange.max})`);
               
-              const productNameMatch = title.match(new RegExp(`(${product}[^€\\d]{0,50})`, 'i'));
+              const productNameMatch = title.match(new RegExp(`(${product.split(' ')[0]}[^€\\d]{0,50})`, 'i'));
               const foundProductName = productNameMatch ? productNameMatch[1].trim() : null;
               
-              return { 
+              validPrices.push({ 
                 price, 
-                source: `firecrawl:${chainName}:${result.url || 'web'}`,
+                source: `firecrawl:${chainName}:${url}`,
                 productName: foundProductName
-              };
+              });
+            } else {
+              console.log(`⏭️ Prezzo fuori range: €${price} (atteso: €${priceRange.min}-€${priceRange.max})`);
             }
           }
         }
       }
+    }
+
+    // Restituisci il prezzo più basso tra quelli validi (più realistico per discount)
+    if (validPrices.length > 0) {
+      validPrices.sort((a, b) => a.price - b.price);
+      const bestPrice = validPrices[0];
+      console.log(`✓ Miglior prezzo trovato: €${bestPrice.price}`);
+      return bestPrice;
     }
 
     return { price: null, source: 'no_price_found', productName: null };
