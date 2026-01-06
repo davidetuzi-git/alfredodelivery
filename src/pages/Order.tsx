@@ -682,7 +682,8 @@ const Order = () => {
       const { data, error } = await supabase.functions.invoke('search-product-price', {
         body: { 
           product: productName.trim(),
-          storeName: store 
+          storeName: store,
+          userId: session?.user?.id || null
         }
       });
 
@@ -1791,13 +1792,15 @@ const Order = () => {
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : item.price !== null ? (
                           <div className="flex flex-col items-end">
-                            <span className={item.isEstimated ? "text-amber-600" : ""}>
+                            <span className={item.isEstimated ? "text-orange-500 font-semibold" : "text-foreground"}>
                               €{(item.price * item.quantity).toFixed(2)}
                             </span>
                             {item.isEstimated && (
-                              <span className="text-xs text-amber-600">stimato</span>
+                              <span className="text-[0.65rem] text-orange-500 italic">stimato</span>
                             )}
                           </div>
+                        ) : item.productAvailable === false ? (
+                          <span className="text-red-500 text-xs">N/D</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}

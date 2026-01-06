@@ -53,49 +53,8 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
   'avezzano': { region: 'Abruzzo', capital: "L'Aquila", province: "L'Aquila" },
 };
 
-// URL siti ufficiali dei supermercati per scraping
-const CHAIN_WEBSITES: Record<string, { searchUrl: string; domain: string }> = {
-  'eurospin': { 
-    searchUrl: 'https://www.eurospin.it/spesa-online/search?q=', 
-    domain: 'eurospin.it' 
-  },
-  'lidl': { 
-    searchUrl: 'https://www.lidl.it/q/search?q=', 
-    domain: 'lidl.it' 
-  },
-  'conad': { 
-    searchUrl: 'https://spesaonline.conad.it/search?q=', 
-    domain: 'conad.it' 
-  },
-  'coop': { 
-    searchUrl: 'https://www.coopshop.it/search?q=', 
-    domain: 'coopshop.it' 
-  },
-  'esselunga': { 
-    searchUrl: 'https://www.esselungaacasa.it/ecommerce/nav/search/text/', 
-    domain: 'esselungaacasa.it' 
-  },
-  'carrefour': { 
-    searchUrl: 'https://www.carrefour.it/ricerca?q=', 
-    domain: 'carrefour.it' 
-  },
-  'pam': { 
-    searchUrl: 'https://www.pampanorama.it/search?q=', 
-    domain: 'pampanorama.it' 
-  },
-  'md': { 
-    searchUrl: 'https://www.mdspa.it/volantino/', 
-    domain: 'mdspa.it' 
-  },
-  'penny': { 
-    searchUrl: 'https://www.penny.it/offerte', 
-    domain: 'penny.it' 
-  },
-  'aldi': { 
-    searchUrl: 'https://www.aldi.it/offerte/', 
-    domain: 'aldi.it' 
-  },
-};
+// Tutte le catene supportate per fallback
+const ALL_CHAINS = ['eurospin', 'lidl', 'conad', 'coop', 'esselunga', 'carrefour', 'pam', 'md', 'penny', 'aldi'];
 
 // Funzione per fare scraping con Firecrawl
 async function scrapeProductPrice(
@@ -104,21 +63,11 @@ async function scrapeProductPrice(
   city: string,
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; productName: string | null }> {
-  const chainLower = chainName.toLowerCase();
-  const chainConfig = CHAIN_WEBSITES[chainLower];
-  
-  if (!chainConfig) {
-    console.log(`⚠️ Catena ${chainName} non supportata per scraping diretto`);
-    return { price: null, source: 'unsupported_chain', productName: null };
-  }
-
-  // Costruisci query di ricerca
-  const searchQuery = `${product} prezzo ${chainName} ${city}`;
+  const searchQuery = `${product} prezzo ${chainName} ${city} supermercato`;
   
   console.log(`🔍 Firecrawl search: "${searchQuery}"`);
 
   try {
-    // Usa Firecrawl search per cercare prezzi online
     const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
@@ -145,13 +94,10 @@ async function scrapeProductPrice(
     console.log(`📊 Firecrawl trovati ${searchData.data?.length || 0} risultati`);
 
     if (searchData.data && searchData.data.length > 0) {
-      // Analizza i risultati per estrarre prezzi
       for (const result of searchData.data) {
         const content = result.markdown || result.description || '';
         const title = result.title || '';
         
-        // Cerca pattern di prezzo nel contenuto
-        // Pattern: €X.XX, X,XX €, X.XX€, ecc.
         const pricePatterns = [
           /€\s*(\d+)[,.](\d{2})/g,
           /(\d+)[,.](\d{2})\s*€/g,
@@ -166,17 +112,15 @@ async function scrapeProductPrice(
             const priceStr = `${match[1]}.${match[2]}`;
             const price = parseFloat(priceStr);
             
-            // Verifica che sia un prezzo ragionevole (0.10 - 100€ per prodotti alimentari)
             if (price >= 0.10 && price <= 100) {
-              console.log(`✓ Prezzo trovato via scraping: €${price} da ${result.url || 'unknown'}`);
+              console.log(`✓ Prezzo trovato: €${price} da ${result.url || 'unknown'}`);
               
-              // Estrai nome prodotto completo se disponibile
               const productNameMatch = title.match(new RegExp(`(${product}[^€\\d]{0,50})`, 'i'));
               const foundProductName = productNameMatch ? productNameMatch[1].trim() : null;
               
               return { 
                 price, 
-                source: `firecrawl:${result.url || chainConfig.domain}`,
+                source: `firecrawl:${chainName}:${result.url || 'web'}`,
                 productName: foundProductName
               };
             }
@@ -185,7 +129,6 @@ async function scrapeProductPrice(
       }
     }
 
-    console.log('✗ Nessun prezzo trovato nei risultati scraping');
     return { price: null, source: 'no_price_found', productName: null };
 
   } catch (error) {
@@ -194,65 +137,31 @@ async function scrapeProductPrice(
   }
 }
 
-// Funzione per scraping del volantino della catena
-async function scrapeFlyer(
+// Funzione per cercare in altre catene come fallback
+async function searchOtherChains(
   product: string,
-  chainName: string,
+  originalChain: string,
   city: string,
   FIRECRAWL_API_KEY: string
-): Promise<{ price: number | null; source: string }> {
-  const searchQuery = `volantino ${chainName} ${city} ${product} offerta prezzo`;
+): Promise<{ price: number | null; source: string; originalChain: string }> {
+  const chainsToTry = ALL_CHAINS.filter(c => c !== originalChain.toLowerCase());
   
-  console.log(`📰 Ricerca volantino: "${searchQuery}"`);
-
-  try {
-    const response = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: 3,
-        lang: 'it',
-        country: 'IT',
-        tbs: 'qdr:w', // Ultima settimana per volantini recenti
-        scrapeOptions: {
-          formats: ['markdown']
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      return { price: null, source: 'flyer_search_failed' };
-    }
-
-    const data = await response.json();
+  console.log(`\n🔄 Ricerca in altre catene: ${chainsToTry.join(', ')}`);
+  
+  for (const chain of chainsToTry) {
+    const result = await scrapeProductPrice(product, chain, city, FIRECRAWL_API_KEY);
     
-    if (data.data && data.data.length > 0) {
-      for (const result of data.data) {
-        const content = (result.markdown || '') + ' ' + (result.title || '');
-        
-        // Cerca prezzo vicino al nome del prodotto
-        const productPattern = new RegExp(`${product}[^€\\d]*€?\\s*(\\d+)[,.](\\d{2})`, 'i');
-        const match = content.match(productPattern);
-        
-        if (match) {
-          const price = parseFloat(`${match[1]}.${match[2]}`);
-          if (price >= 0.10 && price <= 100) {
-            console.log(`✓ Prezzo da volantino: €${price}`);
-            return { price, source: `flyer:${result.url || chainName}` };
-          }
-        }
-      }
+    if (result.price !== null) {
+      console.log(`✓ Trovato in ${chain}: €${result.price}`);
+      return { 
+        price: result.price, 
+        source: result.source,
+        originalChain: chain
+      };
     }
-
-    return { price: null, source: 'no_flyer_price' };
-  } catch (error) {
-    console.error('Errore ricerca volantino:', error);
-    return { price: null, source: 'flyer_error' };
   }
+  
+  return { price: null, source: 'not_found_anywhere', originalChain: '' };
 }
 
 serve(async (req) => {
@@ -261,7 +170,7 @@ serve(async (req) => {
   }
 
   try {
-    const { product, storeName } = await req.json();
+    const { product, storeName, userId, orderId } = await req.json();
     
     if (!product || !storeName) {
       return new Response(
@@ -280,12 +189,10 @@ serve(async (req) => {
     const chainName = storeNameParts[0].trim();
     const storeAddress = storeNameParts.length > 1 ? storeNameParts.slice(1).join(' - ').trim() : '';
     
-    // Estrai città/provincia dall'indirizzo
     const locationMatch = storeAddress.match(/,\s*([^,]+)$/);
     const city = locationMatch ? locationMatch[1].trim() : '';
     const cityLower = city.toLowerCase();
     
-    // Determina la regione e il capoluogo
     const regionInfo = PROVINCE_TO_REGION[cityLower] || { region: 'Italia', capital: city, province: city };
     
     const normalizedProduct = product.trim().toLowerCase();
@@ -298,8 +205,6 @@ serve(async (req) => {
     console.log(`Prodotto: ${product}`);
     console.log(`Catena: ${chainName}`);
     console.log(`Città: ${city}`);
-    console.log(`Provincia: ${regionInfo.province}`);
-    console.log(`Capoluogo: ${regionInfo.capital}`);
 
     // ========================================
     // FASE 1: Cache (7 giorni per prezzi reali)
@@ -313,7 +218,7 @@ serve(async (req) => {
       .ilike('product_name', `%${normalizedProduct}%`)
       .ilike('store_name', `%${normalizedStore}%`)
       .gte('created_at', sevenDaysAgo)
-      .not('source', 'ilike', '%estimate%') // Escludi stime dalla cache
+      .not('source', 'ilike', '%estimate%')
       .not('source', 'ilike', '%fallback%')
       .order('created_at', { ascending: false })
       .limit(1)
@@ -323,14 +228,16 @@ serve(async (req) => {
     let priceFromCache = false;
     let priceSource = 'unknown';
     let completedProductName = product;
+    let isEstimated = false;
+    let estimatedFromChain: string | null = null;
     
     if (cachedPrice && cachedPrice.source?.includes('firecrawl')) {
-      console.log(`✓ TROVATO in cache (fonte reale): €${cachedPrice.price}`);
+      console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
       foundPrice = cachedPrice.price;
       priceFromCache = true;
       priceSource = cachedPrice.source;
     } else {
-      console.log('✗ Non in cache o solo stime');
+      console.log('✗ Non in cache');
     }
 
     // ========================================
@@ -371,18 +278,46 @@ serve(async (req) => {
         }
       }
 
-      // FASE 5: Ricerca volantino
+      // ========================================
+      // FASE 5: FALLBACK - Cerca in ALTRE catene e aggiungi +10%
+      // ========================================
       if (foundPrice === null) {
-        console.log(`\n📰 FASE 5: Ricerca volantino ${chainName}...`);
-        const flyerResult = await scrapeFlyer(product, chainName, city, FIRECRAWL_API_KEY);
+        console.log(`\n🔄 FASE 5: Ricerca in altre catene (fallback +10%)...`);
+        const fallbackResult = await searchOtherChains(product, chainName, city, FIRECRAWL_API_KEY);
         
-        if (flyerResult.price !== null) {
-          foundPrice = flyerResult.price;
-          priceSource = flyerResult.source;
+        if (fallbackResult.price !== null) {
+          // Aggiungi 10% di margine di sicurezza
+          const originalPrice = fallbackResult.price;
+          foundPrice = Math.round(originalPrice * 1.10 * 100) / 100; // +10% arrotondato a 2 decimali
+          priceSource = `estimated_from:${fallbackResult.originalChain}`;
+          isEstimated = true;
+          estimatedFromChain = fallbackResult.originalChain;
+          console.log(`✓ Prezzo stimato: €${originalPrice} (${fallbackResult.originalChain}) + 10% = €${foundPrice}`);
         }
       }
     } else if (!FIRECRAWL_API_KEY) {
       console.log('⚠️ FIRECRAWL_API_KEY non configurata');
+    }
+
+    // ========================================
+    // Log per KPI
+    // ========================================
+    if (userId) {
+      try {
+        await supabase.from('price_search_logs').insert({
+          user_id: userId,
+          order_id: orderId || null,
+          product_name: product,
+          store_name: chainName,
+          price_found: foundPrice !== null,
+          is_estimated: isEstimated,
+          price: foundPrice,
+          price_source: priceSource
+        });
+        console.log('📊 Log KPI salvato');
+      } catch (e) {
+        console.log('⚠️ Errore salvataggio log KPI:', e);
+      }
     }
 
     // ========================================
@@ -392,14 +327,13 @@ serve(async (req) => {
     let suggestedAlternative: string | null = null;
 
     if (foundPrice === null) {
-      console.log('\n❌ PREZZO NON TROVATO - Nessuna stima verrà fornita');
+      console.log('\n❌ PREZZO NON TROVATO');
       priceSource = 'not_found';
       
-      // Genera immagine prodotto se disponibile API
       let productImageUrl: string | null = null;
       if (LOVABLE_API_KEY) {
         try {
-          const imagePrompt = `Fotografia professionale di prodotto alimentare: ${product}. Stile: foto realistica su sfondo bianco, come nei cataloghi di supermercato. Alta qualità, professionale.`;
+          const imagePrompt = `Fotografia professionale di prodotto alimentare: ${product}. Stile: foto realistica su sfondo bianco. Alta qualità.`;
           
           const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
@@ -450,13 +384,8 @@ serve(async (req) => {
         const completionPrompt = `Prodotto: "${product}"
 Catena: ${chainName}
 
-Completa il nome del prodotto includendo:
-- BRAND (se noto per questa catena)
-- Formato/peso standard
-- Descrizione chiara
-
-Rispondi SOLO con il nome completo (max 60 caratteri).
-Esempio: "Barilla Pasta di Semola Penne 500g"`;
+Completa il nome del prodotto includendo BRAND e formato standard.
+Rispondi SOLO con il nome completo (max 60 caratteri).`;
 
         const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -482,21 +411,18 @@ Esempio: "Barilla Pasta di Semola Penne 500g"`;
           }
         }
       } catch (e) {
-        console.log('⚠️ Completamento nome fallito:', e);
+        console.log('⚠️ Completamento nome fallito');
       }
     }
 
     // ========================================
     // GENERAZIONE IMMAGINE
     // ========================================
-    console.log('\n📸 Generazione immagine prodotto...');
     let productImageUrl: string | null = null;
     
     if (LOVABLE_API_KEY) {
       try {
-        const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}.
-Stile: foto realistica di prodotto su sfondo bianco, come nei cataloghi di supermercato.
-Alta qualità, realistica, professionale.`;
+        const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}. Sfondo bianco, stile catalogo supermercato.`;
 
         const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -513,11 +439,7 @@ Alta qualità, realistica, professionale.`;
 
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
-          const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          if (generatedImage) {
-            productImageUrl = generatedImage;
-            console.log('✓ Immagine generata');
-          }
+          productImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
         }
       } catch (e) {
         console.log('⚠️ Generazione immagine fallita');
@@ -525,11 +447,11 @@ Alta qualità, realistica, professionale.`;
     }
         
     // ========================================
-    // SALVA IN CACHE (solo prezzi reali da scraping)
+    // SALVA IN CACHE (solo prezzi reali, non stimati)
     // ========================================
-    if (!priceFromCache && foundPrice !== null && priceSource.includes('firecrawl')) {
+    if (!priceFromCache && foundPrice !== null && !isEstimated && priceSource.includes('firecrawl')) {
       console.log('\n💾 Salvataggio in cache...');
-      const { error: upsertError } = await supabase
+      await supabase
         .from('product_prices')
         .upsert({
           product_name: normalizedProduct,
@@ -541,19 +463,14 @@ Alta qualità, realistica, professionale.`;
         }, {
           onConflict: 'product_name,store_name,store_address'
         });
-
-      if (upsertError) {
-        console.log('⚠️ Cache upsert fallito:', upsertError.message);
-      } else {
-        console.log('✓ Prezzo salvato in cache');
-      }
     }
 
     const responseData = { 
       price: foundPrice,
       priceInfo: `€${foundPrice.toFixed(2)}`,
       cached: priceFromCache,
-      estimated: false, // Mai stimato, sempre da fonte reale
+      estimated: isEstimated,
+      estimatedFromChain,
       priceSource,
       completedProduct: completedProductName,
       productAvailable,
@@ -561,7 +478,7 @@ Alta qualità, realistica, professionale.`;
       imageUrl: productImageUrl
     };
     
-    console.log('\n📦 Response finale:', JSON.stringify(responseData));
+    console.log('\n📦 Response:', JSON.stringify(responseData));
     
     return new Response(
       JSON.stringify(responseData),

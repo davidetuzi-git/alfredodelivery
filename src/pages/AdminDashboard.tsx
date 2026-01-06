@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle, BarChart3 } from "lucide-react";
+import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle, BarChart3, Search } from "lucide-react";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { DeliverersTab } from "@/components/admin/DeliverersTab";
 import { FinanceTab } from "@/components/admin/FinanceTab";
@@ -15,6 +15,7 @@ import { RiderCostsTab } from "@/components/admin/RiderCostsTab";
 import { ServiceCalendarTab } from "@/components/admin/ServiceCalendarTab";
 import { CustomersTab } from "@/components/admin/CustomersTab";
 import { AdMetricsTab } from "@/components/admin/AdMetricsTab";
+import { PriceKpiTab } from "@/components/admin/PriceKpiTab";
 
 interface Order {
   id: string;
@@ -193,6 +194,10 @@ const AdminDashboard = () => {
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Pubblicità</span>
             </TabsTrigger>
+            <TabsTrigger value="price-kpi" className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">TrovaPrezzi</span>
+            </TabsTrigger>
             <TabsTrigger value="finance" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Finanze</span>
@@ -237,6 +242,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="ad-metrics">
             <AdMetricsTab />
+          </TabsContent>
+
+          <TabsContent value="price-kpi">
+            <PriceKpiTab />
           </TabsContent>
 
           <TabsContent value="finance">
