@@ -783,6 +783,53 @@ export type Database = {
         }
         Relationships: []
       }
+      price_search_logs: {
+        Row: {
+          id: string
+          is_estimated: boolean
+          order_id: string | null
+          price: number | null
+          price_found: boolean
+          price_source: string | null
+          product_name: string
+          searched_at: string
+          store_name: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_estimated?: boolean
+          order_id?: string | null
+          price?: number | null
+          price_found?: boolean
+          price_source?: string | null
+          product_name: string
+          searched_at?: string
+          store_name: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_estimated?: boolean
+          order_id?: string | null
+          price?: number | null
+          price_found?: boolean
+          price_source?: string | null
+          product_name?: string
+          searched_at?: string
+          store_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_search_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_prices: {
         Row: {
           created_at: string
@@ -1573,7 +1620,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      price_search_kpi: {
+        Row: {
+          found_estimated: number | null
+          found_real: number | null
+          not_found: number | null
+          search_date: string | null
+          total_searches: number | null
+          trovaprezzi_percentage: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       approve_deliverer_request: {
