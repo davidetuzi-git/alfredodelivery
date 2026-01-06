@@ -381,28 +381,29 @@ const Order = () => {
   const handleImportList = async () => {
     let textToImport = importText;
 
-    // If a file was selected, read its content
+    // If a file was selected, read its content using FileReader for better compatibility
     if (importFile) {
       try {
-        // Read file as ArrayBuffer first to handle different encodings
-        const arrayBuffer = await importFile.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        
-        // Detect UTF-16 BOM and decode accordingly
-        let fileText: string;
-        if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
-          // UTF-16 LE
-          fileText = new TextDecoder('utf-16le').decode(arrayBuffer);
-        } else if (uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
-          // UTF-16 BE
-          fileText = new TextDecoder('utf-16be').decode(arrayBuffer);
-        } else {
-          // Default to UTF-8
-          fileText = new TextDecoder('utf-8').decode(arrayBuffer);
-        }
-        
-        textToImport = fileText;
-        console.log('File content loaded:', fileText.substring(0, 200));
+        textToImport = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          
+          reader.onload = (event) => {
+            const content = event.target?.result;
+            if (typeof content === 'string') {
+              console.log('File content loaded via FileReader:', content.substring(0, 200));
+              resolve(content);
+            } else {
+              reject(new Error('File content is not a string'));
+            }
+          };
+          
+          reader.onerror = () => {
+            reject(new Error('FileReader error'));
+          };
+          
+          // Try reading as text with UTF-8 encoding
+          reader.readAsText(importFile, 'UTF-8');
+        });
       } catch (error) {
         console.error('Error reading file:', error);
         toast({
