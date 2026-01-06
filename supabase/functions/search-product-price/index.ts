@@ -174,16 +174,18 @@ async function scrapeProductPrice(
   return { price: null, source: 'not_found', productName: null };
 }
 
-// Funzione per cercare in altre catene come fallback
+// Funzione per cercare in altre catene come fallback (max 2 catene per velocità)
 async function searchOtherChains(
   product: string,
   originalChain: string,
   city: string,
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; originalChain: string }> {
-  const chainsToTry = ALL_CHAINS.filter(c => c !== originalChain.toLowerCase());
+  // Prova solo 2 catene discount comuni per velocità
+  const priorityChains = ['eurospin', 'lidl', 'md', 'penny'].filter(c => c !== originalChain.toLowerCase());
+  const chainsToTry = priorityChains.slice(0, 2);
   
-  console.log(`\n🔄 Ricerca in altre catene: ${chainsToTry.join(', ')}`);
+  console.log(`\n🔄 Ricerca rapida in: ${chainsToTry.join(', ')}`);
   
   for (const chain of chainsToTry) {
     const result = await scrapeProductPrice(product, chain, city, FIRECRAWL_API_KEY);
@@ -199,6 +201,81 @@ async function searchOtherChains(
   }
   
   return { price: null, source: 'not_found_anywhere', originalChain: '' };
+}
+
+// Funzione per stima prezzi con Gemini (fallback gratuito)
+async function estimatePriceWithAI(
+  product: string,
+  chainName: string,
+  LOVABLE_API_KEY: string
+): Promise<{ price: number | null; confidence: string }> {
+  console.log(`\n🤖 FASE 6: Stima AI con Gemini per ${product}...`);
+  
+  try {
+    const prompt = `Sei un esperto di prezzi supermercati italiani. Stima il prezzo di questo prodotto.
+
+Prodotto: "${product}"
+Catena: ${chainName}
+Anno: 2025
+
+REGOLE:
+1. Considera che ${chainName} è una catena italiana
+2. Stima il prezzo PIÙ COMUNE per questo tipo di prodotto
+3. Non sovrastimare - i discount hanno prezzi bassi
+4. Per prodotti generici (pane, latte, pasta), usa prezzi tipici discount
+
+Rispondi SOLO con un JSON valido, nient'altro:
+{"price": X.XX, "confidence": "alta|media|bassa", "reasoning": "breve spiegazione"}`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite', // Modello più veloce e leggero
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 150,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log(`✗ AI response failed: ${response.status}`);
+      return { price: null, confidence: 'none' };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Estrai JSON dalla risposta
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.log(`✗ No JSON in response: ${content}`);
+      return { price: null, confidence: 'none' };
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    const price = parseFloat(parsed.price);
+    
+    // Valida il prezzo (range realistico)
+    if (isNaN(price) || price < 0.20 || price > 20) {
+      console.log(`✗ Price out of range: ${price}`);
+      return { price: null, confidence: 'none' };
+    }
+    
+    console.log(`✓ AI stima: €${price} (${parsed.confidence}) - ${parsed.reasoning}`);
+    
+    return { 
+      price: Math.round(price * 100) / 100,
+      confidence: parsed.confidence || 'media'
+    };
+    
+  } catch (error) {
+    console.error('Errore AI estimation:', error);
+    return { price: null, confidence: 'none' };
+  }
 }
 
 serve(async (req) => {
@@ -358,41 +435,28 @@ serve(async (req) => {
     }
 
     // ========================================
-    // Se non troviamo nulla, restituiamo NOT FOUND
+    // FASE 6: Stima AI con Gemini (fallback gratuito)
     // ========================================
     let productAvailable = true;
     let suggestedAlternative: string | null = null;
+    let aiConfidence: string | null = null;
 
+    if (foundPrice === null && LOVABLE_API_KEY) {
+      const aiResult = await estimatePriceWithAI(product, chainName, LOVABLE_API_KEY);
+      
+      if (aiResult.price !== null) {
+        foundPrice = aiResult.price;
+        priceSource = 'ai_estimate:gemini';
+        isEstimated = true;
+        aiConfidence = aiResult.confidence;
+        console.log(`✓ Prezzo AI: €${foundPrice} (confidence: ${aiConfidence})`);
+      }
+    }
+
+    // Se ancora non troviamo nulla, restituiamo NOT FOUND
     if (foundPrice === null) {
       console.log('\n❌ PREZZO NON TROVATO');
       priceSource = 'not_found';
-      
-      let productImageUrl: string | null = null;
-      if (LOVABLE_API_KEY) {
-        try {
-          const imagePrompt = `Fotografia professionale di prodotto alimentare: ${product}. Stile: foto realistica su sfondo bianco. Alta qualità.`;
-          
-          const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-image',
-              messages: [{ role: 'user', content: imagePrompt }],
-              modalities: ['image', 'text']
-            }),
-          });
-
-          if (imageResponse.ok) {
-            const imageData = await imageResponse.json();
-            productImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
-          }
-        } catch (e) {
-          console.log('⚠️ Generazione immagine fallita');
-        }
-      }
       
       return new Response(
         JSON.stringify({
@@ -405,7 +469,7 @@ serve(async (req) => {
           completedProduct: product,
           productAvailable: false,
           suggestedAlternative: null,
-          imageUrl: productImageUrl
+          imageUrl: null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -504,10 +568,13 @@ Rispondi SOLO con il nome completo (max 60 caratteri).`;
 
     const responseData = { 
       price: foundPrice,
-      priceInfo: `€${foundPrice.toFixed(2)}`,
+      priceInfo: isEstimated && priceSource.includes('ai_estimate') 
+        ? `~€${foundPrice.toFixed(2)}` 
+        : `€${foundPrice.toFixed(2)}`,
       cached: priceFromCache,
       estimated: isEstimated,
       estimatedFromChain,
+      aiConfidence,
       priceSource,
       completedProduct: completedProductName,
       productAvailable,
