@@ -98,12 +98,24 @@ const StripeSuccess = () => {
           await decrementDelivery();
         }
 
-        // Notify deliverers
+        // Notify deliverers and send receipt email
         if (orderInserted) {
+          // Notify deliverers
           supabase.functions.invoke('notify-deliverers', {
             body: { order_id: orderInserted.id }
           }).then(({ error }) => {
             if (error) console.error('Error notifying deliverers:', error);
+          });
+
+          // Send receipt email
+          supabase.functions.invoke('generate-receipt', {
+            body: { orderId: orderInserted.id, sendEmail: true }
+          }).then(({ error }) => {
+            if (error) {
+              console.error('Error sending receipt email:', error);
+            } else {
+              console.log('Receipt email sent successfully');
+            }
           });
         }
 
