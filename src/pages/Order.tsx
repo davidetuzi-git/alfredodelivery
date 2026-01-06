@@ -169,7 +169,7 @@ const Order = () => {
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
-  const [importFile, setImportFile] = useState<File | null>(null);
+  
   const [showAlternativesDialog, setShowAlternativesDialog] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   
@@ -379,41 +379,7 @@ const Order = () => {
   };
 
   const handleImportList = async () => {
-    let textToImport = importText;
-
-    // If a file was selected, read its content using FileReader for better compatibility
-    if (importFile) {
-      try {
-        textToImport = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          
-          reader.onload = (event) => {
-            const content = event.target?.result;
-            if (typeof content === 'string') {
-              console.log('File content loaded via FileReader:', content.substring(0, 200));
-              resolve(content);
-            } else {
-              reject(new Error('File content is not a string'));
-            }
-          };
-          
-          reader.onerror = () => {
-            reject(new Error('FileReader error'));
-          };
-          
-          // Try reading as text with UTF-8 encoding
-          reader.readAsText(importFile, 'UTF-8');
-        });
-      } catch (error) {
-        console.error('Error reading file:', error);
-        toast({
-          title: "Errore",
-          description: "Impossibile leggere il file. Assicurati che sia un file di testo (.txt)",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    const textToImport = importText;
 
     if (!textToImport.trim()) {
       toast({
@@ -496,7 +462,6 @@ const Order = () => {
     // Close dialog and reset
     setShowImportDialog(false);
     setImportText("");
-    setImportFile(null);
 
     toast({
       title: "Lista importata",
@@ -2077,54 +2042,6 @@ const Order = () => {
                 className="min-h-[200px] font-mono text-sm"
               />
             </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">oppure</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="import-file">Carica un file</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="import-file"
-                  type="file"
-                  accept=".txt,text/plain,text/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setImportFile(file);
-                      setImportText(""); // Clear manual text when file is selected
-                    }
-                  }}
-                  className="cursor-pointer"
-                />
-                {importFile && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setImportFile(null);
-                      const fileInput = document.getElementById('import-file') as HTMLInputElement;
-                      if (fileInput) fileInput.value = '';
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              {importFile && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <FileText className="h-4 w-4" />
-                  {importFile.name}
-                </p>
-              )}
-            </div>
           </div>
 
           <DialogFooter>
@@ -2134,7 +2051,6 @@ const Order = () => {
               onClick={() => {
                 setShowImportDialog(false);
                 setImportText("");
-                setImportFile(null);
               }}
             >
               Annulla
@@ -2142,7 +2058,7 @@ const Order = () => {
             <Button
               type="button"
               onClick={handleImportList}
-              disabled={!importText.trim() && !importFile}
+              disabled={!importText.trim()}
             >
               <Upload className="h-4 w-4 mr-2" />
               Importa
