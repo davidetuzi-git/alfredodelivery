@@ -1097,8 +1097,12 @@ const Order = () => {
           deliveryDate: deliveryDate.toISOString(),
           timeSlot,
           items: finalItems.map(item => ({
-            ...item,
-            price: item.price || 0
+            name: item.name,
+            price: item.price || 0,
+            quantity: item.quantity,
+            isEstimated: item.isEstimated,
+            originalName: item.originalName,
+            imageUrl: item.imageUrl // Include image URL
           })),
           supplements: {
             bagFee: supplements.bagFee,
