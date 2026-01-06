@@ -80,17 +80,19 @@ const OrderSummary = () => {
 
     const items = orderData.items as OrderItem[];
 
-    // Use images from order if available, otherwise keep them in loading state
+    // Use images from order if available
     const newImages: Record<string, string> = {};
     const newLoading: Record<string, boolean> = {};
     
     items.forEach((item) => {
-      if (item.imageUrl) {
+      if (item.imageUrl && item.imageUrl.startsWith('http')) {
         // Use the image URL from the order data (already generated in Order page)
         newImages[item.name] = item.imageUrl;
         newLoading[item.name] = false;
+        console.log(`[OrderSummary] Image found for "${item.name}":`, item.imageUrl.substring(0, 50) + '...');
       } else {
         newLoading[item.name] = false; // No image available
+        console.log(`[OrderSummary] No image for "${item.name}", imageUrl:`, item.imageUrl);
       }
     });
     
@@ -214,7 +216,7 @@ const OrderSummary = () => {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Data</p>
+                  <p className="text-sm text-muted-foreground">Data di Consegna</p>
                   <p className="font-semibold text-sm">
                     {format(new Date(orderData.deliveryDate), "PPP", { locale: it })}
                   </p>
