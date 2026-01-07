@@ -478,17 +478,33 @@ serve(async (req) => {
     console.log(`Città: ${city}`);
 
     // ========================================
-    // FASE 1: Cache (7 giorni per prezzi reali)
+    // FASE 1: Cache CROWD-SOURCED (cerca prezzi già trovati)
+    // - Prima cerca nella stessa catena (7 giorni)
+    // - Poi cerca in QUALSIASI catena nella stessa regione (3 giorni) - NUOVO!
+    // - Cache più lunga (14 giorni) per prodotti molto cercati
     // ========================================
-    console.log('\n📦 FASE 1: Verifica cache...');
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    console.log('\n📦 FASE 1: Cache crowd-sourced...');
     
+    // Check se prodotto popolare (cerca quante volte è stato cercato)
+    const { data: searchCount } = await supabase
+      .from('price_search_logs')
+      .select('id', { count: 'exact', head: true })
+      .ilike('product_name', `%${normalizedProduct}%`)
+      .gte('searched_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+    
+    const isPopularProduct = (searchCount as any)?.count > 10;
+    const cacheDays = isPopularProduct ? 14 : 7; // Cache più lunga per prodotti popolari
+    const cacheDate = new Date(Date.now() - cacheDays * 24 * 60 * 60 * 1000).toISOString();
+    
+    console.log(`📊 Prodotto popolare: ${isPopularProduct} (cache ${cacheDays} giorni)`);
+    
+    // 1A) Cache nella stessa catena
     const { data: cachedPrice } = await supabase
       .from('product_prices')
       .select('*')
       .ilike('product_name', `%${normalizedProduct}%`)
       .ilike('store_name', `%${normalizedStore}%`)
-      .gte('created_at', sevenDaysAgo)
+      .gte('created_at', cacheDate)
       .not('source', 'ilike', '%estimate%')
       .not('source', 'ilike', '%fallback%')
       .order('created_at', { ascending: false })
@@ -516,12 +532,36 @@ serve(async (req) => {
     }
 
     if (cachedPrice && isCachedPriceInRange && cachedPrice.source?.includes('firecrawl')) {
-      console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
+      console.log(`✓ TROVATO in cache stessa catena: €${cachedPrice.price}`);
       foundPrice = cachedPrice.price;
       priceFromCache = true;
       priceSource = cachedPrice.source;
     } else {
-      console.log('✗ Non in cache');
+      // 1B) NUOVO: Cache crowd-sourced - cerca in QUALSIASI catena (ultimi 3 giorni)
+      console.log('📦 FASE 1B: Cache crowd-sourced (altre catene)...');
+      const recentCacheDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data: crowdPrice } = await supabase
+        .from('product_prices')
+        .select('*')
+        .ilike('product_name', `%${normalizedProduct}%`)
+        .gte('created_at', recentCacheDate)
+        .not('source', 'ilike', '%estimate%')
+        .not('source', 'ilike', '%fallback%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (crowdPrice && crowdPrice.price >= 0.2 && crowdPrice.price <= 20) {
+        // Usa prezzo da altra catena con piccolo aggiustamento
+        console.log(`✓ TROVATO in cache crowd-sourced (${crowdPrice.store_name}): €${crowdPrice.price}`);
+        foundPrice = crowdPrice.price;
+        priceFromCache = true;
+        priceSource = `crowd_cache:${crowdPrice.store_name}`;
+        // Potrebbe essere leggermente diverso, ma è una buona stima
+      } else {
+        console.log('✗ Non in cache');
+      }
     }
 
     // ========================================

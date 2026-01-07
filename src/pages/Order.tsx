@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -492,13 +492,12 @@ const Order = () => {
     // Replace current items with imported ones
     setItems(newItems);
 
-    // Fetch prices for all items (only if a store is selected)
+    // RICERCA PARALLELA: Cerca tutti i prezzi contemporaneamente
     if (store) {
-      newItems.forEach((item, index) => {
-        if (item.name.trim()) {
-          fetchPrice(index, item.name, item.format);
-        }
-      });
+      // Piccolo delay per permettere a React di aggiornare lo stato
+      setTimeout(() => {
+        fetchAllPrices(newItems);
+      }, 100);
     }
 
     // Close dialog and reset
@@ -622,13 +621,11 @@ const Order = () => {
       setStore(selectedList.store);
     }
 
-    // Refresh prices if store is selected
+    // RICERCA PARALLELA: Aggiorna prezzi per tutti i prodotti contemporaneamente
     if (store || selectedList.store) {
-      loadedItems.forEach((item, index) => {
-        if (item.name.trim()) {
-          fetchPrice(index, item.name, item.format);
-        }
-      });
+      setTimeout(() => {
+        fetchAllPrices(loadedItems);
+      }, 100);
     }
 
     setShowLoadListDialog(false);
@@ -665,10 +662,27 @@ const Order = () => {
     }
   };
 
+  // ========================================
+  // PRE-FETCHING: Debounce per cercare mentre l'utente digita
+  // ========================================
+  const debounceTimers = useRef<Record<number, NodeJS.Timeout>>({});
+  
   const updateItemName = (index: number, name: string) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], name, suggestion: null };
     setItems(newItems);
+    
+    // Cancella timer precedente per questo indice
+    if (debounceTimers.current[index]) {
+      clearTimeout(debounceTimers.current[index]);
+    }
+    
+    // Pre-fetch: se il nome ha almeno 3 caratteri, inizia la ricerca dopo 800ms
+    if (name.trim().length >= 3 && store) {
+      debounceTimers.current[index] = setTimeout(() => {
+        fetchPrice(index, name, newItems[index].format);
+      }, 800);
+    }
   };
 
   const updateItemQuantity = (index: number, quantity: number) => {
@@ -683,13 +697,50 @@ const Order = () => {
     setItems(newItems);
   };
 
+  // ========================================
+  // OTTIMIZZAZIONE: Stima rapida basata su prezzi precedenti e medie
+  // ========================================
+  const getQuickEstimate = (productName: string): number | null => {
+    const name = productName.toLowerCase().trim();
+    
+    // Prezzi tipici per prodotti comuni (stima rapida mentre si cerca)
+    const quickPrices: Record<string, number> = {
+      'uova': 2.49, 'latte': 1.35, 'pane': 1.49, 'pasta': 0.99,
+      'riso': 1.99, 'olio': 6.49, 'burro': 2.69, 'zucchero': 1.29,
+      'farina': 0.99, 'sale': 0.49, 'caffè': 3.49, 'acqua': 0.35,
+      'pomodori': 0.89, 'tonno': 2.29, 'yogurt': 0.79, 'mozzarella': 1.69,
+      'mele': 2.29, 'banane': 1.69, 'arance': 1.99, 'insalata': 1.49,
+      'pollo': 6.49, 'macinato': 5.99, 'prosciutto': 3.49, 'formaggio': 2.99,
+      'biscotti': 1.99, 'cereali': 2.99, 'nutella': 4.49, 'marmellata': 2.29,
+      'birra': 1.29, 'vino': 4.99, 'succo': 1.49, 'coca cola': 1.79,
+    };
+    
+    for (const [key, price] of Object.entries(quickPrices)) {
+      if (name.includes(key)) {
+        return price;
+      }
+    }
+    return null;
+  };
 
   const fetchPrice = async (index: number, productName: string, productFormat?: string) => {
     if (!productName.trim() || !store) return;
 
+    // ========================================
+    // UI OTTIMISTICA: Mostra stima immediata mentre cerchiamo il prezzo reale
+    // ========================================
+    const quickEstimate = getQuickEstimate(productName);
+    
     setItems(prevItems => {
       const newItems = [...prevItems];
-      newItems[index] = { ...newItems[index], loading: true };
+      newItems[index] = { 
+        ...newItems[index], 
+        loading: true,
+        // Mostra stima rapida subito (sarà sostituita dal prezzo reale)
+        price: quickEstimate,
+        isEstimated: quickEstimate !== null,
+        suggestion: quickEstimate !== null ? '⏳ Ricerca prezzo reale...' : null
+      };
       return newItems;
     });
 
@@ -702,7 +753,7 @@ const Order = () => {
           product: productName.trim(),
           storeName: store,
           userId: session?.user?.id || null,
-          format: format?.trim() || null // Pass format to edge function
+          format: format?.trim() || null
         }
       });
 
@@ -717,15 +768,14 @@ const Order = () => {
             imageUrl: data.imageUrl || null,
             isEstimated: data.estimated || false,
             productAvailable: data.productAvailable !== false,
-            suggestedAlternative: data.suggestedAlternative || null
+            suggestedAlternative: data.suggestedAlternative || null,
+            suggestion: null // Rimuovi messaggio "ricerca in corso"
           };
           
-          // If product was completed by AI, show it (always, even if similar to original)
+          // If product was completed by AI, show it
           if (data.completedProduct && data.completedProduct.trim().length > 0) {
             updateData.completedName = data.completedProduct;
             console.log('✓ Nome completato salvato:', data.completedProduct);
-          } else {
-            console.log('⚠️ Nessun nome completato ricevuto');
           }
           
           // If product is not available, show warning
@@ -733,12 +783,10 @@ const Order = () => {
             updateData.suggestion = `⚠️ Prodotto non disponibile. Alternativa: ${data.suggestedAlternative}`;
           }
           
-          console.log('💾 Update data finale:', updateData);
           updatedItems[index] = { ...updatedItems[index], ...updateData };
           return updatedItems;
         });
       } else if (data?.error || error) {
-        // Price not found or error occurred
         const errorMessage = data?.error || data?.message || 'Impossibile recuperare il prezzo';
         
         setItems(prevItems => {
@@ -747,15 +795,10 @@ const Order = () => {
             ...updatedItems[index], 
             loading: false, 
             suggestion: errorMessage,
-            price: null
+            price: quickEstimate, // Mantieni la stima rapida se disponibile
+            isEstimated: quickEstimate !== null
           };
           return updatedItems;
-        });
-        
-        toast({
-          title: "Prezzo non trovato",
-          description: data?.message || errorMessage,
-          variant: "destructive",
         });
       } else {
         setItems(prevItems => {
@@ -768,10 +811,96 @@ const Order = () => {
       console.error('Error fetching price:', error);
       setItems(prevItems => {
         const updatedItems = [...prevItems];
-        updatedItems[index] = { ...updatedItems[index], loading: false };
+        updatedItems[index] = { 
+          ...updatedItems[index], 
+          loading: false,
+          price: quickEstimate, // Fallback alla stima rapida
+          isEstimated: quickEstimate !== null
+        };
         return updatedItems;
       });
     }
+  };
+
+  // ========================================
+  // RICERCA PARALLELA: Cerca tutti i prezzi contemporaneamente
+  // ========================================
+  const fetchAllPrices = async (itemsToFetch: ShoppingItem[]) => {
+    if (!store) return;
+    
+    const validItems = itemsToFetch.filter(item => item.name.trim() !== "");
+    if (validItems.length === 0) return;
+
+    console.log(`🚀 Avvio ricerca parallela per ${validItems.length} prodotti`);
+    
+    // Mostra stime immediate per tutti i prodotti
+    setItems(prevItems => {
+      return prevItems.map(item => {
+        if (item.name.trim()) {
+          const quickEstimate = getQuickEstimate(item.name);
+          return {
+            ...item,
+            loading: true,
+            price: quickEstimate,
+            isEstimated: quickEstimate !== null,
+            suggestion: quickEstimate !== null ? '⏳ Ricerca prezzi...' : null
+          };
+        }
+        return item;
+      });
+    });
+
+    // Lancia tutte le ricerche in parallelo
+    const promises = validItems.map((item, idx) => {
+      const originalIndex = items.findIndex(i => i === item);
+      return supabase.functions.invoke('search-product-price', {
+        body: { 
+          product: item.name.trim(),
+          storeName: store,
+          userId: session?.user?.id || null,
+          format: item.format?.trim() || null
+        }
+      }).then(({ data, error }) => ({ data, error, originalIndex, item }));
+    });
+
+    // Elabora i risultati man mano che arrivano
+    const results = await Promise.allSettled(promises);
+    
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const { data, error, originalIndex, item } = result.value;
+          
+          if (!error && data?.price !== undefined) {
+            updatedItems[originalIndex] = {
+              ...updatedItems[originalIndex],
+              price: data.price,
+              loading: false,
+              imageUrl: data.imageUrl || null,
+              isEstimated: data.estimated || false,
+              completedName: data.completedProduct || undefined,
+              productAvailable: data.productAvailable !== false,
+              suggestedAlternative: data.suggestedAlternative || null,
+              suggestion: null
+            };
+          } else {
+            const quickEstimate = getQuickEstimate(item.name);
+            updatedItems[originalIndex] = {
+              ...updatedItems[originalIndex],
+              loading: false,
+              price: quickEstimate,
+              isEstimated: quickEstimate !== null
+            };
+          }
+        }
+      });
+      
+      return updatedItems;
+    });
+
+    console.log(`✅ Ricerca parallela completata`);
   };
 
   // Calculate bags needed - 15L OR 12 pieces = 1 bag
