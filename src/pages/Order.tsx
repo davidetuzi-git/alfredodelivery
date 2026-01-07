@@ -34,6 +34,7 @@ import { containsAlcohol, useAlcoholVerification } from "@/hooks/useAlcoholDetec
 
 interface ShoppingItem {
   name: string;
+  format?: string; // Optional: weight/volume format (e.g., "1L", "500g", "6 pezzi")
   price: number | null;
   loading: boolean;
   quantity: number;
@@ -163,7 +164,7 @@ const Order = () => {
   const [store, setStore] = useState(initialState?.store || "");
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(initialState?.deliveryDate ? new Date(initialState.deliveryDate) : undefined);
   const [timeSlot, setTimeSlot] = useState(initialState?.timeSlot || "");
-  const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+  const [items, setItems] = useState<ShoppingItem[]>(initialState?.items || [{ name: "", format: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   const [filteredStores, setFilteredStores] = useState<string[]>(initialState?.filteredStores || []);
   const [selectedStoreCoords, setSelectedStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
@@ -297,6 +298,7 @@ const Order = () => {
       // Strip large data (imageUrl) from items to avoid quota exceeded
       const lightItems = items.map(item => ({
         name: item.name,
+        format: item.format,
         price: item.price,
         loading: false, // Don't persist loading state
         quantity: item.quantity,
@@ -371,7 +373,7 @@ const Order = () => {
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+    setItems([...items, { name: "", format: "", price: null, loading: false, quantity: 1, suggestion: null }]);
   };
 
   const removeItem = (index: number) => {
@@ -564,6 +566,7 @@ const Order = () => {
     // Convert saved items back to ShoppingItem format
     const loadedItems: ShoppingItem[] = selectedList.items.map((item: any) => ({
       name: item.name,
+      format: item.format || "",
       quantity: item.quantity || 1,
       price: item.price || null,
       loading: false,
@@ -571,7 +574,7 @@ const Order = () => {
       completedName: item.completedName || null,
     }));
     
-    setItems(loadedItems.length > 0 ? loadedItems : [{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+    setItems(loadedItems.length > 0 ? loadedItems : [{ name: "", format: "", price: null, loading: false, quantity: 1, suggestion: null }]);
     
     // Optionally restore store
     if (selectedList.store) {
@@ -633,8 +636,14 @@ const Order = () => {
     setItems(newItems);
   };
 
+  const updateItemFormat = (index: number, format: string) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], format };
+    setItems(newItems);
+  };
 
-  const fetchPrice = async (index: number, productName: string) => {
+
+  const fetchPrice = async (index: number, productName: string, productFormat?: string) => {
     if (!productName.trim() || !store) return;
 
     setItems(prevItems => {
@@ -643,12 +652,16 @@ const Order = () => {
       return newItems;
     });
 
+    // Get the current item's format if not provided
+    const format = productFormat ?? items[index]?.format;
+
     try {
       const { data, error } = await supabase.functions.invoke('search-product-price', {
         body: { 
           product: productName.trim(),
           storeName: store,
-          userId: session?.user?.id || null
+          userId: session?.user?.id || null,
+          format: format?.trim() || null // Pass format to edge function
         }
       });
 
@@ -1738,7 +1751,24 @@ const Order = () => {
                           )}
                         </div>
                       </div>
-                      <div className="w-16 flex-shrink-0">
+                      <div className="w-20 flex-shrink-0">
+                        <Label htmlFor={`item-format-${index}`} className="text-xs text-muted-foreground">
+                          Formato
+                        </Label>
+                        <Input
+                          id={`item-format-${index}`}
+                          placeholder="1L, 500g..."
+                          value={item.format || ""}
+                          onChange={(e) => updateItemFormat(index, e.target.value)}
+                          onBlur={() => {
+                            if (item.name.trim() && item.format?.trim()) {
+                              fetchPrice(index, item.name, item.format);
+                            }
+                          }}
+                          className="text-center text-sm"
+                        />
+                      </div>
+                      <div className="w-14 flex-shrink-0">
                         <Label htmlFor={`item-qty-${index}`} className="text-xs text-muted-foreground">
                           Qtà
                         </Label>
