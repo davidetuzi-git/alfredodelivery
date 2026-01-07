@@ -67,6 +67,26 @@ const DeliveryDatePicker = ({
       );
     }
 
+    // Calculate total discount for this day
+    const getTotalDiscount = (): { amount: number; hasScheduling: boolean; hasZone: boolean } => {
+      let total = 0;
+      let hasScheduling = false;
+      let hasZone = false;
+      
+      if (adjustment && adjustment.type === 'discount') {
+        total += Math.abs(adjustment.amount);
+        hasScheduling = true;
+      }
+      if (suggestion) {
+        total += suggestion.extraDiscount;
+        hasZone = true;
+      }
+      
+      return { amount: total, hasScheduling, hasZone };
+    };
+    
+    const totalDiscount = getTotalDiscount();
+
     return (
       <div className="relative flex flex-col items-center">
         <span>{day.getDate()}</span>
@@ -74,18 +94,15 @@ const DeliveryDatePicker = ({
           <span className="text-[9px] font-medium leading-tight text-amber-600 dark:text-amber-400">
             +€10
           </span>
-        ) : adjustment && (
-          <span 
-            className={cn(
-              "text-[9px] font-medium leading-tight",
-              adjustment.type === 'surcharge' 
-                ? "text-red-500 dark:text-red-400" 
-                : "text-green-500 dark:text-green-400"
-            )}
-          >
+        ) : adjustment?.type === 'surcharge' ? (
+          <span className="text-[9px] font-medium leading-tight text-red-500 dark:text-red-400">
             {adjustment.label}
           </span>
-        )}
+        ) : totalDiscount.amount > 0 ? (
+          <span className="text-[9px] font-medium leading-tight text-green-500 dark:text-green-400">
+            -€{totalDiscount.amount.toFixed(2)}
+          </span>
+        ) : null}
         {holiday.isHoliday && (
           <span className="absolute -top-1 -right-1">
             <PartyPopper className="h-2.5 w-2.5 text-amber-500" />
@@ -257,19 +274,28 @@ const DeliveryDatePicker = ({
               <TrendingDown className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-medium text-green-700 dark:text-green-300">
-                  Sconto programmazione: {selectedAdjustment?.label || ''}
-                  {selectedSuggestion && selectedAdjustment && ' + '}
-                  {selectedSuggestion && `Extra -€${selectedSuggestion.extraDiscount.toFixed(2)}`}
+                  {selectedAdjustment && selectedSuggestion ? (
+                    <>Sconto totale: -€{(Math.abs(selectedAdjustment.amount) + selectedSuggestion.extraDiscount).toFixed(2)}</>
+                  ) : selectedAdjustment ? (
+                    <>Sconto programmazione: {selectedAdjustment.label}</>
+                  ) : selectedSuggestion ? (
+                    <>Sconto zona: -€{selectedSuggestion.extraDiscount.toFixed(2)}</>
+                  ) : null}
                 </p>
-                <p className="text-xs text-green-600 dark:text-green-400">
-                  {selectedAdjustment?.description}
+                <p className="text-xs text-green-600 dark:text-green-400 space-y-1">
+                  {selectedAdjustment && <span className="block">{selectedAdjustment.description}</span>}
                   {selectedSuggestion && (
                     <>
-                      <br />
                       <span className="flex items-center gap-1 mt-1">
                         <Sparkles className="h-3 w-3" />
                         {selectedSuggestion.reason}
                       </span>
+                      {selectedSuggestion.extendedTimeSlot && (
+                        <span className="flex items-center gap-1 mt-1 text-amber-600 dark:text-amber-400">
+                          <Clock className="h-3 w-3" />
+                          Fascia oraria estesa (4 ore) per ottimizzare il giro
+                        </span>
+                      )}
                     </>
                   )}
                 </p>
