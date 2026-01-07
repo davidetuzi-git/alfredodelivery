@@ -753,6 +753,30 @@ export type Database = {
           },
         ]
       }
+      pending_orders: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          stripe_session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload: Json
+          stripe_session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          stripe_session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       points_transactions: {
         Row: {
           created_at: string

@@ -159,18 +159,49 @@ const Checkout = () => {
           console.error('No checkout URL in response:', data);
           throw new Error('URL di checkout non ricevuto');
         }
-        
-        // Store order data in localStorage (persists across tabs unlike sessionStorage)
-        localStorage.setItem('pendingOrder', JSON.stringify({
+
+        // Session ID serves to recover the order payload after Stripe redirects
+        if (!data?.sessionId) {
+          console.error('No sessionId in response:', data);
+          throw new Error('Session ID di pagamento non ricevuto');
+        }
+
+        if (!session?.user?.id) {
+          throw new Error('Sessione utente non valida');
+        }
+
+        const pendingPayload = {
           ...orderData,
           total: finalTotal,
           deliveryFee,
           discount,
-          paymentMethod: 'card'
-        }));
-        
+          paymentMethod: 'card',
+        };
+
+        // Persist pending order server-side to avoid losing it across redirects/browser storage issues
+        const { error: pendingDbError } = await supabase
+          .from('pending_orders')
+          .upsert(
+            {
+              user_id: session.user.id,
+              stripe_session_id: data.sessionId,
+              payload: pendingPayload,
+            },
+            { onConflict: 'stripe_session_id' }
+          );
+
+        if (pendingDbError) {
+          console.error('Error saving pending order to DB:', pendingDbError);
+          throw new Error(
+            "Impossibile salvare i dati dell'ordine prima del pagamento. Riprova."
+          );
+        }
+
+        // Keep local copy as fast path
+        localStorage.setItem('pendingOrder', JSON.stringify(pendingPayload));
+
         console.log('Redirecting to Stripe:', data.url);
-        
+
         // Redirect to Stripe checkout in same tab
         window.location.href = data.url;
         return;

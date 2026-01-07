@@ -55,9 +55,29 @@ const StripeSuccess = () => {
           }
           await new Promise(resolve => setTimeout(resolve, 300));
         }
+
+        // Fallback: recover payload from DB using Stripe session id
+        if (!pendingOrderStr) {
+          console.warn('pendingOrder not found in localStorage, trying DB fallback...');
+          const { data: pendingDb, error: pendingDbError } = await supabase
+            .from('pending_orders')
+            .select('payload')
+            .eq('stripe_session_id', sessionId)
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          if (pendingDbError) {
+            console.error('Error fetching pending order from DB:', pendingDbError);
+          }
+
+          if (pendingDb?.payload) {
+            pendingOrderStr = JSON.stringify(pendingDb.payload);
+            console.log('pendingOrder recovered from DB');
+          }
+        }
         
         if (!pendingOrderStr) {
-          console.error('pendingOrder not found in localStorage after retries');
+          console.error('pendingOrder not found in localStorage or DB');
           throw new Error("Dati ordine non trovati. Il pagamento è stato completato ma l'ordine non è stato salvato. Contatta l'assistenza.");
         }
 
@@ -126,8 +146,14 @@ const StripeSuccess = () => {
           });
         }
 
-        // Clear pending order from localStorage
+        // Clear pending order (local + DB)
         localStorage.removeItem('pendingOrder');
+        supabase
+          .from('pending_orders')
+          .delete()
+          .eq('stripe_session_id', sessionId)
+          .eq('user_id', session.user.id)
+          .then(() => {});
 
         setStatus('success');
         
