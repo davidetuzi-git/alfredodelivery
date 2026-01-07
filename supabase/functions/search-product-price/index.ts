@@ -103,33 +103,70 @@ const BASIC_PRODUCT_PRICES: Record<string, number> = {
 // Funzione per trovare prezzo base
 function getBasicProductPrice(product: string): number | null {
   const productLower = product.toLowerCase().trim();
-  
-  // Match esatto
-  if (BASIC_PRODUCT_PRICES[productLower]) {
-    return BASIC_PRODUCT_PRICES[productLower];
+
+  // Normalizzazione leggera (rimuove parentesi e parole “rumore”)
+  const normalized = productLower
+    .replace(/[()\[\]{}]/g, ' ')
+    .replace(/[,.;:]/g, ' ')
+    .replace(/\b(confezione|conf|da|di|n\.?|nr\.?|numero)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 1) Match esatto
+  if (BASIC_PRODUCT_PRICES[normalized]) return BASIC_PRODUCT_PRICES[normalized];
+  if (BASIC_PRODUCT_PRICES[productLower]) return BASIC_PRODUCT_PRICES[productLower];
+
+  // 2) Caso speciale: uova con quantità (es. "uova (confezione da 6)")
+  if (normalized.includes('uova')) {
+    const countMatch = normalized.match(/\b(\d{1,2})\b/);
+    if (countMatch) {
+      const key = `uova ${parseInt(countMatch[1], 10)}`;
+      if (BASIC_PRODUCT_PRICES[key]) return BASIC_PRODUCT_PRICES[key];
+    }
   }
-  
-  // Match parziale - cerca la chiave più lunga che corrisponde
+
+  // 3) Match parziale - cerca la chiave più lunga che corrisponde
   let bestMatch: { key: string; price: number } | null = null;
   for (const [key, price] of Object.entries(BASIC_PRODUCT_PRICES)) {
-    if (productLower.includes(key) || key.includes(productLower)) {
+    if (normalized.includes(key) || key.includes(normalized) || productLower.includes(key) || key.includes(productLower)) {
       if (!bestMatch || key.length > bestMatch.key.length) {
         bestMatch = { key, price };
       }
     }
   }
-  
+
   return bestMatch?.price || null;
 }
 
-// Estrai formato dal nome prodotto (es: 100g, 1L, 6 uova)
+// Estrai formato dal nome prodotto (es: 100g, 1L, 6 pz)
 function extractFormat(product: string): { format: string | null; unit: string | null } {
-  const formatRegex = /(\d+)\s*(g|gr|kg|ml|l|lt|cl|pz|uova|pezzi|confezione)/i;
-  const match = product.match(formatRegex);
-  
-  if (match) {
-    return { format: match[0], unit: match[2].toLowerCase() };
+  // Peso/volume
+  const weightVolumeMatch = product.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|ml|cl|l|lt)\b/i);
+  if (weightVolumeMatch) {
+    const qty = weightVolumeMatch[1].replace(',', '.');
+    let unit = weightVolumeMatch[2].toLowerCase();
+    if (unit === 'kilo') unit = 'kg';
+    if (unit === 'gr') unit = 'g';
+    if (unit === 'lt') unit = 'l';
+    return { format: `${qty}${unit}`, unit };
   }
+
+  // Confezioni / pezzi (confezione da 6, 6 pezzi, x6, 6x)
+  const packMatch =
+    product.match(/(?:confezione\s*(?:da|di)?\s*)?(\d{1,2})\s*(pz|pezzi|uova)\b/i) ||
+    product.match(/\b(\d{1,2})\s*(pz|pezzi|uova)\b/i) ||
+    product.match(/\b(?:x|×)\s*(\d{1,2})\b/i) ||
+    product.match(/\b(\d{1,2})\s*(?:x|×)\b/i) ||
+    product.match(/\bconfezione\s*(?:da|di)\s*(\d{1,2})\b/i) ||
+    product.match(/\bda\s*(\d{1,2})\b/i);
+
+  if (packMatch) {
+    const count = parseInt(packMatch[1], 10);
+    if (!isNaN(count) && count > 1 && count <= 48) {
+      return { format: `${count} pz`, unit: 'pz' };
+    }
+  }
+
   return { format: null, unit: null };
 }
 
@@ -490,17 +527,28 @@ serve(async (req) => {
       // FASE 5: FALLBACK - Cerca in ALTRE catene e aggiungi +10%
       // ========================================
       if (foundPrice === null) {
-        console.log(`\n🔄 FASE 5: Ricerca in altre catene (fallback +10%)...`);
-        const fallbackResult = await searchOtherChains(product, chainName, city, FIRECRAWL_API_KEY);
-        
-        if (fallbackResult.price !== null) {
-          // Aggiungi 10% di margine di sicurezza
-          const originalPrice = fallbackResult.price;
-          foundPrice = Math.round(originalPrice * 1.10 * 100) / 100; // +10% arrotondato a 2 decimali
-          priceSource = `estimated_from:${fallbackResult.originalChain}`;
+        // Prima scelta per prodotti comuni: prezzi base (evita outlier tipo "uova" a 0,55€)
+        const basicPrice = getBasicProductPrice(product);
+        if (basicPrice !== null) {
+          console.log(`\n🛒 FASE 5: Prodotto base → uso prezzo tipico (+10%)...`);
+          foundPrice = Math.round(basicPrice * 1.10 * 100) / 100;
+          priceSource = 'basic_product_fallback';
           isEstimated = true;
-          estimatedFromChain = fallbackResult.originalChain;
-          console.log(`✓ Prezzo stimato: €${originalPrice} (${fallbackResult.originalChain}) + 10% = €${foundPrice}`);
+          console.log(`✓ Prezzo base: €${basicPrice} + 10% = €${foundPrice}`);
+        } else {
+          // Fallback secondario: altre catene +10%
+          console.log(`\n🔄 FASE 5: Ricerca in altre catene (fallback +10%)...`);
+          const fallbackResult = await searchOtherChains(product, chainName, city, FIRECRAWL_API_KEY);
+
+          if (fallbackResult.price !== null) {
+            // Aggiungi 10% di margine di sicurezza
+            const originalPrice = fallbackResult.price;
+            foundPrice = Math.round(originalPrice * 1.10 * 100) / 100; // +10% arrotondato a 2 decimali
+            priceSource = `estimated_from:${fallbackResult.originalChain}`;
+            isEstimated = true;
+            estimatedFromChain = fallbackResult.originalChain;
+            console.log(`✓ Prezzo stimato: €${originalPrice} (${fallbackResult.originalChain}) + 10% = €${foundPrice}`);
+          }
         }
       }
     } else if (!FIRECRAWL_API_KEY) {
