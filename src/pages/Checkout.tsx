@@ -22,10 +22,27 @@ const Checkout = () => {
   const { decrementDelivery } = useSubscription();
   
   
-  const orderData = location.state || {};
+  // Recupera dati da location.state O da localStorage (per il caso di ritorno dal 3D Secure)
+  const getOrderData = () => {
+    if (location.state && Object.keys(location.state).length > 0) {
+      return location.state;
+    }
+    // Fallback: recupera da localStorage se esiste
+    const pendingOrderStr = localStorage.getItem('pendingOrder');
+    if (pendingOrderStr) {
+      try {
+        return JSON.parse(pendingOrderStr);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+  
+  const orderData = getOrderData();
   const subtotal = orderData.subtotal || 0;
   const deliveryFee = orderData.deliveryFee || 3.99;
-  const discount = orderData.discount || 4.99;
+  const discount = orderData.discount || 0;
   const supplements = orderData.supplements || { bagFee: 0, waterFee: 0, waterOnlyFee: 0, holidayFee: 0, total: 0 };
   const serviceFee = orderData.serviceFee || 0;
   const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '' };
@@ -291,6 +308,33 @@ const Checkout = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Se non ci sono dati ordine validi, mostra messaggio e reindirizza
+  if (!orderData.orderData || itemCount === 0 || finalTotal === 0) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6">
+          <div className="max-w-2xl mx-auto">
+            <h1 className="text-3xl font-bold mb-2">Nessun ordine in corso</h1>
+            <p className="text-muted-foreground">I dati dell'ordine non sono disponibili</p>
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <Card>
+            <CardContent className="pt-6 text-center space-y-4">
+              <p className="text-muted-foreground">
+                I dati dell'ordine sono andati persi. Per favore, ricrea il tuo ordine.
+              </p>
+              <Button onClick={() => navigate("/ordina")} className="w-full">
+                Vai alla pagina ordine
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <Navigation />
       </div>
     );
   }
