@@ -163,7 +163,7 @@ const Checkout = () => {
         // Store order data in localStorage (persists across tabs unlike sessionStorage)
         localStorage.setItem('pendingOrder', JSON.stringify({
           ...orderData,
-          total: subtotal,
+          total: finalTotal,
           deliveryFee,
           discount,
           paymentMethod: 'card'
@@ -206,7 +206,7 @@ const Checkout = () => {
         // Store order data in localStorage (persists across tabs unlike sessionStorage)
         localStorage.setItem('pendingOrder', JSON.stringify({
           ...orderData,
-          total: subtotal,
+          total: finalTotal,
           deliveryFee,
           discount,
           paymentMethod: 'paypal'
