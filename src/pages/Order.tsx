@@ -1700,6 +1700,18 @@ const Order = () => {
                       <FileText className="h-4 w-4 mr-2" />
                       Importa
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadSavedLists();
+                        setShowLoadListDialog(true);
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4 mr-2" />
+                      Carica salvata
+                    </Button>
                     {items.length > 0 && items.some(item => item.name.trim() !== "") && (
                       <>
                         <Button
