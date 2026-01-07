@@ -53,58 +53,68 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
   'avezzano': { region: 'Abruzzo', capital: "L'Aquila", province: "L'Aquila" },
 };
 
-// Tutte le catene supportate per fallback
-const ALL_CHAINS = ['eurospin', 'lidl', 'conad', 'coop', 'esselunga', 'carrefour', 'pam', 'md', 'penny', 'aldi'];
-
-// Prezzi tipici prodotti base discount (2025, Italia) - usati come fallback ultimo
+// Prezzi tipici prodotti base discount (2025, Italia) - DATABASE ESPANSO
 const BASIC_PRODUCT_PRICES: Record<string, number> = {
   // Uova
-  'uova': 2.29, 'uova 6': 1.49, 'uova 10': 2.49, 'uova 12': 2.99,
+  'uova': 2.29, 'uova 6': 1.49, 'uova 10': 2.49, 'uova 12': 2.99, 'uova fresche': 2.49,
   // Latte
-  'latte': 1.29, 'latte intero': 1.35, 'latte parzialmente scremato': 1.29, 'latte scremato': 1.25, 'latte fresco': 1.69,
+  'latte': 1.29, 'latte intero': 1.35, 'latte parzialmente scremato': 1.29, 'latte scremato': 1.25, 
+  'latte fresco': 1.69, 'latte 1l': 1.29, 'latte uht': 1.19,
   // Pane
-  'pane': 1.49, 'pane casereccio': 1.99, 'pane integrale': 2.29, 'pancarrè': 1.49,
+  'pane': 1.49, 'pane casereccio': 1.99, 'pane integrale': 2.29, 'pancarrè': 1.49, 'pane bianco': 1.49,
   // Pasta
   'pasta': 0.89, 'spaghetti': 0.89, 'penne': 0.89, 'rigatoni': 0.89, 'fusilli': 0.89,
+  'pasta barilla': 1.29, 'pasta de cecco': 1.49, 'pasta rummo': 1.69,
   // Riso
-  'riso': 1.79, 'riso arborio': 2.49, 'riso carnaroli': 2.99,
+  'riso': 1.79, 'riso arborio': 2.49, 'riso carnaroli': 2.99, 'riso basmati': 2.29,
   // Olio
-  'olio': 5.99, 'olio extravergine': 6.99, 'olio di oliva': 5.99, 'olio di semi': 2.49,
+  'olio': 5.99, 'olio extravergine': 6.99, 'olio di oliva': 5.99, 'olio di semi': 2.49, 'olio evo': 6.99,
   // Burro
-  'burro': 2.49, 'burro 250g': 2.99,
+  'burro': 2.49, 'burro 250g': 2.99, 'burro 125g': 1.79,
   // Zucchero
-  'zucchero': 1.29, 'zucchero 1kg': 1.29,
+  'zucchero': 1.29, 'zucchero 1kg': 1.29, 'zucchero di canna': 1.99,
   // Farina
-  'farina': 0.99, 'farina 00': 0.99, 'farina 1kg': 1.19,
+  'farina': 0.99, 'farina 00': 0.99, 'farina 1kg': 1.19, 'farina manitoba': 1.49,
   // Sale
-  'sale': 0.49, 'sale fino': 0.49, 'sale grosso': 0.49,
+  'sale': 0.49, 'sale fino': 0.49, 'sale grosso': 0.49, 'sale iodato': 0.59,
   // Caffè
-  'caffè': 3.49, 'caffè 250g': 2.99, 'caffè moka': 3.49,
+  'caffè': 3.49, 'caffè 250g': 2.99, 'caffè moka': 3.49, 'caffè lavazza': 4.99, 'caffè illy': 6.99,
   // Cioccolato
-  'cioccolato': 1.49, 'cioccolata': 1.49, 'cioccolato 100g': 1.49, 'cioccolata 100g': 1.49, 'tavoletta cioccolato': 1.49,
+  'cioccolato': 1.49, 'cioccolata': 1.49, 'cioccolato 100g': 1.49, 'nutella': 3.99, 'nutella 400g': 3.99,
   // Acqua
-  'acqua': 0.35, 'acqua 1.5l': 0.35, 'acqua 6x1.5l': 1.99,
+  'acqua': 0.35, 'acqua 1.5l': 0.35, 'acqua 6x1.5l': 1.99, 'acqua minerale': 0.35,
   // Pomodori
-  'pomodori pelati': 0.79, 'passata': 0.99, 'passata di pomodoro': 0.99,
+  'pomodori pelati': 0.79, 'passata': 0.99, 'passata di pomodoro': 0.99, 'polpa di pomodoro': 0.89,
   // Tonno
-  'tonno': 1.99, 'tonno in scatola': 1.99, 'tonno 3x80g': 2.49,
+  'tonno': 1.99, 'tonno in scatola': 1.99, 'tonno 3x80g': 2.49, 'tonno rio mare': 3.49,
   // Yogurt
-  'yogurt': 0.59, 'yogurt greco': 1.49, 'yogurt bianco': 0.99,
+  'yogurt': 0.59, 'yogurt greco': 1.49, 'yogurt bianco': 0.99, 'yogurt fage': 1.99,
   // Formaggio
-  'mozzarella': 1.49, 'parmigiano': 3.99, 'grana': 3.99, 'formaggio': 2.49,
+  'mozzarella': 1.49, 'parmigiano': 3.99, 'grana': 3.99, 'formaggio': 2.49, 'grana padano': 3.49,
+  'parmigiano reggiano': 4.99, 'pecorino': 3.99, 'ricotta': 1.49, 'philadelphia': 2.49,
   // Frutta
-  'mele': 1.99, 'banane': 1.49, 'arance': 1.79, 'pere': 2.29,
+  'mele': 1.99, 'banane': 1.49, 'arance': 1.79, 'pere': 2.29, 'kiwi': 2.99, 'fragole': 2.99,
+  'limoni': 1.99, 'uva': 2.49, 'pesche': 2.49, 'albicocche': 2.99,
   // Verdura
   'insalata': 1.29, 'pomodori': 1.99, 'zucchine': 1.79, 'carote': 0.99, 'patate': 1.49,
+  'cipolle': 1.29, 'aglio': 0.99, 'peperoni': 2.49, 'melanzane': 1.99, 'spinaci': 1.99,
   // Carne
   'pollo': 5.99, 'petto di pollo': 7.99, 'macinato': 5.49, 'carne macinata': 5.49,
+  'salsiccia': 4.99, 'prosciutto': 2.99, 'prosciutto cotto': 2.99, 'prosciutto crudo': 4.99,
+  // Bevande
+  'coca cola': 1.79, 'coca cola 1.5l': 1.79, 'fanta': 1.49, 'sprite': 1.49, 'birra': 1.29,
+  'vino': 3.99, 'succo': 1.49, 'succo di frutta': 1.49, 'the': 1.29,
+  // Snack
+  'biscotti': 1.99, 'cracker': 1.49, 'patatine': 1.99, 'chips': 1.99, 'merendine': 2.49,
+  // Surgelati
+  'pizza surgelata': 2.99, 'gelato': 3.99, 'verdure surgelate': 1.99, 'bastoncini findus': 4.99,
+  // Altro
+  'detersivo': 3.99, 'sapone': 1.99, 'shampoo': 2.99, 'carta igienica': 3.99,
 };
 
-// Funzione per trovare prezzo base
+// Funzione per trovare prezzo base - VELOCE
 function getBasicProductPrice(product: string): number | null {
   const productLower = product.toLowerCase().trim();
-
-  // Normalizzazione leggera (rimuove parentesi e parole “rumore”)
   const normalized = productLower
     .replace(/[()\[\]{}]/g, ' ')
     .replace(/[,.;:]/g, ' ')
@@ -112,11 +122,11 @@ function getBasicProductPrice(product: string): number | null {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 1) Match esatto
+  // Match esatto
   if (BASIC_PRODUCT_PRICES[normalized]) return BASIC_PRODUCT_PRICES[normalized];
   if (BASIC_PRODUCT_PRICES[productLower]) return BASIC_PRODUCT_PRICES[productLower];
 
-  // 2) Caso speciale: uova con quantità (es. "uova (confezione da 6)")
+  // Caso speciale: uova con quantità
   if (normalized.includes('uova')) {
     const countMatch = normalized.match(/\b(\d{1,2})\b/);
     if (countMatch) {
@@ -125,7 +135,7 @@ function getBasicProductPrice(product: string): number | null {
     }
   }
 
-  // 3) Match parziale - cerca la chiave più lunga che corrisponde
+  // Match parziale - cerca la chiave più lunga che corrisponde
   let bestMatch: { key: string; price: number } | null = null;
   for (const [key, price] of Object.entries(BASIC_PRODUCT_PRICES)) {
     if (normalized.includes(key) || key.includes(normalized) || productLower.includes(key) || key.includes(productLower)) {
@@ -140,7 +150,6 @@ function getBasicProductPrice(product: string): number | null {
 
 // Estrai formato dal nome prodotto (es: 100g, 1L, 6 pz)
 function extractFormat(product: string): { format: string | null; unit: string | null } {
-  // Peso/volume
   const weightVolumeMatch = product.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|ml|cl|l|lt)\b/i);
   if (weightVolumeMatch) {
     const qty = weightVolumeMatch[1].replace(',', '.');
@@ -151,14 +160,11 @@ function extractFormat(product: string): { format: string | null; unit: string |
     return { format: `${qty}${unit}`, unit };
   }
 
-  // Confezioni / pezzi (confezione da 6, 6 pezzi, x6, 6x)
   const packMatch =
     product.match(/(?:confezione\s*(?:da|di)?\s*)?(\d{1,2})\s*(pz|pezzi|uova)\b/i) ||
     product.match(/\b(\d{1,2})\s*(pz|pezzi|uova)\b/i) ||
     product.match(/\b(?:x|×)\s*(\d{1,2})\b/i) ||
-    product.match(/\b(\d{1,2})\s*(?:x|×)\b/i) ||
-    product.match(/\bconfezione\s*(?:da|di)\s*(\d{1,2})\b/i) ||
-    product.match(/\bda\s*(\d{1,2})\b/i);
+    product.match(/\b(\d{1,2})\s*(?:x|×)\b/i);
 
   if (packMatch) {
     const count = parseInt(packMatch[1], 10);
@@ -170,7 +176,7 @@ function extractFormat(product: string): { format: string | null; unit: string |
   return { format: null, unit: null };
 }
 
-// Funzione principale: usa ricerca web mirata su volantini
+// Ricerca web mirata - OTTIMIZZATA con timeout
 async function scrapeProductPrice(
   product: string, 
   chainName: string, 
@@ -178,207 +184,131 @@ async function scrapeProductPrice(
   FIRECRAWL_API_KEY: string
 ): Promise<{ price: number | null; source: string; productName: string | null }> {
   
-  // Estrai formato dal prodotto cercato (es: 100g, 1L)
   const productFormat = extractFormat(product);
   
-  // Ricerca SOLO ITALIA - esclude qualsiasi altro paese
-  const queries = [
-    `site:doveconviene.it "${product}" ${chainName} prezzo`,
-    `site:promoqui.it "${product}" ${chainName} prezzo`,
-    `site:volantinofacile.it "${product}" ${chainName}`,
-    `"${product}" ${chainName} prezzo € Italia site:.it -site:.ch -site:.de -site:.fr -site:.at -site:.es`,
-  ];
+  // UNA SOLA query ottimizzata
+  const searchQuery = `site:doveconviene.it "${product}" ${chainName} prezzo`;
   
-  console.log(`\n🔍 Ricerca prezzo: ${product} @ ${chainName}`);
+  console.log(`🔍 Ricerca: ${product} @ ${chainName}`);
   
-  for (const searchQuery of queries) {
-    console.log(`📌 Query: ${searchQuery}`);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 sec timeout
     
-    try {
-      const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: searchQuery,
-          limit: 8,
-          lang: 'it',
-          country: 'IT',
-          scrapeOptions: { formats: ['markdown'] }
-        }),
-      });
+    const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: searchQuery,
+        limit: 5, // Ridotto da 8
+        lang: 'it',
+        country: 'IT',
+        scrapeOptions: { formats: ['markdown'] }
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
 
-      if (!searchResponse.ok) {
-        console.log(`✗ Search failed: ${searchResponse.status}`);
-        continue;
-      }
+    if (!searchResponse.ok) {
+      console.log(`✗ Search failed: ${searchResponse.status}`);
+      return { price: null, source: 'not_found', productName: null };
+    }
 
-      const searchData = await searchResponse.json();
-      const results = searchData.data || [];
-      console.log(`📊 Trovati ${results.length} risultati`);
+    const searchData = await searchResponse.json();
+    const results = searchData.data || [];
+    
+    const validPrices: { price: number; source: string; context: string }[] = [];
+    const productWords = product.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    
+    for (const item of results) {
+      const content = (item.markdown || '') + ' ' + (item.title || '') + ' ' + (item.description || '');
+      const url = item.url || '';
+      const contentLower = content.toLowerCase();
+      const urlLower = url.toLowerCase();
       
-      // Raccogli tutti i prezzi validi
-      const validPrices: { price: number; source: string; context: string }[] = [];
+      // Filtro siti esteri
+      const foreignDomains = ['.ch', '.de', '.fr', '.at', '.es', '.uk'];
+      if (foreignDomains.some(d => urlLower.includes(d))) continue;
+      if (!urlLower.includes('.it')) continue;
       
-      for (const item of results) {
-        const content = (item.markdown || '') + ' ' + (item.title || '') + ' ' + (item.description || '');
-        const url = item.url || '';
-        const contentLower = content.toLowerCase();
-        const urlLower = url.toLowerCase();
-        const chainLower = chainName.toLowerCase();
-        const productLower = product.toLowerCase();
+      // Verifica pertinenza
+      const hasProduct = productWords.some(w => contentLower.includes(w));
+      if (!hasProduct) continue;
+      
+      // Estrai prezzi
+      const priceRegex = /€\s*(\d{1,2})[,.](\d{2})|(\d{1,2})[,.](\d{2})\s*€/g;
+      let match;
+      
+      while ((match = priceRegex.exec(content)) !== null) {
+        const euros = match[1] || match[3];
+        const cents = match[2] || match[4];
+        const price = parseFloat(`${euros}.${cents}`);
         
-        // ============================================
-        // FILTRO CRITICO: SOLO ITALIA - Escludi TUTTI i siti esteri
-        // ============================================
-        const foreignDomains = ['.ch', '.de', '.fr', '.at', '.es', '.uk', '.com/', '.eu/', 'sortiment', 'migros', 'coop.ch', 'aldi.ch', 'lidl.ch', 'lidl.de', 'lidl.fr'];
-        const foreignCurrencies = ['chf', 'fr.', '£', '$', 'sfr', 'franken', 'franc'];
-        
-        const isForeignSite = foreignDomains.some(d => urlLower.includes(d));
-        const hasForeignCurrency = foreignCurrencies.some(c => contentLower.includes(c));
-        
-        if (isForeignSite || hasForeignCurrency) {
-          console.log(`⛔ ESCLUSO sito estero: ${url.substring(0, 50)}...`);
-          continue;
-        }
-        
-        // Verifica che sia un sito italiano (.it) o volantini italiani
-        const isItalianSite = urlLower.includes('.it') || urlLower.includes('doveconviene') || urlLower.includes('promoqui') || urlLower.includes('volantinofacile');
-        if (!isItalianSite) {
-          console.log(`⚠️ Sito non italiano ignorato: ${url.substring(0, 50)}...`);
-          continue;
-        }
-        
-        // Verifica pertinenza: deve contenere il prodotto
-        const productWords = productLower.split(/\s+/).filter(w => w.length > 2);
-        const hasProduct = productWords.some(w => contentLower.includes(w));
-        
-        if (!hasProduct) {
-          continue;
-        }
-        
-        // Estrai TUTTI i prezzi dal contenuto
-        const priceRegex = /€\s*(\d{1,2})[,.](\d{2})|(\d{1,2})[,.](\d{2})\s*€/g;
-        let match;
-        
-        while ((match = priceRegex.exec(content)) !== null) {
-          const euros = match[1] || match[3];
-          const cents = match[2] || match[4];
-          const price = parseFloat(`${euros}.${cents}`);
+        if (price >= 0.30 && price <= 15) {
+          const startIdx = Math.max(0, match.index - 50);
+          const endIdx = Math.min(content.length, match.index + 30);
+          const context = content.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
           
-          // Prezzo realistico per supermercato discount (0.30€ - 15€ per prodotti base)
-          if (price >= 0.30 && price <= 15) {
-            // Estrai il contesto intorno al prezzo (più ampio per catturare formato)
-            const startIdx = Math.max(0, match.index - 80);
-            const endIdx = Math.min(content.length, match.index + 40);
-            const context = content.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
-            
-            // Verifica che il contesto contenga parole del prodotto
-            const contextLower = context.toLowerCase();
-            const isRelevant = productWords.some(w => contextLower.includes(w));
-            
-            // NUOVO: Verifica match formato se specificato
-            let formatMatch = true;
-            if (productFormat.format) {
-              const contextFormat = extractFormat(context);
-              // Se il prodotto ha un formato, il contesto deve avere lo stesso formato o simile
-              if (contextFormat.format) {
-                // Confronta unità
-                if (productFormat.unit !== contextFormat.unit) {
-                  formatMatch = false;
-                  console.log(`⚠️ Formato non corrispondente: cercato ${productFormat.format}, trovato ${contextFormat.format}`);
-                }
-              }
+          const contextLower = context.toLowerCase();
+          const isRelevant = productWords.some(w => contextLower.includes(w));
+          
+          let formatMatch = true;
+          if (productFormat.format) {
+            const contextFormat = extractFormat(context);
+            if (contextFormat.format && productFormat.unit !== contextFormat.unit) {
+              formatMatch = false;
             }
-            
-            if (isRelevant && formatMatch) {
-              console.log(`💰 Prezzo trovato: €${price} - "${context.substring(0, 60)}..."`);
-              validPrices.push({ price, source: url, context });
-            }
+          }
+          
+          if (isRelevant && formatMatch) {
+            validPrices.push({ price, source: url, context });
           }
         }
       }
+    }
+    
+    if (validPrices.length > 0) {
+      validPrices.sort((a, b) => a.price - b.price);
+      const idx = Math.min(1, Math.floor(validPrices.length / 2));
+      const bestPrice = validPrices[idx];
       
-      // Se abbiamo prezzi validi, prendi la mediana (più affidabile del minimo)
-      if (validPrices.length > 0) {
-        validPrices.sort((a, b) => a.price - b.price);
-        
-        // Prendi la mediana o il secondo più basso se ci sono abbastanza dati
-        const idx = Math.min(1, Math.floor(validPrices.length / 2));
-        const bestPrice = validPrices[idx];
-        
-        console.log(`✅ PREZZO SELEZIONATO: €${bestPrice.price} (${validPrices.length} prezzi trovati)`);
-        
-        return {
-          price: bestPrice.price,
-          source: `verified:${chainName}:${bestPrice.source}`,
-          productName: bestPrice.context.substring(0, 60)
-        };
-      }
+      console.log(`✅ €${bestPrice.price}`);
       
-    } catch (error) {
-      console.error(`Errore ricerca:`, error);
+      return {
+        price: bestPrice.price,
+        source: `verified:${chainName}:firecrawl`,
+        productName: bestPrice.context.substring(0, 60)
+      };
+    }
+    
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('⏱️ Timeout ricerca');
+    } else {
+      console.error('Errore:', error);
     }
   }
   
-  console.log(`❌ Nessun prezzo trovato per ${product}`);
   return { price: null, source: 'not_found', productName: null };
 }
 
-// Funzione per cercare in altre catene come fallback (max 2 catene per velocità)
-async function searchOtherChains(
-  product: string,
-  originalChain: string,
-  city: string,
-  FIRECRAWL_API_KEY: string
-): Promise<{ price: number | null; source: string; originalChain: string }> {
-  // Prova solo 2 catene discount comuni per velocità
-  const priorityChains = ['eurospin', 'lidl', 'md', 'penny'].filter(c => c !== originalChain.toLowerCase());
-  const chainsToTry = priorityChains.slice(0, 2);
-  
-  console.log(`\n🔄 Ricerca rapida in: ${chainsToTry.join(', ')}`);
-  
-  for (const chain of chainsToTry) {
-    const result = await scrapeProductPrice(product, chain, city, FIRECRAWL_API_KEY);
-    
-    if (result.price !== null) {
-      console.log(`✓ Trovato in ${chain}: €${result.price}`);
-      return { 
-        price: result.price, 
-        source: result.source,
-        originalChain: chain
-      };
-    }
-  }
-  
-  return { price: null, source: 'not_found_anywhere', originalChain: '' };
-}
-
-// Funzione per stima prezzi con Gemini (fallback gratuito)
+// Stima AI rapida
 async function estimatePriceWithAI(
   product: string,
   chainName: string,
   LOVABLE_API_KEY: string
 ): Promise<{ price: number | null; confidence: string }> {
-  console.log(`\n🤖 FASE 6: Stima AI con Gemini per ${product}...`);
+  console.log(`🤖 Stima AI: ${product}...`);
   
   try {
-    const prompt = `Sei un esperto di prezzi supermercati italiani. Stima il prezzo di questo prodotto.
-
-Prodotto: "${product}"
-Catena: ${chainName}
-Anno: 2025
-
-REGOLE:
-1. Considera che ${chainName} è una catena italiana
-2. Stima il prezzo PIÙ COMUNE per questo tipo di prodotto
-3. Non sovrastimare - i discount hanno prezzi bassi
-4. Per prodotti generici (pane, latte, pasta), usa prezzi tipici discount
-
-Rispondi SOLO con un JSON valido, nient'altro:
-{"price": X.XX, "confidence": "alta|media|bassa", "reasoning": "breve spiegazione"}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000); // 4 sec timeout
+    
+    const prompt = `Prezzo ${product} in ${chainName} (Italia 2025). Rispondi SOLO con JSON: {"price": X.XX, "confidence": "alta|media|bassa"}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -387,48 +317,43 @@ Rispondi SOLO con un JSON valido, nient'altro:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite', // Modello più veloce e leggero
+        model: 'google/gemini-2.5-flash-lite',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 150,
+        temperature: 0.1,
+        max_tokens: 60,
       }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeout);
 
     if (!response.ok) {
-      console.log(`✗ AI response failed: ${response.status}`);
       return { price: null, confidence: 'none' };
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content?.trim() || '';
     
-    // Estrai JSON dalla risposta
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.log(`✗ No JSON in response: ${content}`);
       return { price: null, confidence: 'none' };
     }
     
     const parsed = JSON.parse(jsonMatch[0]);
     const price = parseFloat(parsed.price);
     
-    // Valida il prezzo (range realistico)
-    if (isNaN(price) || price < 0.20 || price > 20) {
-      console.log(`✗ Price out of range: ${price}`);
-      return { price: null, confidence: 'none' };
+    if (price >= 0.20 && price <= 25) {
+      console.log(`✓ AI: €${price}`);
+      return { price, confidence: parsed.confidence || 'media' };
     }
     
-    console.log(`✓ AI stima: €${price} (${parsed.confidence}) - ${parsed.reasoning}`);
-    
-    return { 
-      price: Math.round(price * 100) / 100,
-      confidence: parsed.confidence || 'media'
-    };
-    
-  } catch (error) {
-    console.error('Errore AI estimation:', error);
-    return { price: null, confidence: 'none' };
+  } catch (error: unknown) {
+    if (!(error instanceof Error && error.name === 'AbortError')) {
+      console.error('AI error:', error);
+    }
   }
+  
+  return { price: null, confidence: 'none' };
 }
 
 serve(async (req) => {
@@ -446,7 +371,6 @@ serve(async (req) => {
       );
     }
 
-    // If format is provided, append it to the product search term
     const productWithFormat = format ? `${product} ${format}` : product;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -461,250 +385,42 @@ serve(async (req) => {
     
     const locationMatch = storeAddress.match(/,\s*([^,]+)$/);
     const city = locationMatch ? locationMatch[1].trim() : '';
-    const cityLower = city.toLowerCase();
-    
-    const regionInfo = PROVINCE_TO_REGION[cityLower] || { region: 'Italia', capital: city, province: city };
     
     const normalizedProduct = productWithFormat.trim().toLowerCase();
     const normalizedStore = chainName.toLowerCase();
-    const normalizedAddress = storeAddress.toLowerCase();
 
-    console.log(`\n${'='.repeat(50)}`);
-    console.log(`🛒 RICERCA PREZZO REALE`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`Prodotto: ${product}`);
-    console.log(`Formato: ${format || 'non specificato'}`);
-    console.log(`Catena: ${chainName}`);
-    console.log(`Città: ${city}`);
+    console.log(`\n🛒 ${product} @ ${chainName}`);
 
     // ========================================
-    // FASE 1: Cache CROWD-SOURCED (cerca prezzi già trovati)
-    // - Prima cerca nella stessa catena (7 giorni)
-    // - Poi cerca in QUALSIASI catena nella stessa regione (3 giorni) - NUOVO!
-    // - Cache più lunga (14 giorni) per prodotti molto cercati
+    // FASE 0: PRODOTTI BASE (ISTANTANEO)
     // ========================================
-    console.log('\n📦 FASE 1: Cache crowd-sourced...');
-    
-    // Check se prodotto popolare (cerca quante volte è stato cercato)
-    const { data: searchCount } = await supabase
-      .from('price_search_logs')
-      .select('id', { count: 'exact', head: true })
-      .ilike('product_name', `%${normalizedProduct}%`)
-      .gte('searched_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-    
-    const isPopularProduct = (searchCount as any)?.count > 10;
-    const cacheDays = isPopularProduct ? 14 : 7; // Cache più lunga per prodotti popolari
-    const cacheDate = new Date(Date.now() - cacheDays * 24 * 60 * 60 * 1000).toISOString();
-    
-    console.log(`📊 Prodotto popolare: ${isPopularProduct} (cache ${cacheDays} giorni)`);
-    
-    // 1A) Cache nella stessa catena
-    const { data: cachedPrice } = await supabase
-      .from('product_prices')
-      .select('*')
-      .ilike('product_name', `%${normalizedProduct}%`)
-      .ilike('store_name', `%${normalizedStore}%`)
-      .gte('created_at', cacheDate)
-      .not('source', 'ilike', '%estimate%')
-      .not('source', 'ilike', '%fallback%')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let foundPrice: number | null = null;
-    let priceFromCache = false;
-    let priceSource = 'unknown';
-    let completedProductName = product;
-    let isEstimated = false;
-    let estimatedFromChain: string | null = null;
-    
-    // Se in cache ma con valore chiaramente errato (es. vecchi risultati esteri/outlier), ignora e pulisci
-    const cachedValue = typeof cachedPrice?.price === 'number' ? cachedPrice.price : null;
-    const isCachedPriceInRange = cachedValue !== null && cachedValue >= 0.2 && cachedValue <= 20;
-
-    if (cachedPrice && !isCachedPriceInRange) {
-      console.log(`⛔ Cache outlier rilevato: €${cachedPrice.price} → elimino e ignoro`);
-      try {
-        await supabase.from('product_prices').delete().eq('id', cachedPrice.id);
-      } catch (e) {
-        console.log('⚠️ Errore eliminazione cache outlier:', e);
-      }
-    }
-
-    if (cachedPrice && isCachedPriceInRange && cachedPrice.source?.includes('firecrawl')) {
-      console.log(`✓ TROVATO in cache stessa catena: €${cachedPrice.price}`);
-      foundPrice = cachedPrice.price;
-      priceFromCache = true;
-      priceSource = cachedPrice.source;
-    } else {
-      // 1B) NUOVO: Cache crowd-sourced - cerca in QUALSIASI catena (ultimi 3 giorni)
-      console.log('📦 FASE 1B: Cache crowd-sourced (altre catene)...');
-      const recentCacheDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const basicPrice = getBasicProductPrice(productWithFormat);
+    if (basicPrice !== null) {
+      console.log(`⚡ Prezzo base: €${basicPrice}`);
       
-      const { data: crowdPrice } = await supabase
-        .from('product_prices')
-        .select('*')
-        .ilike('product_name', `%${normalizedProduct}%`)
-        .gte('created_at', recentCacheDate)
-        .not('source', 'ilike', '%estimate%')
-        .not('source', 'ilike', '%fallback%')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (crowdPrice && crowdPrice.price >= 0.2 && crowdPrice.price <= 20) {
-        // Usa prezzo da altra catena con piccolo aggiustamento
-        console.log(`✓ TROVATO in cache crowd-sourced (${crowdPrice.store_name}): €${crowdPrice.price}`);
-        foundPrice = crowdPrice.price;
-        priceFromCache = true;
-        priceSource = `crowd_cache:${crowdPrice.store_name}`;
-        // Potrebbe essere leggermente diverso, ma è una buona stima
-      } else {
-        console.log('✗ Non in cache');
-      }
-    }
-
-    // ========================================
-    // FASE 2-5: Scraping reale con Firecrawl
-    // ========================================
-    if (!priceFromCache && FIRECRAWL_API_KEY) {
-      // FASE 2: Scraping nella città locale
-      console.log(`\n🌐 FASE 2: Scraping ${chainName} a ${city}...`);
-      let scrapeResult = await scrapeProductPrice(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
-      
-      if (scrapeResult.price !== null) {
-        foundPrice = scrapeResult.price;
-        priceSource = scrapeResult.source;
-        // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
-      }
-
-      // FASE 3: Scraping nella provincia
-      if (foundPrice === null && regionInfo.province !== city) {
-        console.log(`\n🌐 FASE 3: Scraping ${chainName} in provincia ${regionInfo.province}...`);
-        scrapeResult = await scrapeProductPrice(productWithFormat, chainName, regionInfo.province, FIRECRAWL_API_KEY);
-        
-        if (scrapeResult.price !== null) {
-          foundPrice = scrapeResult.price;
-          priceSource = scrapeResult.source;
-          // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
-        }
-      }
-
-      // FASE 4: Scraping nel capoluogo regionale
-      if (foundPrice === null && regionInfo.capital !== city && regionInfo.capital !== regionInfo.province) {
-        console.log(`\n🌐 FASE 4: Scraping ${chainName} a ${regionInfo.capital}...`);
-        scrapeResult = await scrapeProductPrice(productWithFormat, chainName, regionInfo.capital, FIRECRAWL_API_KEY);
-        
-        if (scrapeResult.price !== null) {
-          foundPrice = scrapeResult.price;
-          priceSource = scrapeResult.source;
-          // Non sovrascrivere completedProductName con il contesto web, lascia fare all'AI
-        }
-      }
-
-      // ========================================
-      // FASE 5: FALLBACK - Cerca in ALTRE catene e aggiungi +10%
-      // ========================================
-      if (foundPrice === null) {
-        // Prima scelta per prodotti comuni: prezzi base (evita outlier tipo "uova" a 0,55€)
-        const basicPrice = getBasicProductPrice(productWithFormat);
-        if (basicPrice !== null) {
-          console.log(`\n🛒 FASE 5: Prodotto base → uso prezzo tipico (+10%)...`);
-          foundPrice = Math.round(basicPrice * 1.10 * 100) / 100;
-          priceSource = 'basic_product_fallback';
-          isEstimated = true;
-          console.log(`✓ Prezzo base: €${basicPrice} + 10% = €${foundPrice}`);
-        } else {
-          // Fallback secondario: altre catene +10%
-          console.log(`\n🔄 FASE 5: Ricerca in altre catene (fallback +10%)...`);
-          const fallbackResult = await searchOtherChains(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
-
-          if (fallbackResult.price !== null) {
-            // Aggiungi 10% di margine di sicurezza
-            const originalPrice = fallbackResult.price;
-            foundPrice = Math.round(originalPrice * 1.10 * 100) / 100; // +10% arrotondato a 2 decimali
-            priceSource = `estimated_from:${fallbackResult.originalChain}`;
-            isEstimated = true;
-            estimatedFromChain = fallbackResult.originalChain;
-            console.log(`✓ Prezzo stimato: €${originalPrice} (${fallbackResult.originalChain}) + 10% = €${foundPrice}`);
-          }
-        }
-      }
-    } else if (!FIRECRAWL_API_KEY) {
-      console.log('⚠️ FIRECRAWL_API_KEY non configurata');
-    }
-
-    // ========================================
-    // Log per KPI
-    // ========================================
-    if (userId) {
-      try {
-        await supabase.from('price_search_logs').insert({
+      // Log async (non blocca)
+      if (userId) {
+        supabase.from('price_search_logs').insert({
           user_id: userId,
           order_id: orderId || null,
           product_name: product,
           store_name: chainName,
-          price_found: foundPrice !== null,
-          is_estimated: isEstimated,
-          price: foundPrice,
-          price_source: priceSource
-        });
-        console.log('📊 Log KPI salvato');
-      } catch (e) {
-        console.log('⚠️ Errore salvataggio log KPI:', e);
+          price_found: true,
+          is_estimated: true,
+          price: basicPrice,
+          price_source: 'basic_product'
+        }).then(() => {});
       }
-    }
-
-    // ========================================
-    // FASE 6: Stima AI con Gemini (fallback gratuito)
-    // ========================================
-    let productAvailable = true;
-    let suggestedAlternative: string | null = null;
-    let aiConfidence: string | null = null;
-
-    if (foundPrice === null && LOVABLE_API_KEY) {
-      const aiResult = await estimatePriceWithAI(product, chainName, LOVABLE_API_KEY);
-      
-      if (aiResult.price !== null) {
-        foundPrice = aiResult.price;
-        priceSource = 'ai_estimate:gemini';
-        isEstimated = true;
-        aiConfidence = aiResult.confidence;
-        console.log(`✓ Prezzo AI: €${foundPrice} (confidence: ${aiConfidence})`);
-      }
-    }
-
-    // ========================================
-    // FASE 6.5: Fallback prodotti base (prezzi tipici discount +10%)
-    // ========================================
-    if (foundPrice === null) {
-      console.log(`\n🛒 FASE 6.5: Verifica prodotti base...`);
-      const basicPrice = getBasicProductPrice(product);
-      
-      if (basicPrice !== null) {
-        // Aggiungi 10% di margine sicurezza
-        foundPrice = Math.round(basicPrice * 1.10 * 100) / 100;
-        priceSource = 'basic_product_fallback';
-        isEstimated = true;
-        console.log(`✓ Prezzo base: €${basicPrice} + 10% = €${foundPrice}`);
-      }
-    }
-
-    // Se ancora non troviamo nulla, restituiamo NOT FOUND
-    if (foundPrice === null) {
-      console.log('\n❌ PREZZO NON TROVATO');
-      priceSource = 'not_found';
       
       return new Response(
         JSON.stringify({
-          price: null,
-          priceInfo: 'Prezzo non trovato',
+          price: basicPrice,
+          priceInfo: `€${basicPrice.toFixed(2)}`,
           cached: false,
-          estimated: false,
-          notFound: true,
-          priceSource: 'not_found',
+          estimated: true,
+          priceSource: 'basic_product',
           completedProduct: product,
-          productAvailable: false,
+          productAvailable: true,
           suggestedAlternative: null,
           imageUrl: null
         }),
@@ -713,116 +429,152 @@ serve(async (req) => {
     }
 
     // ========================================
-    // COMPLETAMENTO NOME PRODOTTO
+    // FASE 1: CACHE (query parallele)
     // ========================================
-    console.log('\n🏷️ Completamento nome prodotto...');
+    console.log('📦 Cache...');
+    const cacheDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
-    if (LOVABLE_API_KEY && completedProductName === product) {
-      try {
-        const completionPrompt = `Prodotto: "${product}"
-Catena: ${chainName}
-
-Completa il nome del prodotto includendo BRAND e formato standard.
-Rispondi SOLO con il nome completo (max 60 caratteri).`;
-
-        const completionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: completionPrompt }],
-            temperature: 0.3,
-            max_tokens: 80,
-          }),
-        });
-
-        if (completionResponse.ok) {
-          const completionData = await completionResponse.json();
-          const suggestedName = completionData.choices[0].message.content.trim();
-          
-          if (suggestedName && suggestedName.length > 3 && suggestedName.length <= 100) {
-            completedProductName = suggestedName;
-            console.log(`✓ Nome completato: ${completedProductName}`);
-          }
-        }
-      } catch (e) {
-        console.log('⚠️ Completamento nome fallito');
-      }
-    }
-
-    // ========================================
-    // GENERAZIONE IMMAGINE
-    // ========================================
-    let productImageUrl: string | null = null;
-    
-    if (LOVABLE_API_KEY) {
-      try {
-        const imagePrompt = `Fotografia professionale di prodotto: ${completedProductName} venduto da ${chainName}. Sfondo bianco, stile catalogo supermercato.`;
-
-        const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-image',
-            messages: [{ role: 'user', content: imagePrompt }],
-            modalities: ['image', 'text']
-          }),
-        });
-
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          productImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
-        }
-      } catch (e) {
-        console.log('⚠️ Generazione immagine fallita');
-      }
-    }
-        
-    // ========================================
-    // SALVA IN CACHE (solo prezzi reali, non stimati)
-    // ========================================
-    if (!priceFromCache && foundPrice !== null && !isEstimated && priceSource.includes('firecrawl')) {
-      console.log('\n💾 Salvataggio in cache...');
-      await supabase
+    // Query cache parallele
+    const [sameStoreCache, anyStoreCache] = await Promise.all([
+      supabase
         .from('product_prices')
-        .upsert({
+        .select('*')
+        .ilike('product_name', `%${normalizedProduct}%`)
+        .ilike('store_name', `%${normalizedStore}%`)
+        .gte('created_at', cacheDate)
+        .not('source', 'ilike', '%estimate%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('product_prices')
+        .select('*')
+        .ilike('product_name', `%${normalizedProduct}%`)
+        .gte('created_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
+        .not('source', 'ilike', '%estimate%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ]);
+
+    let foundPrice: number | null = null;
+    let priceFromCache = false;
+    let priceSource = 'unknown';
+    let isEstimated = false;
+
+    // Check same store cache
+    const sameCachePrice = sameStoreCache.data?.price;
+    if (sameCachePrice && sameCachePrice >= 0.2 && sameCachePrice <= 20) {
+      console.log(`✓ Cache stessa catena: €${sameCachePrice}`);
+      foundPrice = sameCachePrice;
+      priceFromCache = true;
+      priceSource = sameStoreCache.data?.source || 'cache';
+    } 
+    // Check any store cache
+    else {
+      const anyCachePrice = anyStoreCache.data?.price;
+      if (anyCachePrice && anyCachePrice >= 0.2 && anyCachePrice <= 20) {
+        console.log(`✓ Cache crowd: €${anyCachePrice}`);
+        foundPrice = anyCachePrice;
+        priceFromCache = true;
+        priceSource = `crowd_cache:${anyStoreCache.data?.store_name}`;
+      }
+    }
+
+    // ========================================
+    // FASE 2: SCRAPING (solo 1 tentativo)
+    // ========================================
+    if (!priceFromCache && FIRECRAWL_API_KEY) {
+      console.log('🌐 Scraping...');
+      const scrapeResult = await scrapeProductPrice(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
+      
+      if (scrapeResult.price !== null) {
+        foundPrice = scrapeResult.price;
+        priceSource = scrapeResult.source;
+        
+        // Salva in cache async
+        supabase.from('product_prices').upsert({
           product_name: normalizedProduct,
           store_name: normalizedStore,
-          store_address: normalizedAddress,
+          store_address: storeAddress.toLowerCase(),
           price: foundPrice,
           source: priceSource,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'product_name,store_name,store_address'
-        });
+        }).then(() => {});
+      }
     }
 
-    const responseData = { 
-      price: foundPrice,
-      priceInfo: isEstimated && priceSource.includes('ai_estimate') 
-        ? `~€${foundPrice.toFixed(2)}` 
-        : `€${foundPrice.toFixed(2)}`,
-      cached: priceFromCache,
-      estimated: isEstimated,
-      estimatedFromChain,
-      aiConfidence,
-      priceSource,
-      completedProduct: completedProductName,
-      productAvailable,
-      suggestedAlternative,
-      imageUrl: productImageUrl
-    };
-    
-    console.log('\n📦 Response:', JSON.stringify(responseData));
+    // ========================================
+    // FASE 3: AI ESTIMATE (fallback veloce)
+    // ========================================
+    if (foundPrice === null && LOVABLE_API_KEY) {
+      const aiResult = await estimatePriceWithAI(product, chainName, LOVABLE_API_KEY);
+      
+      if (aiResult.price !== null) {
+        foundPrice = aiResult.price;
+        priceSource = 'ai_estimate';
+        isEstimated = true;
+      }
+    }
+
+    // ========================================
+    // FASE 4: FALLBACK GENERICO
+    // ========================================
+    if (foundPrice === null) {
+      // Stima generica basata su categoria
+      const genericEstimates: Record<string, number> = {
+        'carne': 6.99, 'pesce': 8.99, 'formaggi': 3.99,
+        'frutta': 2.49, 'verdura': 1.99, 'bevande': 1.99,
+        'snack': 2.49, 'dolci': 2.99, 'surgelati': 3.99,
+      };
+      
+      for (const [category, price] of Object.entries(genericEstimates)) {
+        if (normalizedProduct.includes(category)) {
+          foundPrice = price;
+          priceSource = 'category_estimate';
+          isEstimated = true;
+          break;
+        }
+      }
+      
+      // Ultimo fallback
+      if (foundPrice === null) {
+        foundPrice = 2.99;
+        priceSource = 'generic_estimate';
+        isEstimated = true;
+      }
+    }
+
+    // Log KPI async
+    if (userId) {
+      supabase.from('price_search_logs').insert({
+        user_id: userId,
+        order_id: orderId || null,
+        product_name: product,
+        store_name: chainName,
+        price_found: true,
+        is_estimated: isEstimated,
+        price: foundPrice,
+        price_source: priceSource
+      }).then(() => {});
+    }
+
+    console.log(`📦 ${product}: €${foundPrice} (${priceSource})`);
     
     return new Response(
-      JSON.stringify(responseData),
+      JSON.stringify({
+        price: foundPrice,
+        priceInfo: isEstimated ? `~€${foundPrice.toFixed(2)}` : `€${foundPrice.toFixed(2)}`,
+        cached: priceFromCache,
+        estimated: isEstimated,
+        priceSource,
+        completedProduct: product,
+        productAvailable: true,
+        suggestedAlternative: null,
+        imageUrl: null
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
