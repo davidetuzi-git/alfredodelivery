@@ -234,125 +234,6 @@ function extractFormat(product: string): { format: string | null; unit: string |
   return { format: null, unit: null };
 }
 
-// Ricerca web mirata - OTTIMIZZATA con timeout
-async function scrapeProductPrice(
-  product: string, 
-  chainName: string, 
-  city: string,
-  FIRECRAWL_API_KEY: string
-): Promise<{ price: number | null; source: string; productName: string | null }> {
-  
-  const productFormat = extractFormat(product);
-  
-  // UNA SOLA query ottimizzata
-  const searchQuery = `site:doveconviene.it "${product}" ${chainName} prezzo`;
-  
-  console.log(`🔍 Ricerca: ${product} @ ${chainName}`);
-  
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5 sec timeout
-    
-    const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: 5, // Ridotto da 8
-        lang: 'it',
-        country: 'IT',
-        scrapeOptions: { formats: ['markdown'] }
-      }),
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeout);
-
-    if (!searchResponse.ok) {
-      console.log(`✗ Search failed: ${searchResponse.status}`);
-      return { price: null, source: 'not_found', productName: null };
-    }
-
-    const searchData = await searchResponse.json();
-    const results = searchData.data || [];
-    
-    const validPrices: { price: number; source: string; context: string }[] = [];
-    const productWords = product.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    
-    for (const item of results) {
-      const content = (item.markdown || '') + ' ' + (item.title || '') + ' ' + (item.description || '');
-      const url = item.url || '';
-      const contentLower = content.toLowerCase();
-      const urlLower = url.toLowerCase();
-      
-      // Filtro siti esteri
-      const foreignDomains = ['.ch', '.de', '.fr', '.at', '.es', '.uk'];
-      if (foreignDomains.some(d => urlLower.includes(d))) continue;
-      if (!urlLower.includes('.it')) continue;
-      
-      // Verifica pertinenza
-      const hasProduct = productWords.some(w => contentLower.includes(w));
-      if (!hasProduct) continue;
-      
-      // Estrai prezzi
-      const priceRegex = /€\s*(\d{1,2})[,.](\d{2})|(\d{1,2})[,.](\d{2})\s*€/g;
-      let match;
-      
-      while ((match = priceRegex.exec(content)) !== null) {
-        const euros = match[1] || match[3];
-        const cents = match[2] || match[4];
-        const price = parseFloat(`${euros}.${cents}`);
-        
-        if (price >= 0.30 && price <= 15) {
-          const startIdx = Math.max(0, match.index - 50);
-          const endIdx = Math.min(content.length, match.index + 30);
-          const context = content.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
-          
-          const contextLower = context.toLowerCase();
-          const isRelevant = productWords.some(w => contextLower.includes(w));
-          
-          let formatMatch = true;
-          if (productFormat.format) {
-            const contextFormat = extractFormat(context);
-            if (contextFormat.format && productFormat.unit !== contextFormat.unit) {
-              formatMatch = false;
-            }
-          }
-          
-          if (isRelevant && formatMatch) {
-            validPrices.push({ price, source: url, context });
-          }
-        }
-      }
-    }
-    
-    if (validPrices.length > 0) {
-      validPrices.sort((a, b) => a.price - b.price);
-      const idx = Math.min(1, Math.floor(validPrices.length / 2));
-      const bestPrice = validPrices[idx];
-      
-      console.log(`✅ €${bestPrice.price}`);
-      
-      return {
-        price: bestPrice.price,
-        source: `verified:${chainName}:firecrawl`,
-        productName: bestPrice.context.substring(0, 60)
-      };
-    }
-    
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.log('⏱️ Timeout ricerca');
-    } else {
-      console.error('Errore:', error);
-    }
-  }
-  
-  return { price: null, source: 'not_found', productName: null };
-}
 
 // Stima AI rapida
 async function estimatePriceWithAI(
@@ -434,7 +315,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     const storeNameParts = storeName.split(' - ');
@@ -581,32 +461,7 @@ serve(async (req) => {
     }
 
     // ========================================
-    // FASE 2: SCRAPING (solo 1 tentativo)
-    // ========================================
-    if (!priceFromCache && FIRECRAWL_API_KEY) {
-      console.log('🌐 Scraping...');
-      const scrapeResult = await scrapeProductPrice(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
-      
-      if (scrapeResult.price !== null) {
-        foundPrice = scrapeResult.price;
-        priceSource = scrapeResult.source;
-        
-        // Salva in cache async
-        supabase.from('product_prices').upsert({
-          product_name: normalizedProduct,
-          store_name: normalizedStore,
-          store_address: storeAddress.toLowerCase(),
-          price: foundPrice,
-          source: priceSource,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'product_name,store_name,store_address'
-        }).then(() => {});
-      }
-    }
-
-    // ========================================
-    // FASE 3: AI ESTIMATE (fallback veloce)
+    // FASE 2: AI ESTIMATE (fallback veloce)
     // ========================================
     if (foundPrice === null && LOVABLE_API_KEY) {
       const aiResult = await estimatePriceWithAI(product, chainName, LOVABLE_API_KEY);
@@ -619,7 +474,7 @@ serve(async (req) => {
     }
 
     // ========================================
-    // FASE 4: FALLBACK GENERICO
+    // FASE 3: FALLBACK GENERICO
     // ========================================
     if (foundPrice === null) {
       // Stima generica basata su categoria
