@@ -235,6 +235,70 @@ function extractFormat(product: string): { format: string | null; unit: string |
 }
 
 
+// Prodotti che richiedono formato specifico con il loro formato più piccolo
+const PRODUCTS_REQUIRING_FORMAT: Record<string, string> = {
+  'nutella': '200g',
+  'coca cola': '500ml',
+  'fanta': '500ml',
+  'sprite': '500ml',
+  'pepsi': '500ml',
+  'acqua': '500ml',
+  'latte': '500ml',
+  'olio': '500ml',
+  'passata': '500g',
+  'yogurt': '125g',
+  'mozzarella': '125g',
+  'philadelphia': '150g',
+  'ketchup': '250g',
+  'maionese': '225g',
+  'marmellata': '250g',
+  'miele': '250g',
+  'pesto': '190g',
+  'tonno': '80g',
+  'pasta': '500g',
+  'riso': '500g',
+  'farina': '1kg',
+  'zucchero': '1kg',
+  'cereali': '375g',
+  'biscotti': '350g',
+  'patatine': '130g',
+  'cioccolato': '100g',
+  'gelato': '300g',
+  'birra': '330ml',
+  'vino': '750ml',
+  'succo': '1L',
+  'the': '1.5L',
+  'detersivo': '1L',
+  'shampoo': '250ml',
+  'bagnoschiuma': '500ml',
+};
+
+// Aggiunge automaticamente il formato più piccolo se necessario
+function autoAddFormat(product: string, existingFormat: string | null): { product: string; format: string | null; autoAdded: boolean } {
+  if (existingFormat) {
+    return { product, format: existingFormat, autoAdded: false };
+  }
+  
+  const productLower = product.toLowerCase().trim();
+  
+  // Controlla se ha già un formato nel nome
+  const hasFormat = /\d+\s*(g|kg|ml|cl|l|lt|gr)\b/i.test(product);
+  if (hasFormat) {
+    const extracted = extractFormat(product);
+    return { product, format: extracted.format, autoAdded: false };
+  }
+  
+  // Cerca corrispondenza con prodotti che richiedono formato
+  for (const [keyword, defaultFormat] of Object.entries(PRODUCTS_REQUIRING_FORMAT)) {
+    if (productLower.includes(keyword)) {
+      console.log(`📦 Auto-formato: "${product}" → ${defaultFormat}`);
+      return { product, format: defaultFormat, autoAdded: true };
+    }
+  }
+  
+  return { product, format: null, autoAdded: false };
+}
+
 // Ricerca AI prezzi con gerarchia geografica
 async function searchPriceWithAI(
   product: string,
@@ -343,7 +407,7 @@ serve(async (req) => {
   }
 
   try {
-    const { product, storeName, userId, orderId, format } = await req.json();
+    const { product, storeName, userId, orderId, format: inputFormat } = await req.json();
     
     if (!product || !storeName) {
       return new Response(
@@ -352,7 +416,10 @@ serve(async (req) => {
       );
     }
 
-    const productWithFormat = format ? `${product} ${format}` : product;
+    // Auto-aggiungi formato se necessario
+    const formatResult = autoAddFormat(product, inputFormat);
+    const productWithFormat = formatResult.format ? `${product} ${formatResult.format}` : product;
+    const autoFormatAdded = formatResult.autoAdded;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -566,7 +633,8 @@ serve(async (req) => {
         cached: priceFromCache,
         estimated: isEstimated,
         priceSource,
-        completedProduct: product,
+        completedProduct: autoFormatAdded ? `${product} ${formatResult.format}` : product,
+        autoFormat: autoFormatAdded ? formatResult.format : null,
         productAvailable: true,
         suggestedAlternative: null,
         imageUrl: null
