@@ -181,11 +181,12 @@ async function scrapeProductPrice(
   // Estrai formato dal prodotto cercato (es: 100g, 1L)
   const productFormat = extractFormat(product);
   
-  // Ricerca mirata: SOLO siti italiani per evitare prezzi svizzeri/esteri
+  // Ricerca SOLO ITALIA - esclude qualsiasi altro paese
   const queries = [
-    `site:doveconviene.it "${product}" ${chainName} prezzo €`,
+    `site:doveconviene.it "${product}" ${chainName} prezzo`,
     `site:promoqui.it "${product}" ${chainName} prezzo`,
-    `"${product}" ${chainName} volantino prezzo € 2025 site:.it`,
+    `site:volantinofacile.it "${product}" ${chainName}`,
+    `"${product}" ${chainName} prezzo € Italia site:.it -site:.ch -site:.de -site:.fr -site:.at -site:.es`,
   ];
   
   console.log(`\n🔍 Ricerca prezzo: ${product} @ ${chainName}`);
@@ -225,17 +226,32 @@ async function scrapeProductPrice(
         const content = (item.markdown || '') + ' ' + (item.title || '') + ' ' + (item.description || '');
         const url = item.url || '';
         const contentLower = content.toLowerCase();
+        const urlLower = url.toLowerCase();
         const chainLower = chainName.toLowerCase();
         const productLower = product.toLowerCase();
         
-        // FILTRO CRITICO: Escludi siti svizzeri/esteri (CHF, .ch, sortiment.lidl.ch, ecc.)
-        if (url.includes('.ch') || url.includes('sortiment') || content.includes('CHF') || content.includes('Fr.')) {
-          console.log(`⛔ Sito estero escluso: ${url}`);
+        // ============================================
+        // FILTRO CRITICO: SOLO ITALIA - Escludi TUTTI i siti esteri
+        // ============================================
+        const foreignDomains = ['.ch', '.de', '.fr', '.at', '.es', '.uk', '.com/', '.eu/', 'sortiment', 'migros', 'coop.ch', 'aldi.ch', 'lidl.ch', 'lidl.de', 'lidl.fr'];
+        const foreignCurrencies = ['chf', 'fr.', '£', '$', 'sfr', 'franken', 'franc'];
+        
+        const isForeignSite = foreignDomains.some(d => urlLower.includes(d));
+        const hasForeignCurrency = foreignCurrencies.some(c => contentLower.includes(c));
+        
+        if (isForeignSite || hasForeignCurrency) {
+          console.log(`⛔ ESCLUSO sito estero: ${url.substring(0, 50)}...`);
           continue;
         }
         
-        // Verifica pertinenza: deve contenere sia il prodotto che la catena
-        const hasChain = contentLower.includes(chainLower);
+        // Verifica che sia un sito italiano (.it) o volantini italiani
+        const isItalianSite = urlLower.includes('.it') || urlLower.includes('doveconviene') || urlLower.includes('promoqui') || urlLower.includes('volantinofacile');
+        if (!isItalianSite) {
+          console.log(`⚠️ Sito non italiano ignorato: ${url.substring(0, 50)}...`);
+          continue;
+        }
+        
+        // Verifica pertinenza: deve contenere il prodotto
         const productWords = productLower.split(/\s+/).filter(w => w.length > 2);
         const hasProduct = productWords.some(w => contentLower.includes(w));
         
@@ -277,7 +293,7 @@ async function scrapeProductPrice(
               }
             }
             
-            if ((isRelevant || hasChain) && formatMatch) {
+            if (isRelevant && formatMatch) {
               console.log(`💰 Prezzo trovato: €${price} - "${context.substring(0, 60)}..."`);
               validPrices.push({ price, source: url, context });
             }
