@@ -235,19 +235,53 @@ function extractFormat(product: string): { format: string | null; unit: string |
 }
 
 
-// Stima AI rapida
-async function estimatePriceWithAI(
+// Ricerca AI prezzi con gerarchia geografica
+async function searchPriceWithAI(
   product: string,
   chainName: string,
+  city: string,
   LOVABLE_API_KEY: string
-): Promise<{ price: number | null; confidence: string }> {
-  console.log(`🤖 Stima AI: ${product}...`);
+): Promise<{ price: number | null; confidence: string; source: string }> {
+  console.log(`🔍 Ricerca AI: ${product} @ ${chainName} (${city || 'Italia'})...`);
+  
+  // Determina contesto geografico
+  const cityLower = city.toLowerCase().trim();
+  const geoInfo = PROVINCE_TO_REGION[cityLower];
+  const province = geoInfo?.province || city || '';
+  const region = geoInfo?.region || '';
+  const capital = geoInfo?.capital || '';
   
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000); // 4 sec timeout
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 sec timeout per ricerca più approfondita
     
-    const prompt = `Prezzo ${product} in ${chainName} (Italia 2025). Rispondi SOLO con JSON: {"price": X.XX, "confidence": "alta|media|bassa"}`;
+    // Prompt strutturato per ricerca reale con gerarchia geografica
+    const prompt = `Sei un esperto di prezzi dei supermercati italiani. Devi trovare il prezzo REALE di un prodotto.
+
+PRODOTTO: ${product}
+CATENA: ${chainName}
+${city ? `CITTÀ: ${city}` : ''}
+${province ? `PROVINCIA: ${province}` : ''}
+${region ? `REGIONE: ${region}` : ''}
+
+ISTRUZIONI DI RICERCA (segui questa gerarchia):
+1. PRIMA cerca il prezzo specifico per ${chainName} ${city ? `a ${city}` : 'in Italia'}
+2. Se non trovi, cerca il prezzo per ${chainName} ${province ? `nella provincia di ${province}` : ''}
+3. Se non trovi, cerca il prezzo per ${chainName} ${region ? `in ${region}` : ''}
+4. Se non trovi, cerca il prezzo medio nazionale per ${chainName}
+5. ULTIMO FALLBACK: prezzo medio italiano in supermercati simili
+
+IMPORTANTE:
+- Considera i prezzi 2024-2025
+- ${chainName.toLowerCase().includes('eurospin') || chainName.toLowerCase().includes('lidl') || chainName.toLowerCase().includes('md') || chainName.toLowerCase().includes('aldi') ? 'Questa è una catena DISCOUNT, i prezzi sono generalmente più bassi del 15-25% rispetto ai supermercati tradizionali' : ''}
+- Considera eventuali differenze regionali (Nord Italia generalmente +5-10%, Sud -5-10%)
+
+Rispondi SOLO con questo JSON:
+{
+  "price": X.XX,
+  "confidence": "alta|media|bassa",
+  "source": "dove hai trovato il prezzo (es: volantino, sito ufficiale, confronto prezzi, stima regionale)"
+}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -256,10 +290,10 @@ async function estimatePriceWithAI(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'google/gemini-2.5-flash',  // Modello più potente per ricerca
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.1,
-        max_tokens: 60,
+        temperature: 0.2,
+        max_tokens: 150,
       }),
       signal: controller.signal
     });
@@ -267,7 +301,8 @@ async function estimatePriceWithAI(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      return { price: null, confidence: 'none' };
+      console.log(`⚠️ AI response not ok: ${response.status}`);
+      return { price: null, confidence: 'none', source: 'error' };
     }
 
     const data = await response.json();
@@ -275,24 +310,31 @@ async function estimatePriceWithAI(
     
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return { price: null, confidence: 'none' };
+      console.log(`⚠️ No JSON in AI response`);
+      return { price: null, confidence: 'none', source: 'parse_error' };
     }
     
     const parsed = JSON.parse(jsonMatch[0]);
     const price = parseFloat(parsed.price);
     
-    if (price >= 0.20 && price <= 25) {
-      console.log(`✓ AI: €${price}`);
-      return { price, confidence: parsed.confidence || 'media' };
+    if (price >= 0.10 && price <= 50) {
+      console.log(`✓ AI trovato: €${price} (${parsed.confidence}) - ${parsed.source}`);
+      return { 
+        price, 
+        confidence: parsed.confidence || 'media',
+        source: parsed.source || 'ai_search'
+      };
     }
     
   } catch (error: unknown) {
-    if (!(error instanceof Error && error.name === 'AbortError')) {
-      console.error('AI error:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('⚠️ AI search timeout');
+    } else {
+      console.error('AI search error:', error);
     }
   }
   
-  return { price: null, confidence: 'none' };
+  return { price: null, confidence: 'none', source: 'failed' };
 }
 
 serve(async (req) => {
@@ -461,15 +503,15 @@ serve(async (req) => {
     }
 
     // ========================================
-    // FASE 2: AI ESTIMATE (fallback veloce)
+    // FASE 2: RICERCA AI CON GERARCHIA GEOGRAFICA
     // ========================================
     if (foundPrice === null && LOVABLE_API_KEY) {
-      const aiResult = await estimatePriceWithAI(product, chainName, LOVABLE_API_KEY);
+      const aiResult = await searchPriceWithAI(product, chainName, city, LOVABLE_API_KEY);
       
       if (aiResult.price !== null) {
         foundPrice = aiResult.price;
-        priceSource = 'ai_estimate';
-        isEstimated = true;
+        priceSource = `ai_search:${aiResult.source}`;
+        isEstimated = aiResult.confidence !== 'alta';
       }
     }
 
