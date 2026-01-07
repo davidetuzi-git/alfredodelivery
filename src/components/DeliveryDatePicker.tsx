@@ -53,6 +53,7 @@ const DeliveryDatePicker = ({
     const isPast = day < startOfDay(now);
     const blocked = isDateBlocked(day);
     const holiday = isDateHoliday(day);
+    const isSelected = value && isSameDay(day, value);
     
     if (isPast) {
       return <span>{day.getDate()}</span>;
@@ -91,26 +92,35 @@ const DeliveryDatePicker = ({
       <div className="relative flex flex-col items-center">
         <span>{day.getDate()}</span>
         {holiday.isHoliday ? (
-          <span className="text-[9px] font-medium leading-tight text-amber-600 dark:text-amber-400">
+          <span className={cn(
+            "text-[9px] font-medium leading-tight",
+            isSelected ? "text-primary-foreground" : "text-amber-600 dark:text-amber-400"
+          )}>
             +€10
           </span>
         ) : adjustment?.type === 'surcharge' ? (
-          <span className="text-[9px] font-medium leading-tight text-red-500 dark:text-red-400">
+          <span className={cn(
+            "text-[9px] font-medium leading-tight",
+            isSelected ? "text-primary-foreground" : "text-red-500 dark:text-red-400"
+          )}>
             {adjustment.label}
           </span>
         ) : totalDiscount.amount > 0 ? (
-          <span className="text-[9px] font-medium leading-tight text-green-500 dark:text-green-400">
+          <span className={cn(
+            "text-[9px] font-medium leading-tight",
+            isSelected ? "text-primary-foreground" : "text-green-500 dark:text-green-400"
+          )}>
             -€{totalDiscount.amount.toFixed(2)}
           </span>
         ) : null}
         {holiday.isHoliday && (
           <span className="absolute -top-1 -right-1">
-            <PartyPopper className="h-2.5 w-2.5 text-amber-500" />
+            <PartyPopper className={cn("h-2.5 w-2.5", isSelected ? "text-primary-foreground" : "text-amber-500")} />
           </span>
         )}
         {suggestion && !holiday.isHoliday && (
           <span className="absolute -top-1 -right-1">
-            <Sparkles className="h-2.5 w-2.5 text-amber-500" />
+            <Sparkles className={cn("h-2.5 w-2.5", isSelected ? "text-primary-foreground" : "text-amber-500")} />
           </span>
         )}
       </div>
