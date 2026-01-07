@@ -1710,7 +1710,7 @@ const Order = () => {
                       }}
                     >
                       <FolderOpen className="h-4 w-4 mr-2" />
-                      Carica salvata
+                      Carica
                     </Button>
                     {items.length > 0 && items.some(item => item.name.trim() !== "") && (
                       <>
