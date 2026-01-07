@@ -44,16 +44,20 @@ const StripeSuccess = () => {
           return;
         }
 
-        // Get pending order data from localStorage with retry logic
-        // Sometimes localStorage needs a moment to be available after redirect
+        // Get pending order data from localStorage with extended retry logic
+        // Sometimes localStorage needs time after 3D Secure redirect
         let pendingOrderStr: string | null = null;
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 10; i++) {
           pendingOrderStr = localStorage.getItem('pendingOrder');
-          if (pendingOrderStr) break;
-          await new Promise(resolve => setTimeout(resolve, 200));
+          if (pendingOrderStr) {
+            console.log('pendingOrder found after', i, 'attempts');
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
         if (!pendingOrderStr) {
+          console.error('pendingOrder not found in localStorage after retries');
           throw new Error("Dati ordine non trovati. Il pagamento è stato completato ma l'ordine non è stato salvato. Contatta l'assistenza.");
         }
 
@@ -71,7 +75,10 @@ const StripeSuccess = () => {
         const generatedCode = codeData;
         setPickupCode(generatedCode);
 
-        // Save order
+        // Save order - use the correct total from pendingOrder
+        const totalAmount = pendingOrder.total || 0;
+        console.log('Saving order with total:', totalAmount);
+        
         const { data: orderInserted, error: insertError } = await supabase.from('orders').insert({
           pickup_code: generatedCode,
           user_id: session.user.id,
@@ -82,9 +89,9 @@ const StripeSuccess = () => {
           delivery_date: orderData.deliveryDate,
           time_slot: orderData.timeSlot,
           items: orderData.items,
-          total_amount: pendingOrder.total,
-          delivery_fee: pendingOrder.deliveryFee,
-          discount: pendingOrder.discount,
+          total_amount: totalAmount,
+          delivery_fee: pendingOrder.deliveryFee || 0,
+          discount: pendingOrder.discount || 0,
           payment_method: 'card',
           status: 'confirmed',
           latitude: orderData.latitude,
