@@ -434,27 +434,31 @@ serve(async (req) => {
     console.log('📦 Cache...');
     const cacheDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
-    // Query cache parallele
+    // Query cache parallele (FAST PATH)
+    // Nota: usiamo match esatto + prefix match (niente %...% iniziale) per evitare query lente.
     const [sameStoreCache, anyStoreCache] = await Promise.all([
+      // 1) stessa catena: match esatto sul normalizzato
       supabase
         .from('product_prices')
         .select('*')
-        .ilike('product_name', `%${normalizedProduct}%`)
-        .ilike('store_name', `%${normalizedStore}%`)
+        .eq('product_name', normalizedProduct)
+        .eq('store_name', normalizedStore)
         .gte('created_at', cacheDate)
         .not('source', 'ilike', '%estimate%')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+
+      // 2) crowd cache: stesso prodotto (match esatto), qualsiasi store recente
       supabase
         .from('product_prices')
         .select('*')
-        .ilike('product_name', `%${normalizedProduct}%`)
+        .eq('product_name', normalizedProduct)
         .gte('created_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
         .not('source', 'ilike', '%estimate%')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle()
+        .maybeSingle(),
     ]);
 
     let foundPrice: number | null = null;

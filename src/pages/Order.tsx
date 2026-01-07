@@ -733,13 +733,15 @@ const Order = () => {
     
     setItems(prevItems => {
       const newItems = [...prevItems];
-      newItems[index] = { 
-        ...newItems[index], 
-        loading: true,
-        // Mostra stima rapida subito (sarà sostituita dal prezzo reale)
+      const shouldShowSpinner = quickEstimate === null;
+
+      newItems[index] = {
+        ...newItems[index],
+        // Se abbiamo una stima, non “blocchiamo” la UI con lo spinner: la ricerca reale avviene in background
+        loading: shouldShowSpinner,
         price: quickEstimate,
         isEstimated: quickEstimate !== null,
-        suggestion: quickEstimate !== null ? '⏳ Ricerca prezzo reale...' : null
+        suggestion: quickEstimate !== null ? '⏳ Stima applicata, aggiorno in background…' : '⏳ Ricerca prezzo…',
       };
       return newItems;
     });
@@ -823,84 +825,130 @@ const Order = () => {
   };
 
   // ========================================
-  // RICERCA PARALLELA: Cerca tutti i prezzi contemporaneamente
+  // RICERCA PARALLELA (ma controllata): prezzi in background + update progressivo
   // ========================================
   const fetchAllPrices = async (itemsToFetch: ShoppingItem[]) => {
     if (!store) return;
-    
-    const validItems = itemsToFetch.filter(item => item.name.trim() !== "");
-    if (validItems.length === 0) return;
 
-    console.log(`🚀 Avvio ricerca parallela per ${validItems.length} prodotti`);
-    
-    // Mostra stime immediate per tutti i prodotti
-    setItems(prevItems => {
-      return prevItems.map(item => {
-        if (item.name.trim()) {
-          const quickEstimate = getQuickEstimate(item.name);
-          return {
-            ...item,
-            loading: true,
-            price: quickEstimate,
-            isEstimated: quickEstimate !== null,
-            suggestion: quickEstimate !== null ? '⏳ Ricerca prezzi...' : null
-          };
-        }
-        return item;
-      });
-    });
+    // Manteniamo l’ordine e gli indici originali: NIENTE findIndex su oggetti (può tornare -1)
+    const work = itemsToFetch
+      .map((item, originalIndex) => ({ item, originalIndex }))
+      .filter(({ item }) => item.name.trim() !== "");
 
-    // Lancia tutte le ricerche in parallelo
-    const promises = validItems.map((item, idx) => {
-      const originalIndex = items.findIndex(i => i === item);
-      return supabase.functions.invoke('search-product-price', {
-        body: { 
-          product: item.name.trim(),
-          storeName: store,
-          userId: session?.user?.id || null,
-          format: item.format?.trim() || null
-        }
-      }).then(({ data, error }) => ({ data, error, originalIndex, item }));
-    });
+    if (work.length === 0) return;
 
-    // Elabora i risultati man mano che arrivano
-    const results = await Promise.allSettled(promises);
-    
-    setItems(prevItems => {
-      const updatedItems = [...prevItems];
-      
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const { data, error, originalIndex, item } = result.value;
-          
-          if (!error && data?.price !== undefined) {
-            updatedItems[originalIndex] = {
-              ...updatedItems[originalIndex],
-              price: data.price,
-              loading: false,
-              imageUrl: data.imageUrl || null,
-              isEstimated: data.estimated || false,
-              completedName: data.completedProduct || undefined,
-              productAvailable: data.productAvailable !== false,
-              suggestedAlternative: data.suggestedAlternative || null,
-              suggestion: null
-            };
-          } else {
-            const quickEstimate = getQuickEstimate(item.name);
-            updatedItems[originalIndex] = {
-              ...updatedItems[originalIndex],
-              loading: false,
-              price: quickEstimate,
-              isEstimated: quickEstimate !== null
-            };
-          }
-        }
-      });
-      
-      return updatedItems;
-    });
+    const requestedStore = store;
+    const CONCURRENCY = 4; // evita 20+ chiamate simultanee che rallentano tutto
 
-    console.log(`✅ Ricerca parallela completata`);
+    console.log(`🚀 Ricerca prezzi: ${work.length} prodotti (concurrency=${CONCURRENCY})`);
+
+    // UI: mostra subito le stime e NON mettere tutti in loading (se c’è stima)
+    setItems(prev =>
+      prev.map((it, idx) => {
+        const found = work.find(w => w.originalIndex === idx);
+        if (!found) return it;
+
+        const quickEstimate = getQuickEstimate(it.name);
+        const shouldShowSpinner = quickEstimate === null;
+
+        return {
+          ...it,
+          loading: shouldShowSpinner,
+          price: quickEstimate,
+          isEstimated: quickEstimate !== null,
+          suggestion: quickEstimate !== null ? "⏳ Stima applicata, aggiorno in background…" : "⏳ Ricerca prezzo…",
+        };
+      })
+    );
+
+    let cursor = 0;
+    let inFlight = 0;
+
+    const launchNext = (): Promise<void> => {
+      while (inFlight < CONCURRENCY && cursor < work.length) {
+        const { item, originalIndex } = work[cursor++];
+        inFlight++;
+
+        // Chiamata reale: aggiorniamo l’item appena arriva il risultato
+        supabase.functions
+          .invoke("search-product-price", {
+            body: {
+              product: item.name.trim(),
+              storeName: requestedStore,
+              userId: session?.user?.id || null,
+              format: item.format?.trim() || null,
+            },
+          })
+          .then(({ data, error }) => {
+            setItems(prev => {
+              if (!prev[originalIndex]) return prev;
+
+              // Se l’utente ha cambiato nome nel frattempo, non sovrascrivere
+              if (prev[originalIndex].name.trim() !== item.name.trim()) return prev;
+              // Se ha cambiato store, ignora risultati vecchi
+              if (store !== requestedStore) return prev;
+
+              const next = [...prev];
+
+              if (!error && data?.price !== undefined) {
+                next[originalIndex] = {
+                  ...next[originalIndex],
+                  price: data.price,
+                  loading: false,
+                  imageUrl: data.imageUrl || null,
+                  isEstimated: data.estimated || false,
+                  completedName: data.completedProduct || undefined,
+                  productAvailable: data.productAvailable !== false,
+                  suggestedAlternative: data.suggestedAlternative || null,
+                  suggestion: null,
+                };
+              } else {
+                // Mantieni eventuale stima e togli spinner
+                const quickEstimate = getQuickEstimate(item.name);
+                next[originalIndex] = {
+                  ...next[originalIndex],
+                  loading: false,
+                  price: next[originalIndex].price ?? quickEstimate,
+                  isEstimated: (next[originalIndex].price ?? quickEstimate) !== null,
+                  suggestion: null,
+                };
+              }
+
+              return next;
+            });
+          })
+          .catch(() => {
+            setItems(prev => {
+              if (!prev[originalIndex]) return prev;
+              if (prev[originalIndex].name.trim() !== item.name.trim()) return prev;
+              if (store !== requestedStore) return prev;
+
+              const next = [...prev];
+              const quickEstimate = getQuickEstimate(item.name);
+              next[originalIndex] = {
+                ...next[originalIndex],
+                loading: false,
+                price: next[originalIndex].price ?? quickEstimate,
+                isEstimated: (next[originalIndex].price ?? quickEstimate) !== null,
+                suggestion: null,
+              };
+              return next;
+            });
+          })
+          .finally(() => {
+            inFlight--;
+            if (cursor < work.length) {
+              launchNext();
+            } else if (inFlight === 0) {
+              console.log("✅ Ricerca prezzi completata");
+            }
+          });
+      }
+
+      return Promise.resolve();
+    };
+
+    await launchNext();
   };
 
   // Calculate bags needed - 15L OR 12 pieces = 1 bag
