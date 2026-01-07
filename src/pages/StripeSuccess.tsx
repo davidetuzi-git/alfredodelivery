@@ -143,8 +143,17 @@ const StripeSuccess = () => {
           variant: "destructive",
         });
         
+        // Recupera i dati dell'ordine da localStorage per passarli al checkout
+        const pendingOrderStr = localStorage.getItem('pendingOrder');
+        const pendingOrder = pendingOrderStr ? JSON.parse(pendingOrderStr) : null;
+        
         setTimeout(() => {
-          navigate("/checkout");
+          if (pendingOrder) {
+            // Passa i dati dell'ordine al checkout
+            navigate("/checkout", { state: pendingOrder });
+          } else {
+            navigate("/ordina");
+          }
         }, 3000);
       }
     };
