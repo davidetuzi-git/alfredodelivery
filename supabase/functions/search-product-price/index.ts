@@ -181,11 +181,11 @@ async function scrapeProductPrice(
   // Estrai formato dal prodotto cercato (es: 100g, 1L)
   const productFormat = extractFormat(product);
   
-  // Ricerca mirata: site:doveconviene.it per avere prezzi reali dai volantini
+  // Ricerca mirata: SOLO siti italiani per evitare prezzi svizzeri/esteri
   const queries = [
     `site:doveconviene.it "${product}" ${chainName} prezzo €`,
     `site:promoqui.it "${product}" ${chainName} prezzo`,
-    `"${product}" ${chainName} volantino prezzo € 2025`,
+    `"${product}" ${chainName} volantino prezzo € 2025 site:.it`,
   ];
   
   console.log(`\n🔍 Ricerca prezzo: ${product} @ ${chainName}`);
@@ -227,6 +227,12 @@ async function scrapeProductPrice(
         const contentLower = content.toLowerCase();
         const chainLower = chainName.toLowerCase();
         const productLower = product.toLowerCase();
+        
+        // FILTRO CRITICO: Escludi siti svizzeri/esteri (CHF, .ch, sortiment.lidl.ch, ecc.)
+        if (url.includes('.ch') || url.includes('sortiment') || content.includes('CHF') || content.includes('Fr.')) {
+          console.log(`⛔ Sito estero escluso: ${url}`);
+          continue;
+        }
         
         // Verifica pertinenza: deve contenere sia il prodotto che la catena
         const hasChain = contentLower.includes(chainLower);
