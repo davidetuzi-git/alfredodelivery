@@ -502,7 +502,20 @@ serve(async (req) => {
     let isEstimated = false;
     let estimatedFromChain: string | null = null;
     
-    if (cachedPrice && cachedPrice.source?.includes('firecrawl')) {
+    // Se in cache ma con valore chiaramente errato (es. vecchi risultati esteri/outlier), ignora e pulisci
+    const cachedValue = typeof cachedPrice?.price === 'number' ? cachedPrice.price : null;
+    const isCachedPriceInRange = cachedValue !== null && cachedValue >= 0.2 && cachedValue <= 20;
+
+    if (cachedPrice && !isCachedPriceInRange) {
+      console.log(`⛔ Cache outlier rilevato: €${cachedPrice.price} → elimino e ignoro`);
+      try {
+        await supabase.from('product_prices').delete().eq('id', cachedPrice.id);
+      } catch (e) {
+        console.log('⚠️ Errore eliminazione cache outlier:', e);
+      }
+    }
+
+    if (cachedPrice && isCachedPriceInRange && cachedPrice.source?.includes('firecrawl')) {
       console.log(`✓ TROVATO in cache: €${cachedPrice.price}`);
       foundPrice = cachedPrice.price;
       priceFromCache = true;
