@@ -13,6 +13,7 @@ const StripeSuccess = () => {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [pickupCode, setPickupCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { decrementDelivery } = useSubscription();
 
   const copyCode = () => {
@@ -25,11 +26,24 @@ const StripeSuccess = () => {
 
   useEffect(() => {
     const processPayment = async () => {
+      // Prevent duplicate processing from React StrictMode or re-renders
+      if (isProcessing) return;
+      setIsProcessing(true);
+      
       try {
         const sessionId = searchParams.get('session_id');
         
         if (!sessionId) {
           throw new Error("Session ID mancante");
+        }
+
+        // Check if this session was already processed (check localStorage first)
+        const processedSessions = JSON.parse(localStorage.getItem('processedStripeSessions') || '[]');
+        if (processedSessions.includes(sessionId)) {
+          console.log('Session already processed, skipping...');
+          setStatus('success');
+          navigate("/i-miei-ordini");
+          return;
         }
 
         // Check authentication
@@ -146,6 +160,10 @@ const StripeSuccess = () => {
           });
         }
 
+        // Mark session as processed to prevent duplicates
+        const updatedProcessedSessions = [...processedSessions, sessionId];
+        localStorage.setItem('processedStripeSessions', JSON.stringify(updatedProcessedSessions.slice(-10))); // Keep last 10
+
         // Clear pending order (local + DB)
         localStorage.removeItem('pendingOrder');
         supabase
@@ -192,7 +210,7 @@ const StripeSuccess = () => {
     };
 
     processPayment();
-  }, [navigate, searchParams, decrementDelivery]);
+  }, [navigate, searchParams, decrementDelivery, isProcessing]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
