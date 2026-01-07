@@ -415,7 +415,7 @@ serve(async (req) => {
   }
 
   try {
-    const { product, storeName, userId, orderId } = await req.json();
+    const { product, storeName, userId, orderId, format } = await req.json();
     
     if (!product || !storeName) {
       return new Response(
@@ -423,6 +423,9 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // If format is provided, append it to the product search term
+    const productWithFormat = format ? `${product} ${format}` : product;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -440,7 +443,7 @@ serve(async (req) => {
     
     const regionInfo = PROVINCE_TO_REGION[cityLower] || { region: 'Italia', capital: city, province: city };
     
-    const normalizedProduct = product.trim().toLowerCase();
+    const normalizedProduct = productWithFormat.trim().toLowerCase();
     const normalizedStore = chainName.toLowerCase();
     const normalizedAddress = storeAddress.toLowerCase();
 
@@ -448,6 +451,7 @@ serve(async (req) => {
     console.log(`🛒 RICERCA PREZZO REALE`);
     console.log(`${'='.repeat(50)}`);
     console.log(`Prodotto: ${product}`);
+    console.log(`Formato: ${format || 'non specificato'}`);
     console.log(`Catena: ${chainName}`);
     console.log(`Città: ${city}`);
 
@@ -491,7 +495,7 @@ serve(async (req) => {
     if (!priceFromCache && FIRECRAWL_API_KEY) {
       // FASE 2: Scraping nella città locale
       console.log(`\n🌐 FASE 2: Scraping ${chainName} a ${city}...`);
-      let scrapeResult = await scrapeProductPrice(product, chainName, city, FIRECRAWL_API_KEY);
+      let scrapeResult = await scrapeProductPrice(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
       
       if (scrapeResult.price !== null) {
         foundPrice = scrapeResult.price;
@@ -502,7 +506,7 @@ serve(async (req) => {
       // FASE 3: Scraping nella provincia
       if (foundPrice === null && regionInfo.province !== city) {
         console.log(`\n🌐 FASE 3: Scraping ${chainName} in provincia ${regionInfo.province}...`);
-        scrapeResult = await scrapeProductPrice(product, chainName, regionInfo.province, FIRECRAWL_API_KEY);
+        scrapeResult = await scrapeProductPrice(productWithFormat, chainName, regionInfo.province, FIRECRAWL_API_KEY);
         
         if (scrapeResult.price !== null) {
           foundPrice = scrapeResult.price;
@@ -514,7 +518,7 @@ serve(async (req) => {
       // FASE 4: Scraping nel capoluogo regionale
       if (foundPrice === null && regionInfo.capital !== city && regionInfo.capital !== regionInfo.province) {
         console.log(`\n🌐 FASE 4: Scraping ${chainName} a ${regionInfo.capital}...`);
-        scrapeResult = await scrapeProductPrice(product, chainName, regionInfo.capital, FIRECRAWL_API_KEY);
+        scrapeResult = await scrapeProductPrice(productWithFormat, chainName, regionInfo.capital, FIRECRAWL_API_KEY);
         
         if (scrapeResult.price !== null) {
           foundPrice = scrapeResult.price;
@@ -528,7 +532,7 @@ serve(async (req) => {
       // ========================================
       if (foundPrice === null) {
         // Prima scelta per prodotti comuni: prezzi base (evita outlier tipo "uova" a 0,55€)
-        const basicPrice = getBasicProductPrice(product);
+        const basicPrice = getBasicProductPrice(productWithFormat);
         if (basicPrice !== null) {
           console.log(`\n🛒 FASE 5: Prodotto base → uso prezzo tipico (+10%)...`);
           foundPrice = Math.round(basicPrice * 1.10 * 100) / 100;
@@ -538,7 +542,7 @@ serve(async (req) => {
         } else {
           // Fallback secondario: altre catene +10%
           console.log(`\n🔄 FASE 5: Ricerca in altre catene (fallback +10%)...`);
-          const fallbackResult = await searchOtherChains(product, chainName, city, FIRECRAWL_API_KEY);
+          const fallbackResult = await searchOtherChains(productWithFormat, chainName, city, FIRECRAWL_API_KEY);
 
           if (fallbackResult.price !== null) {
             // Aggiungi 10% di margine di sicurezza
