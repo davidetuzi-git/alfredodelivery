@@ -114,6 +114,10 @@ const AddressAutocomplete = ({ value, onSelect, placeholder, required }: Address
                 <CommandItem
                   key={suggestion.place_id}
                   onSelect={() => handleSelect(suggestion)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(suggestion);
+                  }}
                   className="cursor-pointer"
                 >
                   <MapPin className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
