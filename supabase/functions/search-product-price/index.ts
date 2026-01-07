@@ -53,6 +53,64 @@ const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; prov
   'avezzano': { region: 'Abruzzo', capital: "L'Aquila", province: "L'Aquila" },
 };
 
+// Catene discount che NON vendono marchi nazionali
+const DISCOUNT_CHAINS = ['eurospin', 'lidl', 'md', 'aldi', 'penny', 'todis', 'prix'];
+
+// Marchi nazionali/internazionali che i discount NON vendono
+const BRANDED_PRODUCTS: Record<string, { alternative: string; altPrice: number }> = {
+  'nutella': { alternative: 'Crema spalmabile alle nocciole (marca discount)', altPrice: 2.49 },
+  'barilla': { alternative: 'Pasta marca discount', altPrice: 0.69 },
+  'de cecco': { alternative: 'Pasta marca discount', altPrice: 0.69 },
+  'rummo': { alternative: 'Pasta marca discount', altPrice: 0.69 },
+  'mulino bianco': { alternative: 'Biscotti marca discount', altPrice: 1.49 },
+  'ferrero': { alternative: 'Cioccolato marca discount', altPrice: 1.99 },
+  'kinder': { alternative: 'Snack cioccolato marca discount', altPrice: 1.49 },
+  'coca cola': { alternative: 'Cola marca discount', altPrice: 0.79 },
+  'fanta': { alternative: 'Aranciata marca discount', altPrice: 0.59 },
+  'sprite': { alternative: 'Limonata marca discount', altPrice: 0.59 },
+  'pepsi': { alternative: 'Cola marca discount', altPrice: 0.79 },
+  'rio mare': { alternative: 'Tonno marca discount', altPrice: 1.49 },
+  'lavazza': { alternative: 'Caffè marca discount', altPrice: 2.99 },
+  'illy': { alternative: 'Caffè marca discount', altPrice: 2.99 },
+  'findus': { alternative: 'Surgelati marca discount', altPrice: 2.49 },
+  'algida': { alternative: 'Gelato marca discount', altPrice: 2.99 },
+  'magnum': { alternative: 'Gelato stecco marca discount', altPrice: 1.99 },
+  'philadelphia': { alternative: 'Formaggio spalmabile marca discount', altPrice: 1.49 },
+  'pringles': { alternative: 'Patatine marca discount', altPrice: 1.29 },
+  'galbani': { alternative: 'Formaggio marca discount', altPrice: 2.49 },
+  'fage': { alternative: 'Yogurt greco marca discount', altPrice: 0.99 },
+  'müller': { alternative: 'Yogurt marca discount', altPrice: 0.49 },
+  'activia': { alternative: 'Yogurt marca discount', altPrice: 0.49 },
+  'danone': { alternative: 'Yogurt marca discount', altPrice: 0.49 },
+  'scottex': { alternative: 'Carta igienica marca discount', altPrice: 2.49 },
+  'regina': { alternative: 'Carta casa marca discount', altPrice: 1.99 },
+};
+
+// Funzione per verificare se un prodotto di marca è cercato in un discount
+function checkBrandAvailability(product: string, storeName: string): { available: boolean; alternative: string | null; altPrice: number | null } {
+  const productLower = product.toLowerCase();
+  const storeLower = storeName.toLowerCase();
+  
+  // Verifica se è un discount
+  const isDiscount = DISCOUNT_CHAINS.some(chain => storeLower.includes(chain));
+  if (!isDiscount) {
+    return { available: true, alternative: null, altPrice: null };
+  }
+  
+  // Verifica se il prodotto contiene un marchio noto
+  for (const [brand, info] of Object.entries(BRANDED_PRODUCTS)) {
+    if (productLower.includes(brand)) {
+      return { 
+        available: false, 
+        alternative: info.alternative,
+        altPrice: info.altPrice
+      };
+    }
+  }
+  
+  return { available: true, alternative: null, altPrice: null };
+}
+
 // Prezzi tipici prodotti base discount (2025, Italia) - DATABASE ESPANSO
 const BASIC_PRODUCT_PRICES: Record<string, number> = {
   // Uova
@@ -392,7 +450,44 @@ serve(async (req) => {
     console.log(`\n🛒 ${product} @ ${chainName}`);
 
     // ========================================
-    // FASE 0: PRODOTTI BASE (ISTANTANEO)
+    // FASE 0A: CHECK DISPONIBILITÀ MARCA IN DISCOUNT
+    // ========================================
+    const brandCheck = checkBrandAvailability(product, chainName);
+    if (!brandCheck.available) {
+      console.log(`⚠️ Prodotto di marca non disponibile in ${chainName}. Alternativa: ${brandCheck.alternative}`);
+      
+      // Log async
+      if (userId) {
+        supabase.from('price_search_logs').insert({
+          user_id: userId,
+          order_id: orderId || null,
+          product_name: product,
+          store_name: chainName,
+          price_found: false,
+          is_estimated: true,
+          price: brandCheck.altPrice,
+          price_source: 'brand_not_available'
+        }).then(() => {});
+      }
+      
+      return new Response(
+        JSON.stringify({
+          price: brandCheck.altPrice,
+          priceInfo: `~€${brandCheck.altPrice?.toFixed(2)} (alternativa)`,
+          cached: false,
+          estimated: true,
+          priceSource: 'brand_alternative',
+          completedProduct: brandCheck.alternative,
+          productAvailable: false,
+          suggestedAlternative: brandCheck.alternative,
+          imageUrl: null
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // FASE 0B: PRODOTTI BASE (ISTANTANEO)
     // ========================================
     const basicPrice = getBasicProductPrice(productWithFormat);
     if (basicPrice !== null) {
