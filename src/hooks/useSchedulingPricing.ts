@@ -13,6 +13,8 @@ export interface SuggestedDate {
   date: Date;
   reason: string;
   extraDiscount: number;
+  hasNearbyOrders: boolean;
+  extendedTimeSlot: boolean; // 4 ore invece di 2
 }
 
 interface NearbyOrder {
@@ -211,7 +213,9 @@ export const useSchedulingPricing = (
               reason: value.count === 1 
                 ? `C'è già una consegna programmata nelle vicinanze (${value.distance.toFixed(1)}km)`
                 : `Ci sono ${value.count} consegne programmate nelle vicinanze`,
-              extraDiscount: Math.min(extraDiscount, 1.50) // Cap at €1.50
+              extraDiscount: Math.min(extraDiscount, 1.50), // Cap at €1.50
+              hasNearbyOrders: true,
+              extendedTimeSlot: true // Fascia oraria estesa a 4 ore
             });
           }
         });
