@@ -380,6 +380,54 @@ const Order = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  const extractFormatFromText = (text: string): { name: string; format: string } => {
+    let working = text.trim();
+
+    // Peso/volume (es: 500g, 1L, 0.75 l)
+    const weightVolumeMatch = working.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|ml|cl|l|lt)\b/i);
+    if (weightVolumeMatch) {
+      const qty = weightVolumeMatch[1].replace(',', '.');
+      let unit = weightVolumeMatch[2].toLowerCase();
+      if (unit === 'kilo') unit = 'kg';
+      if (unit === 'gr') unit = 'g';
+      if (unit === 'lt') unit = 'l';
+
+      const format = `${qty}${unit}`;
+      working = working.replace(weightVolumeMatch[0], ' ').replace(/\s+/g, ' ').trim();
+      return { name: working, format };
+    }
+
+    // Confezioni/pezzi (es: 6 pz, 6 pezzi, x6, 6x)
+    const packMatch =
+      working.match(/(?:confezione\s*(?:da|di)?\s*)?(\d{1,2})\s*(pz|pezzi|uova)\b/i) ||
+      working.match(/\b(?:x|×)\s*(\d{1,2})\b/i) ||
+      working.match(/\b(\d{1,2})\s*(?:x|×)\b/i);
+
+    if (packMatch) {
+      const count = parseInt(packMatch[1], 10);
+      if (!isNaN(count) && count > 1 && count <= 48) {
+        const format = `${count} pz`;
+        working = working.replace(packMatch[0], ' ').replace(/\s+/g, ' ').trim();
+        return { name: working, format };
+      }
+    }
+
+    // Caso utile: "uova 6" / "uova 12" (numero senza unità)
+    if (/\buova\b/i.test(working)) {
+      const eggsCountMatch = working.match(/\buova\b\s*(\d{1,2})\b/i);
+      if (eggsCountMatch) {
+        const count = parseInt(eggsCountMatch[1], 10);
+        if (!isNaN(count) && count > 1 && count <= 48) {
+          const format = `${count} pz`;
+          working = working.replace(eggsCountMatch[0], 'uova').replace(/\s+/g, ' ').trim();
+          return { name: working, format };
+        }
+      }
+    }
+
+    return { name: working, format: "" };
+  };
+
   const handleImportList = async () => {
     const textToImport = importText;
 
@@ -412,39 +460,31 @@ const Order = () => {
       // Remove common bullet prefixes
       const line = rawLine.replace(/^[-•*]\s+/, '').trim();
 
+      let quantity = 1;
+      let nameCandidate = line;
+
       // 1) Quantity prefix: "2x Latte" or "3 Pane"
       const qtyPrefixMatch = line.match(/^(\d+)\s*[x×]\s*(.+)$/i) || line.match(/^(\d+)\s+(.+)$/);
       if (qtyPrefixMatch) {
-        const quantity = parseInt(qtyPrefixMatch[1]);
-        const name = qtyPrefixMatch[2].trim();
-        return {
-          name,
-          price: null,
-          loading: false,
-          quantity: quantity > 0 ? quantity : 1,
-          suggestion: null,
-        };
+        quantity = Math.max(1, parseInt(qtyPrefixMatch[1]));
+        nameCandidate = qtyPrefixMatch[2].trim();
+      } else {
+        // 2) Dash/en-dash quantity: "Pane – 1" / "Latte - 2"
+        const dashQtyMatch = line.match(/^(.+?)\s*[–-]\s*(\d+)\b/);
+        if (dashQtyMatch) {
+          nameCandidate = dashQtyMatch[1].trim();
+          quantity = Math.max(1, parseInt(dashQtyMatch[2]));
+        }
       }
 
-      // 2) Dash/en-dash quantity: "Pane – 1 pezzo" / "Latte - 2"
-      const dashQtyMatch = line.match(/^(.+?)\s*[–-]\s*(\d+)\b/);
-      if (dashQtyMatch) {
-        const name = dashQtyMatch[1].trim();
-        const quantity = parseInt(dashQtyMatch[2]);
-        return {
-          name,
-          price: null,
-          loading: false,
-          quantity: quantity > 0 ? quantity : 1,
-          suggestion: null,
-        };
-      }
+      const extracted = extractFormatFromText(nameCandidate);
 
       return {
-        name: line,
+        name: extracted.name,
+        format: extracted.format,
         price: null,
         loading: false,
-        quantity: 1,
+        quantity,
         suggestion: null,
       };
     });
@@ -456,7 +496,7 @@ const Order = () => {
     if (store) {
       newItems.forEach((item, index) => {
         if (item.name.trim()) {
-          fetchPrice(index, item.name);
+          fetchPrice(index, item.name, item.format);
         }
       });
     }
@@ -474,7 +514,7 @@ const Order = () => {
   // Load saved lists from database
   const loadSavedLists = async () => {
     if (!session?.user?.id) return;
-    
+
     setLoadingLists(true);
     try {
       const { data, error } = await supabase
@@ -482,7 +522,7 @@ const Order = () => {
         .select('id, name, items, store, created_at')
         .eq('user_id', session.user.id)
         .order('updated_at', { ascending: false });
-      
+
       if (error) throw error;
       setSavedLists(data || []);
     } catch (error) {
@@ -508,7 +548,7 @@ const Order = () => {
       });
       return;
     }
-    
+
     const validItems = items.filter(item => item.name.trim() !== "");
     if (validItems.length === 0) {
       toast({
@@ -518,7 +558,7 @@ const Order = () => {
       });
       return;
     }
-    
+
     setSavingList(true);
     try {
       const { error } = await supabase
@@ -528,6 +568,7 @@ const Order = () => {
           name: saveListName.trim(),
           items: validItems.map(item => ({
             name: item.name,
+            format: item.format,
             quantity: item.quantity,
             price: item.price,
             completedName: item.completedName,
@@ -536,14 +577,14 @@ const Order = () => {
           delivery_address: address || null,
           address_coords: addressCoords || null,
         });
-      
+
       if (error) throw error;
-      
+
       toast({
         title: "Lista salvata",
         description: `"${saveListName}" salvata con ${validItems.length} prodotti`,
       });
-      
+
       setShowSaveListDialog(false);
       setSaveListName("");
     } catch (error) {
@@ -562,7 +603,7 @@ const Order = () => {
   const handleLoadList = async (listId: string) => {
     const selectedList = savedLists.find(l => l.id === listId);
     if (!selectedList) return;
-    
+
     // Convert saved items back to ShoppingItem format
     const loadedItems: ShoppingItem[] = selectedList.items.map((item: any) => ({
       name: item.name,
@@ -573,23 +614,23 @@ const Order = () => {
       suggestion: null,
       completedName: item.completedName || null,
     }));
-    
+
     setItems(loadedItems.length > 0 ? loadedItems : [{ name: "", format: "", price: null, loading: false, quantity: 1, suggestion: null }]);
-    
+
     // Optionally restore store
     if (selectedList.store) {
       setStore(selectedList.store);
     }
-    
+
     // Refresh prices if store is selected
     if (store || selectedList.store) {
       loadedItems.forEach((item, index) => {
         if (item.name.trim()) {
-          fetchPrice(index, item.name);
+          fetchPrice(index, item.name, item.format);
         }
       });
     }
-    
+
     setShowLoadListDialog(false);
     toast({
       title: "Lista caricata",
@@ -600,15 +641,15 @@ const Order = () => {
   // Delete a saved list
   const handleDeleteList = async (listId: string, listName: string) => {
     if (!confirm(`Sei sicuro di voler eliminare "${listName}"?`)) return;
-    
+
     try {
       const { error } = await supabase
         .from('saved_shopping_lists')
         .delete()
         .eq('id', listId);
-      
+
       if (error) throw error;
-      
+
       setSavedLists(prev => prev.filter(l => l.id !== listId));
       toast({
         title: "Lista eliminata",
@@ -1659,18 +1700,6 @@ const Order = () => {
                       <FileText className="h-4 w-4 mr-2" />
                       Importa
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        loadSavedLists();
-                        setShowLoadListDialog(true);
-                      }}
-                    >
-                      <FolderOpen className="h-4 w-4 mr-2" />
-                      Carica
-                    </Button>
                     {items.length > 0 && items.some(item => item.name.trim() !== "") && (
                       <>
                         <Button
@@ -1688,7 +1717,7 @@ const Order = () => {
                           size="sm"
                           onClick={() => {
                             if (confirm("Sei sicuro di voler svuotare il carrello?")) {
-                              setItems([{ name: "", price: null, loading: false, quantity: 1, suggestion: null }]);
+                              setItems([{ name: "", format: "", price: null, loading: false, quantity: 1, suggestion: null }]);
                               toast({
                                 title: "Carrello svuotato",
                                 description: "Tutti gli articoli sono stati rimossi",
