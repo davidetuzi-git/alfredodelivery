@@ -112,6 +112,8 @@ const Checkout = () => {
           subscription: subscriptionData
         };
         
+        console.log('Creating Stripe checkout session...');
+        
         const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
           body: { 
             amount: finalTotal,
@@ -121,7 +123,25 @@ const Checkout = () => {
           }
         });
 
-        if (error) throw error;
+        console.log('Stripe response:', { data, error });
+
+        // Check for errors in response
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw new Error(error.message || 'Errore nella creazione del checkout');
+        }
+        
+        // Check if data contains error from edge function
+        if (data?.error) {
+          console.error('Edge function error:', data.error);
+          throw new Error(data.error);
+        }
+        
+        // Check if we got a valid URL
+        if (!data?.url) {
+          console.error('No checkout URL in response:', data);
+          throw new Error('URL di checkout non ricevuto');
+        }
         
         // Store order data in localStorage (persists across tabs unlike sessionStorage)
         localStorage.setItem('pendingOrder', JSON.stringify({
@@ -132,14 +152,16 @@ const Checkout = () => {
           paymentMethod: 'card'
         }));
         
-        // Redirect to Stripe checkout in same tab (no more confusing multiple tabs)
+        console.log('Redirecting to Stripe:', data.url);
+        
+        // Redirect to Stripe checkout in same tab
         window.location.href = data.url;
         return;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Stripe error:', error);
         toast({
           title: "Errore Stripe",
-          description: "Impossibile avviare il pagamento. Riprova.",
+          description: error?.message || "Impossibile avviare il pagamento. Riprova.",
           variant: "destructive",
         });
         setProcessing(false);
