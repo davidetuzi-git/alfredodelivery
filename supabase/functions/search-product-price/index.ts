@@ -6,6 +6,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Genera immagine prodotto con timeout (max 15 secondi per stare nei 20s richiesti dall'utente)
+async function generateProductImage(productName: string, storeName: string, LOVABLE_API_KEY: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondi timeout
+    
+    // Prompt ottimizzato per prodotto specifico + brand/catena
+    const prompt = `Ultra realistic product photography of exactly: ${productName}. 
+Product as sold in Italian supermarket ${storeName}. 
+Professional studio shot with perfect lighting, white background, centered, highly detailed, 
+photorealistic, commercial quality, sharp focus, true-to-life colors, exact product representation.
+Show the actual product packaging/brand if known.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        modalities: ['image', 'text']
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.log(`Image generation failed: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (imageUrl) {
+      console.log(`✓ Image generated for "${productName}"`);
+      return imageUrl;
+    }
+    
+    return null;
+  } catch (error: unknown) {
+    const err = error as { name?: string; message?: string };
+    if (err.name === 'AbortError') {
+      console.log(`Image generation timeout for "${productName}"`);
+    } else {
+      console.log(`Image generation error: ${err.message || 'Unknown'}`);
+    }
+    return null;
+  }
+}
+
 // Mapping di province e capoluoghi regionali italiani
 const PROVINCE_TO_REGION: Record<string, { region: string; capital: string; province: string }> = {
   'roma': { region: 'Lazio', capital: 'Roma', province: 'Roma' },
@@ -570,8 +629,15 @@ serve(async (req) => {
     }
 
     // ========================================
-    // FASE 2: RICERCA AI CON GERARCHIA GEOGRAFICA
+    // FASE 2: RICERCA AI + IMMAGINE IN PARALLELO
     // ========================================
+    let imagePromise: Promise<string | null> = Promise.resolve(null);
+    
+    // Avvia la generazione immagine in parallelo (se abbiamo API key)
+    if (LOVABLE_API_KEY) {
+      imagePromise = generateProductImage(product, chainName, LOVABLE_API_KEY);
+    }
+
     if (foundPrice === null && LOVABLE_API_KEY) {
       const aiResult = await searchPriceWithAI(product, chainName, city, LOVABLE_API_KEY);
       
@@ -610,6 +676,9 @@ serve(async (req) => {
       }
     }
 
+    // Attendi immagine (max 15 sec già gestito nel timeout)
+    const imageUrl = await imagePromise;
+
     // Log KPI async
     if (userId) {
       supabase.from('price_search_logs').insert({
@@ -624,7 +693,7 @@ serve(async (req) => {
       }).then(() => {});
     }
 
-    console.log(`📦 ${product}: €${foundPrice} (${priceSource})`);
+    console.log(`📦 ${product}: €${foundPrice} (${priceSource})${imageUrl ? ' [con immagine]' : ''}`);
     
     return new Response(
       JSON.stringify({
@@ -637,7 +706,7 @@ serve(async (req) => {
         autoFormat: autoFormatAdded ? formatResult.format : null,
         productAvailable: true,
         suggestedAlternative: null,
-        imageUrl: null
+        imageUrl: imageUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
