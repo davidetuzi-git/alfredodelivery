@@ -8,6 +8,100 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to create scheduled notifications when order is accepted
+const createScheduledNotifications = async (supabase: any, order: any, delivererId: string) => {
+  try {
+    const notifications = [];
+    const deliveryDateTime = new Date(order.delivery_date);
+    
+    // Parse time slot to get the start hour (e.g., "10:00-12:00" -> 10)
+    const timeSlotMatch = order.time_slot?.match(/(\d{1,2}):(\d{2})/);
+    if (timeSlotMatch) {
+      const hour = parseInt(timeSlotMatch[1]);
+      const minute = parseInt(timeSlotMatch[2]);
+      deliveryDateTime.setHours(hour, minute, 0, 0);
+    }
+
+    const now = new Date();
+
+    // Get customer profile to check for Telegram
+    const { data: customerProfile } = await supabase
+      .from("profiles")
+      .select("telegram_chat_id")
+      .eq("id", order.user_id)
+      .single();
+
+    const customerChannels = ["email"];
+    if (customerProfile?.telegram_chat_id) {
+      customerChannels.push("telegram");
+    }
+
+    // Customer notifications: 24h before, 1h before
+    const customer24hBefore = new Date(deliveryDateTime.getTime() - 24 * 60 * 60 * 1000);
+    if (customer24hBefore > now) {
+      notifications.push({
+        order_id: order.id,
+        recipient_type: "customer",
+        recipient_id: order.user_id,
+        notification_type: "24h_before",
+        scheduled_for: customer24hBefore.toISOString(),
+        channels: customerChannels,
+      });
+    }
+
+    const customer1hBefore = new Date(deliveryDateTime.getTime() - 60 * 60 * 1000);
+    if (customer1hBefore > now) {
+      notifications.push({
+        order_id: order.id,
+        recipient_type: "customer",
+        recipient_id: order.user_id,
+        notification_type: "1h_before",
+        scheduled_for: customer1hBefore.toISOString(),
+        channels: customerChannels,
+      });
+    }
+
+    // Deliverer notifications: 24h before, 2h before
+    const deliverer24hBefore = new Date(deliveryDateTime.getTime() - 24 * 60 * 60 * 1000);
+    if (deliverer24hBefore > now) {
+      notifications.push({
+        order_id: order.id,
+        recipient_type: "deliverer",
+        recipient_id: delivererId,
+        notification_type: "24h_before",
+        scheduled_for: deliverer24hBefore.toISOString(),
+        channels: ["telegram", "email"],
+      });
+    }
+
+    const deliverer2hBefore = new Date(deliveryDateTime.getTime() - 2 * 60 * 60 * 1000);
+    if (deliverer2hBefore > now) {
+      notifications.push({
+        order_id: order.id,
+        recipient_type: "deliverer",
+        recipient_id: delivererId,
+        notification_type: "2h_before",
+        scheduled_for: deliverer2hBefore.toISOString(),
+        channels: ["telegram", "email"],
+      });
+    }
+
+    if (notifications.length > 0) {
+      const { error } = await supabase
+        .from("scheduled_notifications")
+        .insert(notifications);
+
+      if (error) {
+        console.error("Error creating scheduled notifications:", error);
+      } else {
+        console.log(`Created ${notifications.length} scheduled notifications for order ${order.id}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error in createScheduledNotifications:", error);
+  }
+};
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -125,6 +219,9 @@ const handler = async (req: Request): Promise<Response> => {
           current_orders: notification.deliverers.current_orders + 1,
         })
         .eq("id", notification.deliverers.id);
+
+      // Create scheduled notifications for both customer and deliverer
+      await createScheduledNotifications(supabase, notification.orders, notification.deliverers.id);
 
       // Reject all other pending notifications for this order
       const { data: allNotifications } = await supabase

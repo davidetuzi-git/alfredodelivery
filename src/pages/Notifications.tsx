@@ -2,16 +2,19 @@ import { Header } from "@/components/Header";
 import { Navigation } from "@/components/Navigation";
 import { UserSubmenu } from "@/components/UserSubmenu";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Bell, Package, Gift, Percent, Info, CheckCheck, Mail, Megaphone, Sparkles, TrendingUp } from "lucide-react";
+import { Bell, Package, Gift, Percent, Info, CheckCheck, Mail, Megaphone, Sparkles, TrendingUp, Send, ExternalLink, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Notifications = () => {
   const { 
@@ -23,6 +26,89 @@ const Notifications = () => {
     markAllAsRead,
     updatePreferences 
   } = useNotifications();
+
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [savedTelegramId, setSavedTelegramId] = useState<string | null>(null);
+  const [savingTelegram, setSavingTelegram] = useState(false);
+
+  useEffect(() => {
+    loadTelegramSettings();
+  }, []);
+
+  const loadTelegramSettings = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("telegram_chat_id")
+        .eq("id", session.user.id)
+        .single();
+
+      if (data?.telegram_chat_id) {
+        setSavedTelegramId(data.telegram_chat_id);
+        setTelegramChatId(data.telegram_chat_id);
+      }
+    } catch (error) {
+      console.error("Error loading telegram settings:", error);
+    }
+  };
+
+  const handleSaveTelegram = async () => {
+    if (!telegramChatId.trim()) {
+      toast.error("Inserisci un Chat ID valido");
+      return;
+    }
+
+    setSavingTelegram(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Devi essere autenticato");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ telegram_chat_id: telegramChatId.trim() })
+        .eq("id", session.user.id);
+
+      if (error) throw error;
+
+      setSavedTelegramId(telegramChatId.trim());
+      toast.success("Chat ID Telegram salvato!");
+    } catch (error) {
+      console.error("Error saving telegram:", error);
+      toast.error("Errore nel salvataggio");
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
+
+  const handleRemoveTelegram = async () => {
+    setSavingTelegram(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ telegram_chat_id: null })
+        .eq("id", session.user.id);
+
+      if (error) throw error;
+
+      setSavedTelegramId(null);
+      setTelegramChatId("");
+      toast.success("Telegram disconnesso");
+    } catch (error) {
+      console.error("Error removing telegram:", error);
+      toast.error("Errore nella rimozione");
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -165,6 +251,82 @@ const Notifications = () => {
             })
           )}
         </div>
+
+        <Separator className="my-8" />
+
+        {/* Telegram Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-[#0088cc]" />
+              Notifiche Telegram
+            </CardTitle>
+            <CardDescription>
+              Ricevi promemoria sulle tue consegne direttamente su Telegram
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {savedTelegramId ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <CheckCheck className="h-5 w-5 text-green-600" />
+                  <span className="text-sm text-green-700 dark:text-green-400">
+                    Telegram connesso (ID: {savedTelegramId})
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Riceverai notifiche 24 ore prima e 1 ora prima delle tue consegne programmate, 
+                  oltre a quando il fattorino inizia la spesa.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRemoveTelegram}
+                  disabled={savingTelegram}
+                >
+                  Disconnetti Telegram
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <h4 className="font-medium text-sm">Come ottenere il tuo Chat ID:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                    <li>
+                      Apri Telegram e cerca{" "}
+                      <a 
+                        href="https://t.me/AlfredoDeliveryBot" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary underline inline-flex items-center gap-1"
+                      >
+                        @AlfredoDeliveryBot
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </li>
+                    <li>Invia il comando <code className="bg-muted px-1.5 py-0.5 rounded">/start</code></li>
+                    <li>Il bot ti risponderà con il tuo Chat ID</li>
+                    <li>Copia il Chat ID e incollalo qui sotto</li>
+                  </ol>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Inserisci il tuo Chat ID"
+                    value={telegramChatId}
+                    onChange={(e) => setTelegramChatId(e.target.value)}
+                  />
+                  <Button 
+                    onClick={handleSaveTelegram}
+                    disabled={savingTelegram || !telegramChatId.trim()}
+                  >
+                    {savingTelegram ? "Salvataggio..." : "Salva"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Separator className="my-8" />
 
