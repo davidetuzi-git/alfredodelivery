@@ -5,8 +5,9 @@ import { it } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Navigation } from "@/components/Navigation";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, Store, Loader2, Crown } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, Store, Loader2, Crown, Tag, CheckCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -19,6 +20,14 @@ interface OrderItem {
   imageUrl?: string;
 }
 
+interface Voucher {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  min_order_amount: number | null;
+}
+
 const OrderSummary = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,6 +37,10 @@ const OrderSummary = () => {
   const [productImages, setProductImages] = useState<Record<string, string>>({});
   const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
   const [productWarnings, setProductWarnings] = useState<Record<string, string>>({});
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const [voucherError, setVoucherError] = useState("");
 
   // Product brand compatibility checker
   const checkProductCompatibility = (productName: string, storeName: string): string | null => {
@@ -124,7 +137,82 @@ const OrderSummary = () => {
   const holidaySurcharge = orderData.holidaySurcharge || 0;
   const subscriptionData = orderData.subscription || null;
   const discount = 4.99;
-  const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount + holidaySurcharge - discount;
+  
+  // Calculate voucher discount
+  const voucherDiscount = appliedVoucher 
+    ? (appliedVoucher.discount_type === 'percentage' 
+        ? (subtotal * appliedVoucher.discount_value / 100) 
+        : appliedVoucher.discount_value)
+    : 0;
+  
+  const total = subtotal + deliveryFee + serviceFee + supplements.total + schedulingAdjustment.amount + holidaySurcharge - discount - voucherDiscount;
+
+  // Validate voucher
+  const validateVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError("Inserisci un codice");
+      return;
+    }
+    
+    setVoucherLoading(true);
+    setVoucherError("");
+    
+    try {
+      const { data, error } = await supabase
+        .from('vouchers')
+        .select('*')
+        .eq('code', voucherCode.trim().toUpperCase())
+        .eq('active', true)
+        .single();
+      
+      if (error || !data) {
+        setVoucherError("Codice non valido");
+        setVoucherLoading(false);
+        return;
+      }
+      
+      // Check validity dates
+      const now = new Date();
+      if (new Date(data.valid_from) > now || new Date(data.valid_until) < now) {
+        setVoucherError("Codice scaduto o non ancora valido");
+        setVoucherLoading(false);
+        return;
+      }
+      
+      // Check max uses
+      if (data.max_uses && data.current_uses >= data.max_uses) {
+        setVoucherError("Codice esaurito");
+        setVoucherLoading(false);
+        return;
+      }
+      
+      // Check minimum order amount
+      if (data.min_order_amount && subtotal < data.min_order_amount) {
+        setVoucherError(`Ordine minimo €${data.min_order_amount.toFixed(2)}`);
+        setVoucherLoading(false);
+        return;
+      }
+      
+      setAppliedVoucher({
+        id: data.id,
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        min_order_amount: data.min_order_amount
+      });
+      setVoucherCode("");
+      toast({ title: "Voucher applicato!", description: `Sconto di €${data.discount_type === 'percentage' ? (subtotal * data.discount_value / 100).toFixed(2) : data.discount_value.toFixed(2)}` });
+    } catch (err) {
+      setVoucherError("Errore nella verifica");
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherError("");
+  };
 
   const handleProceedToCheckout = () => {
     // Strip imageUrl from items to reduce payload size
@@ -152,7 +240,10 @@ const OrderSummary = () => {
         serviceFee,
         subtotal,
         orderData: lightOrderData,
-        orderFormData
+        orderFormData,
+        voucherCode: appliedVoucher?.code || null,
+        voucherDiscount: voucherDiscount,
+        voucherId: appliedVoucher?.id || null
       }
     });
   };
@@ -436,6 +527,72 @@ const OrderSummary = () => {
               <span>Sconto primo ordine</span>
               <span className="font-semibold">-€{discount.toFixed(2)}</span>
             </div>
+            
+            {/* Voucher Section */}
+            <div className="border-t pt-3 space-y-3">
+              {appliedVoucher ? (
+                <div className="flex justify-between items-center text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 p-2 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    <div>
+                      <span className="font-medium">Voucher {appliedVoucher.code}</span>
+                      <p className="text-xs opacity-80">
+                        {appliedVoucher.discount_type === 'percentage' 
+                          ? `${appliedVoucher.discount_value}% di sconto`
+                          : `€${appliedVoucher.discount_value.toFixed(2)} di sconto`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">-€{voucherDiscount.toFixed(2)}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                      onClick={removeVoucher}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Inserisci codice sconto"
+                        value={voucherCode}
+                        onChange={(e) => {
+                          setVoucherCode(e.target.value.toUpperCase());
+                          setVoucherError("");
+                        }}
+                        className="pl-9 uppercase"
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={validateVoucher}
+                      disabled={voucherLoading}
+                    >
+                      {voucherLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Applica"}
+                    </Button>
+                  </div>
+                  {voucherError && (
+                    <p className="text-xs text-red-500">{voucherError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Voucher discount line */}
+            {appliedVoucher && voucherDiscount > 0 && (
+              <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                <span>Sconto voucher</span>
+                <span className="font-semibold">-€{voucherDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            
             <div className="border-t pt-3 flex justify-between text-lg font-bold">
               <span>Totale</span>
               <span className="text-primary">€{total.toFixed(2)}</span>

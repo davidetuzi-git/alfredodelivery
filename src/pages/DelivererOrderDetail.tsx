@@ -38,6 +38,7 @@ interface OrderItem {
   alternative?: string;
   waitingApproval?: boolean;
   approvedAlternative?: boolean;
+  isEstimated?: boolean;
 }
 
 interface Order {
@@ -259,7 +260,8 @@ const DelivererOrderDetail = () => {
           name: item.name || '',
           price: item.price || 0,
           quantity: item.quantity || 1,
-          checked: false
+          checked: false,
+          isEstimated: item.isEstimated || false
         }));
         setItems(itemsWithState);
         
@@ -625,6 +627,12 @@ const DelivererOrderDetail = () => {
                           <div className={item.checked || item.approvedAlternative ? 'line-through text-muted-foreground' : ''}>
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
+                            {item.isEstimated && (
+                              <span className="text-xs text-orange-600 dark:text-orange-400 inline-flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 rounded-full bg-orange-500"></span>
+                                Prezzo stimato
+                              </span>
+                            )}
                             {item.alternative && (
                               <p className="text-sm text-orange-600 mt-1">
                                 <RefreshCw className="inline h-3 w-3 mr-1" />
@@ -644,7 +652,12 @@ const DelivererOrderDetail = () => {
                               </Badge>
                             )}
                           </div>
-                          <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
+                          <div className="text-right">
+                            <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
+                            {item.isEstimated && (
+                              <p className="text-xs text-orange-500">~stimato</p>
+                            )}
+                          </div>
                         </div>
                         
                         {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
@@ -723,6 +736,12 @@ const DelivererOrderDetail = () => {
                                 <div>
                                   <p className="font-medium text-sm">{item.name}</p>
                                   <p className="text-xs text-muted-foreground">Qtà: {item.quantity}</p>
+                                  {item.isEstimated && (
+                                    <span className="text-xs text-orange-600 dark:text-orange-400 inline-flex items-center gap-1">
+                                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                      Stimato
+                                    </span>
+                                  )}
                                   {item.alternative && (
                                     <p className="text-xs text-orange-600 mt-1">
                                       <RefreshCw className="inline h-3 w-3 mr-1" />
@@ -740,7 +759,12 @@ const DelivererOrderDetail = () => {
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="font-semibold text-sm">€{(item.price * item.quantity).toFixed(2)}</p>
+                                <div className="text-right">
+                                  <p className="font-semibold text-sm">€{(item.price * item.quantity).toFixed(2)}</p>
+                                  {item.isEstimated && (
+                                    <p className="text-xs text-orange-500">~</p>
+                                  )}
+                                </div>
                               </div>
                               
                               {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
