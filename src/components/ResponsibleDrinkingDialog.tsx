@@ -89,9 +89,9 @@ const ResponsibleDrinkingDialog = ({ open, onOpenChange, onAccept }: Responsible
           </Button>
           <Button 
             type="button" 
-            onMouseDown={(e) => {
-              e.preventDefault();
+            onClick={() => {
               onAccept();
+              onOpenChange(false);
             }}
             className="gap-2"
           >
