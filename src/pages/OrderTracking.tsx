@@ -100,7 +100,8 @@ const OrderTracking = () => {
           discount: data.discount || 0,
           voucher_discount: data.voucherDiscount || 0,
           latitude: data.latitude || null,
-          longitude: data.longitude || null
+          longitude: data.longitude || null,
+          status_history: data.statusHistory || []
         };
         
         setOrder(orderData);
@@ -545,7 +546,7 @@ const OrderTracking = () => {
             <CardTitle>Stato della consegna</CardTitle>
           </CardHeader>
           <CardContent>
-            <OrderStatusTracker currentStatus={order.delivery_status || 'confirmed'} />
+            <OrderStatusTracker currentStatus={order.delivery_status || 'confirmed'} statusHistory={order.status_history} />
           </CardContent>
         </Card>
 
