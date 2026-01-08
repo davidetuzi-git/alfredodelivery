@@ -911,6 +911,7 @@ export type Database = {
           phone_verified: boolean | null
           postal_code: string | null
           preferred_store: string | null
+          telegram_chat_id: string | null
           updated_at: string
         }
         Insert: {
@@ -936,6 +937,7 @@ export type Database = {
           phone_verified?: boolean | null
           postal_code?: string | null
           preferred_store?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -961,6 +963,7 @@ export type Database = {
           phone_verified?: boolean | null
           postal_code?: string | null
           preferred_store?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1296,6 +1299,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      scheduled_notifications: {
+        Row: {
+          channels: Json
+          created_at: string
+          id: string
+          notification_type: string
+          order_id: string
+          recipient_id: string
+          recipient_type: string
+          scheduled_for: string
+          sent_at: string | null
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          notification_type: string
+          order_id: string
+          recipient_id: string
+          recipient_type: string
+          scheduled_for: string
+          sent_at?: string | null
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          notification_type?: string
+          order_id?: string
+          recipient_id?: string
+          recipient_type?: string
+          scheduled_for?: string
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_calendar: {
         Row: {

@@ -54,6 +54,7 @@ interface Order {
   delivery_fee: number;
   delivery_status: string;
   created_at: string;
+  user_id: string;
 }
 
 // Mapping prodotti -> reparti supermercato
@@ -303,6 +304,34 @@ const DelivererOrderDetail = () => {
         // Aggiorna l'ordine locale
         if (order) {
           setOrder({ ...order, delivery_status: 'at_store' });
+        }
+        
+        // Create shopping_started notification for customer
+        try {
+          // Get customer profile to check for Telegram
+          const { data: customerProfile } = await supabase
+            .from("profiles")
+            .select("telegram_chat_id")
+            .eq("id", order.user_id)
+            .single();
+
+          const customerChannels = ["email"];
+          if (customerProfile?.telegram_chat_id) {
+            customerChannels.push("telegram");
+          }
+
+          await supabase
+            .from("scheduled_notifications")
+            .insert({
+              order_id: order.id,
+              recipient_type: "customer",
+              recipient_id: order.user_id,
+              notification_type: "shopping_started",
+              scheduled_for: new Date().toISOString(),
+              channels: customerChannels,
+            });
+        } catch (notifError) {
+          console.error("Error creating shopping_started notification:", notifError);
         }
         
         toast.success("Stato aggiornato: Arrivato al supermercato");
