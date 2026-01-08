@@ -170,12 +170,40 @@ const Checkout = () => {
           throw new Error('Sessione utente non valida');
         }
 
+        // Create minimal payload without images to avoid localStorage quota
+        const minimalOrderData = orderData.orderData ? {
+          name: orderData.orderData.name,
+          phone: orderData.orderData.phone,
+          address: orderData.orderData.address,
+          store: orderData.orderData.store,
+          deliveryDate: orderData.orderData.deliveryDate,
+          timeSlot: orderData.orderData.timeSlot,
+          latitude: orderData.orderData.latitude,
+          longitude: orderData.orderData.longitude,
+          items: (orderData.orderData.items || []).map((item: any) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            isEstimated: item.isEstimated,
+            suggestion: item.suggestion
+          })),
+          subscription: subscriptionData
+        } : null;
+
         const pendingPayload = {
-          ...orderData,
           total: finalTotal,
+          itemCount,
           deliveryFee,
           discount,
+          serviceFee,
+          supplements,
+          schedulingAdjustment,
+          subtotal,
           paymentMethod: 'card',
+          orderData: minimalOrderData,
+          voucherCode: orderData.voucherCode || null,
+          voucherDiscount: orderData.voucherDiscount || 0,
+          voucherId: orderData.voucherId || null
         };
 
         // Persist pending order server-side to avoid losing it across redirects/browser storage issues
@@ -197,8 +225,12 @@ const Checkout = () => {
           );
         }
 
-        // Keep local copy as fast path
-        localStorage.setItem('pendingOrder', JSON.stringify(pendingPayload));
+        // Keep local copy as fast path - now using minimal payload
+        try {
+          localStorage.setItem('pendingOrder', JSON.stringify(pendingPayload));
+        } catch (storageError) {
+          console.warn('localStorage quota exceeded, relying on DB storage');
+        }
 
         console.log('Redirecting to Stripe:', data.url);
 
@@ -234,14 +266,51 @@ const Checkout = () => {
 
         if (error) throw error;
         
-        // Store order data in localStorage (persists across tabs unlike sessionStorage)
-        localStorage.setItem('pendingOrder', JSON.stringify({
-          ...orderData,
-          total: finalTotal,
-          deliveryFee,
-          discount,
-          paymentMethod: 'paypal'
-        }));
+        // Create minimal payload without images to avoid localStorage quota
+        const minimalOrderDataPaypal = orderData.orderData ? {
+          name: orderData.orderData.name,
+          phone: orderData.orderData.phone,
+          address: orderData.orderData.address,
+          store: orderData.orderData.store,
+          deliveryDate: orderData.orderData.deliveryDate,
+          timeSlot: orderData.orderData.timeSlot,
+          latitude: orderData.orderData.latitude,
+          longitude: orderData.orderData.longitude,
+          items: (orderData.orderData.items || []).map((item: any) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            isEstimated: item.isEstimated,
+            suggestion: item.suggestion
+          })),
+          subscription: subscriptionData
+        } : null;
+
+        // Store minimal order data in localStorage
+        try {
+          localStorage.setItem('pendingOrder', JSON.stringify({
+            total: finalTotal,
+            itemCount,
+            deliveryFee,
+            discount,
+            serviceFee,
+            subtotal,
+            paymentMethod: 'paypal',
+            orderData: minimalOrderDataPaypal,
+            voucherCode: orderData.voucherCode || null,
+            voucherDiscount: orderData.voucherDiscount || 0,
+            voucherId: orderData.voucherId || null
+          }));
+        } catch (storageError) {
+          console.error('localStorage error:', storageError);
+          toast({
+            title: "Errore",
+            description: "Impossibile salvare i dati dell'ordine. Riprova.",
+            variant: "destructive",
+          });
+          setProcessing(false);
+          return;
+        }
         
         // Redirect to PayPal
         window.location.href = data.approvalUrl;
