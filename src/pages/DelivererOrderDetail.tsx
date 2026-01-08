@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid, XCircle, RefreshCw, AlertTriangle, MessageSquare, ShoppingBag } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid, XCircle, RefreshCw, AlertTriangle, MessageSquare, ShoppingBag, Camera, Upload, Loader2, Receipt } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderChat from "@/components/OrderChat";
 import {
@@ -119,6 +119,12 @@ const DelivererOrderDetail = () => {
   const [alternativeItemIndex, setAlternativeItemIndex] = useState<number | null>(null);
   const [alternativeText, setAlternativeText] = useState("");
   const [showForceCompleteDialog, setShowForceCompleteDialog] = useState(false);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptUploaded, setReceiptUploaded] = useState(false);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   // Raggruppa items per reparto
   const itemsByDepartment = useMemo(() => {
@@ -272,12 +278,79 @@ const DelivererOrderDetail = () => {
         };
         
         setOrder(orderWithItems);
+        
+        // Check if receipt already uploaded
+        if (orderData.receipt_url) {
+          setReceiptUploaded(true);
+        }
       }
     } catch (error: any) {
       console.error("Error loading order:", error);
       toast.error("Errore nel caricamento dell'ordine");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle receipt file selection
+  const handleReceiptSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error("File troppo grande. Max 10MB");
+        return;
+      }
+      setReceiptFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReceiptPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Upload receipt to storage
+  const uploadReceipt = async (): Promise<boolean> => {
+    if (!receiptFile || !orderId) return false;
+    
+    setUploadingReceipt(true);
+    try {
+      const fileExt = receiptFile.name.split('.').pop();
+      const fileName = `${orderId}_${Date.now()}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('order-receipts')
+        .upload(filePath, receiptFile);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL (signed for private bucket)
+      const { data: urlData } = await supabase.storage
+        .from('order-receipts')
+        .createSignedUrl(filePath, 60 * 60 * 24 * 60); // 60 days validity
+      
+      // Update order with receipt URL
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          receipt_url: urlData?.signedUrl || filePath,
+          receipt_uploaded_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+      
+      if (updateError) throw updateError;
+      
+      setReceiptUploaded(true);
+      setShowReceiptDialog(false);
+      toast.success("Scontrino caricato con successo!");
+      return true;
+    } catch (error: any) {
+      console.error("Error uploading receipt:", error);
+      toast.error("Errore nel caricamento dello scontrino");
+      return false;
+    } finally {
+      setUploadingReceipt(false);
     }
   };
 
@@ -370,6 +443,12 @@ const DelivererOrderDetail = () => {
   };
 
   const handleCompleteOrder = async () => {
+    // Check if receipt is uploaded
+    if (!receiptUploaded) {
+      setShowReceiptDialog(true);
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('orders')
@@ -873,6 +952,39 @@ const DelivererOrderDetail = () => {
           </Button>
         )}
 
+        {/* Receipt upload section */}
+        {order.delivery_status === 'shopping_complete' && (
+          <Card className={`mb-4 ${receiptUploaded ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-orange-300 bg-orange-50 dark:bg-orange-950/20'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Receipt className={`h-6 w-6 ${receiptUploaded ? 'text-green-600' : 'text-orange-600'}`} />
+                  <div>
+                    <p className="font-medium">
+                      {receiptUploaded ? 'Scontrino caricato ✓' : 'Carica foto scontrino'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {receiptUploaded 
+                        ? 'Conservato per 60 giorni' 
+                        : 'Obbligatorio prima della consegna'}
+                    </p>
+                  </div>
+                </div>
+                {!receiptUploaded && (
+                  <Button 
+                    onClick={() => setShowReceiptDialog(true)}
+                    variant="outline"
+                    className="border-orange-500 text-orange-600 hover:bg-orange-100"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Carica
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Button
           onClick={handleCompleteOrder}
           disabled={!allProcessed || order.delivery_status !== 'shopping_complete'}
@@ -881,7 +993,7 @@ const DelivererOrderDetail = () => {
         >
           <CheckCircle2 className="h-5 w-5 mr-2" />
           {order.delivery_status === 'shopping_complete' 
-            ? 'Completa Consegna' 
+            ? (receiptUploaded ? 'Completa Consegna' : 'Carica scontrino per completare')
             : allProcessed 
               ? 'Prima completa la spesa' 
               : `Processa tutti gli articoli (${processedItems}/${totalItems})`}
@@ -979,6 +1091,86 @@ const DelivererOrderDetail = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Receipt upload dialog */}
+        <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-primary" />
+                Carica foto scontrino
+              </DialogTitle>
+              <DialogDescription>
+                Scatta una foto dello scontrino completo. Assicurati che tutti i prodotti e il totale siano leggibili.
+                <br />
+                <span className="text-xs text-muted-foreground">Lo scontrino sarà conservato per 60 giorni.</span>
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <input
+                type="file"
+                ref={receiptInputRef}
+                accept="image/*"
+                capture="environment"
+                onChange={handleReceiptSelect}
+                className="hidden"
+              />
+              
+              {receiptPreview ? (
+                <div className="relative">
+                  <img 
+                    src={receiptPreview} 
+                    alt="Anteprima scontrino" 
+                    className="w-full max-h-80 object-contain rounded-lg border"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => {
+                      setReceiptFile(null);
+                      setReceiptPreview(null);
+                    }}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div 
+                  className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => receiptInputRef.current?.click()}
+                >
+                  <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="font-medium">Tocca per scattare foto</p>
+                  <p className="text-sm text-muted-foreground">o seleziona dalla galleria</p>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowReceiptDialog(false)}>
+                Annulla
+              </Button>
+              <Button 
+                onClick={uploadReceipt} 
+                disabled={!receiptFile || uploadingReceipt}
+              >
+                {uploadingReceipt ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Caricamento...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Carica scontrino
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

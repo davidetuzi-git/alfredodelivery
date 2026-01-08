@@ -673,6 +673,8 @@ export type Database = {
           loyalty_card_used: boolean | null
           payment_method: string | null
           pickup_code: string
+          receipt_uploaded_at: string | null
+          receipt_url: string | null
           status: string
           status_updated_at: string | null
           store_name: string
@@ -703,6 +705,8 @@ export type Database = {
           loyalty_card_used?: boolean | null
           payment_method?: string | null
           pickup_code: string
+          receipt_uploaded_at?: string | null
+          receipt_url?: string | null
           status?: string
           status_updated_at?: string | null
           store_name: string
@@ -733,6 +737,8 @@ export type Database = {
           loyalty_card_used?: boolean | null
           payment_method?: string | null
           pickup_code?: string
+          receipt_uploaded_at?: string | null
+          receipt_url?: string | null
           status?: string
           status_updated_at?: string | null
           store_name?: string
@@ -1717,6 +1723,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["loyalty_level"]
       }
       cleanup_old_prices: { Args: never; Returns: undefined }
+      cleanup_old_receipts: { Args: never; Returns: undefined }
       generate_pickup_code: { Args: never; Returns: string }
       get_level_discount_percent: {
         Args: { level: Database["public"]["Enums"]["loyalty_level"] }
