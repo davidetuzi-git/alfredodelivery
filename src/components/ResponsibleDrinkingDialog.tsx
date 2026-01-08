@@ -84,10 +84,17 @@ const ResponsibleDrinkingDialog = ({ open, onOpenChange, onAccept }: Responsible
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
             Torna all'ordine
           </Button>
-          <Button onClick={onAccept} className="gap-2">
+          <Button 
+            type="button" 
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onAccept();
+            }}
+            className="gap-2"
+          >
             <CheckCircle2 className="h-4 w-4" />
             Ho letto e accetto
           </Button>
