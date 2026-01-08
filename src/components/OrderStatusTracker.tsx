@@ -1,11 +1,19 @@
 import { CheckCircle2, Circle, Truck, ShoppingCart, PackageCheck, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+
+interface StatusHistoryItem {
+  status: string;
+  created_at: string;
+}
 
 interface OrderStatusTrackerProps {
   currentStatus: string;
+  statusHistory?: StatusHistoryItem[];
 }
 
-const OrderStatusTracker = ({ currentStatus }: OrderStatusTrackerProps) => {
+const OrderStatusTracker = ({ currentStatus, statusHistory = [] }: OrderStatusTrackerProps) => {
   const statuses = [
     { id: 'confirmed', label: 'Spesa confermata', icon: CheckCircle2 },
     { id: 'assigned', label: 'Deliverer ha preso in carico', icon: Truck },
@@ -16,6 +24,12 @@ const OrderStatusTracker = ({ currentStatus }: OrderStatusTrackerProps) => {
   ];
 
   const currentIndex = statuses.findIndex(s => s.id === currentStatus);
+
+  // Create a map from status to timestamp
+  const statusTimestamps: Record<string, string> = {};
+  statusHistory.forEach(item => {
+    statusTimestamps[item.status] = item.created_at;
+  });
 
   return (
     <div className="relative py-8">
@@ -32,13 +46,14 @@ const OrderStatusTracker = ({ currentStatus }: OrderStatusTrackerProps) => {
           const Icon = status.icon;
           const isCompleted = index <= currentIndex;
           const isCurrent = index === currentIndex;
+          const timestamp = statusTimestamps[status.id];
 
           return (
             <div key={status.id} className="relative flex items-center gap-4">
               {/* Icon circle */}
               <div
                 className={cn(
-                  "relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-300",
+                  "relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-300 flex-shrink-0",
                   isCompleted
                     ? "border-primary bg-primary text-primary-foreground shadow-lg"
                     : "border-muted bg-background text-muted-foreground",
@@ -48,8 +63,8 @@ const OrderStatusTracker = ({ currentStatus }: OrderStatusTrackerProps) => {
                 <Icon className={cn("h-6 w-6", isCurrent && "animate-pulse")} />
               </div>
 
-              {/* Label */}
-              <div className="flex-1">
+              {/* Label and timestamp */}
+              <div className="flex-1 min-w-0">
                 <p
                   className={cn(
                     "font-semibold transition-colors",
@@ -59,6 +74,11 @@ const OrderStatusTracker = ({ currentStatus }: OrderStatusTrackerProps) => {
                 >
                   {status.label}
                 </p>
+                {isCompleted && timestamp && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {format(new Date(timestamp), "dd MMM yyyy 'alle' HH:mm", { locale: it })}
+                  </p>
+                )}
               </div>
             </div>
           );

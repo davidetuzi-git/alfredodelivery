@@ -937,40 +937,39 @@ const DelivererDashboard = () => {
                     {availableOrders.map((order) => (
                       <div
                         key={order.id}
-                        className="border rounded-lg p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                        className="border rounded-lg p-3 sm:p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
                       >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <p className="font-semibold text-green-900 dark:text-green-100">
+                        <div className="space-y-2 mb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-semibold text-green-900 dark:text-green-100 text-sm sm:text-base leading-tight">
                               {order.store_name}
                             </p>
-                            <p className="text-sm text-green-700 dark:text-green-300">
-                              📍 {order.delivery_address}
-                            </p>
-                            <p className="text-sm text-green-700 dark:text-green-300">
-                              📅 {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
-                            </p>
-                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                              👤 {order.customer_name}
-                            </p>
+                            <Badge className="bg-green-600 flex-shrink-0 text-xs">
+                              €{order.total_amount.toFixed(2)}
+                            </Badge>
                           </div>
-                          <Badge className="bg-green-600">
-                            €{order.total_amount.toFixed(2)}
-                          </Badge>
+                          <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 break-words">
+                            📍 {order.delivery_address}
+                          </p>
+                          <p className="text-xs sm:text-sm text-green-700 dark:text-green-300">
+                            📅 {new Date(order.delivery_date).toLocaleDateString('it-IT')} - {order.time_slot}
+                          </p>
+                          <p className="text-xs sm:text-sm text-green-700 dark:text-green-300">
+                            👤 {order.customer_name}
+                          </p>
                         </div>
                         
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            onClick={() => handleAcceptOrder(order.id)}
-                            disabled={acceptingOrder === order.id}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                          >
-                            {acceptingOrder === order.id ? "Accettazione..." : "✅ Accetta Ordine"}
-                          </Button>
-                        </div>
+                        <Button
+                          onClick={() => handleAcceptOrder(order.id)}
+                          disabled={acceptingOrder === order.id}
+                          className="w-full bg-green-600 hover:bg-green-700 text-sm"
+                          size="sm"
+                        >
+                          {acceptingOrder === order.id ? "Accettazione..." : "✅ Accetta Ordine"}
+                        </Button>
                         
                         <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                          💡 Dopo l'accettazione potrai vedere tutti i dettagli dell'ordine nella sezione "In Corso"
+                          💡 Dopo l'accettazione potrai vedere i dettagli nella sezione "In Corso"
                         </p>
                       </div>
                     ))}
