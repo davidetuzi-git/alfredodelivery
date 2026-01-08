@@ -50,6 +50,11 @@ const Checkout = () => {
   const itemCount = orderData.itemCount || 0;
   const finalTotal = orderData.total || 0;
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Check authentication first
   useEffect(() => {
     const checkAuth = async () => {
@@ -604,10 +609,15 @@ const Checkout = () => {
             </RadioGroup>
           </CardContent>
         </Card>
+      </div>
 
-        <Button onClick={handlePayment} className="w-full" size="lg" disabled={processing}>
-          {processing ? "Elaborazione..." : `Conferma e paga €${finalTotal.toFixed(2)}`}
-        </Button>
+      {/* Sticky bottom button */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-background border-t z-40">
+        <div className="max-w-2xl mx-auto">
+          <Button onClick={handlePayment} className="w-full" size="lg" disabled={processing}>
+            {processing ? "Elaborazione..." : `CONFERMA €${finalTotal.toFixed(2)}`}
+          </Button>
+        </div>
       </div>
 
       <Navigation />
