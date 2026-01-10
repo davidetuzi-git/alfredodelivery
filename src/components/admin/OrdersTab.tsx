@@ -5,13 +5,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Phone, MapPin, Calendar, ShoppingBag, Package, Eye, Search } from "lucide-react";
+import { User, Phone, MapPin, Calendar, ShoppingBag, Package, Eye, Search, AlertTriangle, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { OrderDetailDialog } from "./OrderDetailDialog";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 interface Order {
   id: string;
   customer_name: string;
@@ -49,9 +58,39 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
-  const assignDeliverer = async (orderId: string, delivererId: string) => {
+  const [showReassignDialog, setShowReassignDialog] = useState(false);
+  const [pendingReassignment, setPendingReassignment] = useState<{ orderId: string; delivererId: string; currentStatus: string } | null>(null);
+
+  // Stati che indicano che l'ordine è in corso/completato
+  const LOCKED_STATUSES = ['delivered', 'cancelled'];
+  const IN_PROGRESS_STATUSES = ['assigned', 'at_store', 'shopping_complete', 'on_the_way'];
+
+  const handleDelivererChange = (orderId: string, delivererId: string, currentStatus: string, hasDeliverer: boolean) => {
+    // Blocca completamente per ordini consegnati/annullati
+    if (LOCKED_STATUSES.includes(currentStatus)) {
+      toast.error("Impossibile modificare un ordine già completato o annullato");
+      return;
+    }
+
+    // Se l'ordine è in corso e ha già un fattorino, richiedi conferma
+    if (hasDeliverer && IN_PROGRESS_STATUSES.includes(currentStatus)) {
+      setPendingReassignment({ orderId, delivererId, currentStatus });
+      setShowReassignDialog(true);
+      return;
+    }
+
+    // Altrimenti procedi normalmente
+    assignDeliverer(orderId, delivererId, currentStatus, hasDeliverer);
+  };
+  
+  const assignDeliverer = async (orderId: string, delivererId: string, currentStatus: string, isReassignment: boolean) => {
     const deliverer = deliverers.find(d => d.id === delivererId);
     if (!deliverer) return;
+
+    // Determina lo stato da impostare
+    // Se è una riassegnazione, mantieni lo stato attuale
+    // Se è una prima assegnazione, imposta 'assigned'
+    const newStatus = isReassignment ? currentStatus : 'assigned';
 
     const { error } = await supabase
       .from("orders")
@@ -59,8 +98,8 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
         deliverer_id: deliverer.id,
         deliverer_name: deliverer.name,
         deliverer_phone: deliverer.phone,
-        delivery_status: 'assigned',
-        status: 'assigned'
+        delivery_status: newStatus,
+        status: newStatus
       })
       .eq("id", orderId);
 
@@ -268,26 +307,40 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
                         <Eye className="h-4 w-4 mr-2" />
                         Vedi Dettagli
                       </Button>
-                      <Select
-                        value={order.deliverer_id || ""}
-                        onValueChange={(value) => assignDeliverer(order.id, value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Assegna fattorino" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {deliverers.map((deliverer) => (
-                            <SelectItem key={deliverer.id} value={deliverer.id}>
-                              <div className="flex items-center justify-between w-full gap-2">
-                                <span>{deliverer.name}</span>
-                                <Badge variant="outline">
-                                  {deliverer.current_orders}/{deliverer.max_orders}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      
+                      {/* Blocca Select per ordini completati/annullati */}
+                      {LOCKED_STATUSES.includes(order.delivery_status) ? (
+                        <div className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm text-muted-foreground">
+                          <Lock className="h-4 w-4" />
+                          <span>Ordine {order.delivery_status === 'delivered' ? 'consegnato' : 'annullato'}</span>
+                        </div>
+                      ) : (
+                        <Select
+                          value={order.deliverer_id || ""}
+                          onValueChange={(value) => handleDelivererChange(
+                            order.id, 
+                            value, 
+                            order.delivery_status,
+                            !!order.deliverer_id
+                          )}
+                        >
+                          <SelectTrigger className={order.deliverer_id && IN_PROGRESS_STATUSES.includes(order.delivery_status) ? "border-orange-300" : ""}>
+                            <SelectValue placeholder="Assegna fattorino" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {deliverers.map((deliverer) => (
+                              <SelectItem key={deliverer.id} value={deliverer.id}>
+                                <div className="flex items-center justify-between w-full gap-2">
+                                  <span>{deliverer.name}</span>
+                                  <Badge variant="outline">
+                                    {deliverer.current_orders}/{deliverer.max_orders}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -302,6 +355,54 @@ export const OrdersTab = ({ orders, deliverers, onOrderUpdate }: OrdersTabProps)
         open={dialogOpen} 
         onOpenChange={setDialogOpen} 
       />
+
+      {/* Dialog di conferma riassegnazione */}
+      <AlertDialog open={showReassignDialog} onOpenChange={setShowReassignDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              Riassegnare il fattorino?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Questo ordine è già <strong>in corso</strong> con un fattorino assegnato.
+              </p>
+              <p>
+                Se procedi, il nuovo fattorino riceverà una notifica, ma lo stato dell'ordine 
+                rimarrà invariato (<strong>{pendingReassignment?.currentStatus}</strong>).
+              </p>
+              <p className="text-orange-600">
+                Questa azione dovrebbe essere usata solo in casi eccezionali!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPendingReassignment(null);
+            }}>
+              Annulla
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-orange-600 hover:bg-orange-700"
+              onClick={() => {
+                if (pendingReassignment) {
+                  assignDeliverer(
+                    pendingReassignment.orderId, 
+                    pendingReassignment.delivererId,
+                    pendingReassignment.currentStatus,
+                    true
+                  );
+                }
+                setShowReassignDialog(false);
+                setPendingReassignment(null);
+              }}
+            >
+              Conferma Riassegnazione
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Tabs>
     </div>
   );
