@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle, BarChart3, Search } from "lucide-react";
+import { LogOut, Package, Users, TrendingUp, Bell, MapPin, Ticket, Bike, CalendarOff, UserCircle, BarChart3, Search, XCircle } from "lucide-react";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { DeliverersTab } from "@/components/admin/DeliverersTab";
 import { FinanceTab } from "@/components/admin/FinanceTab";
@@ -16,6 +16,7 @@ import { ServiceCalendarTab } from "@/components/admin/ServiceCalendarTab";
 import { CustomersTab } from "@/components/admin/CustomersTab";
 import { AdMetricsTab } from "@/components/admin/AdMetricsTab";
 import { PriceKpiTab } from "@/components/admin/PriceKpiTab";
+import { CancellationRequestsTab } from "@/components/admin/CancellationRequestsTab";
 
 interface Order {
   id: string;
@@ -157,10 +158,14 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10 max-w-7xl">
+          <TabsList className="grid w-full grid-cols-12 max-w-7xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Ordini</span>
+            </TabsTrigger>
+            <TabsTrigger value="cancellations" className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Annulla</span>
             </TabsTrigger>
             <TabsTrigger value="customers" className="flex items-center gap-2">
               <UserCircle className="h-4 w-4" />
@@ -210,6 +215,10 @@ const AdminDashboard = () => {
               deliverers={deliverers}
               onOrderUpdate={loadOrders}
             />
+          </TabsContent>
+
+          <TabsContent value="cancellations">
+            <CancellationRequestsTab />
           </TabsContent>
 
           <TabsContent value="customers">
