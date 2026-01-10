@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.notify-deliverer-feedback]
 verify_jwt = false
+
+[functions.handle-complaint]
+verify_jwt = false
