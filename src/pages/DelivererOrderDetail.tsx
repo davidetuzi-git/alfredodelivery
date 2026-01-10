@@ -39,6 +39,7 @@ interface OrderItem {
   waitingApproval?: boolean;
   approvedAlternative?: boolean;
   isEstimated?: boolean;
+  alternativeProposedAt?: string; // ISO timestamp for 2-min timeout
 }
 
 interface Order {
@@ -124,7 +125,20 @@ const DelivererOrderDetail = () => {
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
+  const [, setTimeoutTick] = useState(0); // Force re-render for timeout check
   const receiptInputRef = useRef<HTMLInputElement>(null);
+
+  // Timer to check alternative timeouts every 30 seconds
+  useEffect(() => {
+    const hasWaitingItems = items.some(item => item.waitingApproval);
+    if (!hasWaitingItems) return;
+
+    const interval = setInterval(() => {
+      setTimeoutTick(prev => prev + 1);
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [items]);
 
   // Raggruppa items per reparto
   const itemsByDepartment = useMemo(() => {
@@ -260,14 +274,19 @@ const DelivererOrderDetail = () => {
       if (error) throw error;
 
       if (orderData) {
-        // Initialize items with checked state first
+        // Initialize items with saved state from DB
         const itemsArray = Array.isArray(orderData.items) ? orderData.items : [];
         const itemsWithState = itemsArray.map((item: any) => ({
           name: item.name || '',
           price: item.price || 0,
           quantity: item.quantity || 1,
-          checked: false,
-          isEstimated: item.isEstimated || false
+          checked: item.checked || false,
+          notFound: item.notFound || false,
+          alternative: item.alternative || undefined,
+          waitingApproval: item.waitingApproval || false,
+          approvedAlternative: item.approvedAlternative || false,
+          isEstimated: item.isEstimated || false,
+          alternativeProposedAt: item.alternativeProposedAt || undefined,
         }));
         setItems(itemsWithState);
         
@@ -354,6 +373,22 @@ const DelivererOrderDetail = () => {
     }
   };
 
+  // Save items state to database
+  const saveItemsToDb = async (updatedItems: OrderItem[]) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ items: updatedItems as any })
+        .eq('id', orderId);
+      
+      if (error) {
+        console.error('Error saving items to DB:', error);
+      }
+    } catch (error) {
+      console.error('Error saving items:', error);
+    }
+  };
+
   const toggleItemCheck = async (index: number) => {
     const currentCheckedCount = items.filter(item => item.checked).length;
     const newItems = items.map((item, i) => 
@@ -362,6 +397,9 @@ const DelivererOrderDetail = () => {
     const newCheckedCount = newItems.filter(item => item.checked).length;
     
     setItems(newItems);
+    
+    // Save items state to DB
+    await saveItemsToDb(newItems);
 
     try {
       // Se è il primo prodotto spuntato, aggiorna lo stato a "at_store"
@@ -370,7 +408,8 @@ const DelivererOrderDetail = () => {
           .from('orders')
           .update({ 
             delivery_status: 'at_store',
-            status: 'at_store'
+            status: 'at_store',
+            items: newItems as any
           })
           .eq('id', orderId);
 
@@ -418,7 +457,8 @@ const DelivererOrderDetail = () => {
           .from('orders')
           .update({ 
             delivery_status: 'shopping_complete',
-            status: 'shopping_complete'
+            status: 'shopping_complete',
+            items: newItems as any
           })
           .eq('id', orderId);
 
@@ -468,22 +508,28 @@ const DelivererOrderDetail = () => {
     }
   };
 
-  const markItemNotFound = (index: number) => {
+  const markItemNotFound = async (index: number) => {
     const newItems = items.map((item, i) => 
-      i === index ? { ...item, notFound: true, checked: false, alternative: undefined, waitingApproval: false } : item
+      i === index ? { ...item, notFound: true, checked: false, alternative: undefined, waitingApproval: false, alternativeProposedAt: undefined } : item
     );
     setItems(newItems);
+    
+    // Save to DB
+    await saveItemsToDb(newItems);
     
     // Invia messaggio automatico in chat
     sendChatMessage(`❌ Articolo non trovato: "${items[index].name}" (Qtà: ${items[index].quantity})`);
     toast.info(`Articolo segnalato come non trovato`);
   };
 
-  const resetItemStatus = (index: number) => {
+  const resetItemStatus = async (index: number) => {
     const newItems = items.map((item, i) => 
-      i === index ? { ...item, notFound: false, checked: false, alternative: undefined, waitingApproval: false, approvedAlternative: false } : item
+      i === index ? { ...item, notFound: false, checked: false, alternative: undefined, waitingApproval: false, approvedAlternative: false, alternativeProposedAt: undefined } : item
     );
     setItems(newItems);
+    
+    // Save to DB
+    await saveItemsToDb(newItems);
   };
 
   const openAlternativeDialog = (index: number) => {
@@ -492,16 +538,49 @@ const DelivererOrderDetail = () => {
     setShowAlternativeDialog(true);
   };
 
+  // Check if alternative timeout (2 minutes) has passed
+  const canForceNotFound = (item: OrderItem) => {
+    if (!item.waitingApproval || !item.alternativeProposedAt) return false;
+    const proposedTime = new Date(item.alternativeProposedAt).getTime();
+    const now = Date.now();
+    const twoMinutes = 2 * 60 * 1000;
+    return (now - proposedTime) >= twoMinutes;
+  };
+
+  const forceMarkNotFound = async (index: number) => {
+    const newItems = items.map((item, i) => 
+      i === index ? { ...item, notFound: true, checked: false, alternative: undefined, waitingApproval: false, alternativeProposedAt: undefined } : item
+    );
+    setItems(newItems);
+    
+    // Save to DB
+    await saveItemsToDb(newItems);
+    
+    // Invia messaggio automatico in chat
+    sendChatMessage(`⏱️ Tempo scaduto per approvazione alternativa. Articolo "${items[index].name}" segnato come non trovato.`);
+    toast.info(`Articolo segnalato come non trovato (timeout)`);
+  };
+
   const submitAlternative = async () => {
     if (alternativeItemIndex === null || !alternativeText.trim()) return;
     
     const newItems = items.map((item, i) => 
-      i === alternativeItemIndex ? { ...item, alternative: alternativeText, waitingApproval: true, notFound: false, checked: false } : item
+      i === alternativeItemIndex ? { 
+        ...item, 
+        alternative: alternativeText, 
+        waitingApproval: true, 
+        notFound: false, 
+        checked: false,
+        alternativeProposedAt: new Date().toISOString() // Save timestamp for timeout
+      } : item
     );
     setItems(newItems);
     
+    // Save to DB
+    await saveItemsToDb(newItems);
+    
     // Invia messaggio in chat per richiedere autorizzazione
-    await sendChatMessage(`🔄 RICHIESTA AUTORIZZAZIONE:\nArticolo: "${items[alternativeItemIndex].name}"\nAlternativa proposta: "${alternativeText}"\n\n👉 Rispondi "OK" o "SI" per confermare, oppure "NO" per rifiutare.`);
+    await sendChatMessage(`🔄 RICHIESTA AUTORIZZAZIONE:\nArticolo: "${items[alternativeItemIndex].name}"\nAlternativa proposta: "${alternativeText}"\n\n👉 Rispondi "OK" o "SI" per confermare, oppure "NO" per rifiutare.\n\n⏱️ Se non rispondi entro 2 minuti, il fattorino potrà procedere.`);
     
     toast.success("Richiesta alternativa inviata al cliente");
     setShowAlternativeDialog(false);
@@ -762,7 +841,35 @@ const DelivererOrderDetail = () => {
                           </div>
                         )}
                         
-                        {(item.notFound || item.waitingApproval) && (
+                        {item.waitingApproval && (
+                          <div className="mt-2 pt-2 border-t flex flex-wrap gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => resetItemStatus(index)}
+                            >
+                              Annulla
+                            </Button>
+                            {canForceNotFound(item) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50 border-red-300"
+                                onClick={() => forceMarkNotFound(index)}
+                              >
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Segna Non Trovato
+                              </Button>
+                            )}
+                            {!canForceNotFound(item) && item.alternativeProposedAt && (
+                              <span className="text-xs text-muted-foreground flex items-center">
+                                ⏱️ Attendi {Math.max(0, Math.ceil((2 * 60 * 1000 - (Date.now() - new Date(item.alternativeProposedAt).getTime())) / 1000))}s
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {item.notFound && (
                           <div className="mt-2 pt-2 border-t">
                             <Button
                               variant="ghost"
@@ -867,7 +974,36 @@ const DelivererOrderDetail = () => {
                                 </div>
                               )}
                               
-                              {(item.notFound || item.waitingApproval) && (
+                              {item.waitingApproval && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => resetItemStatus(item.originalIndex)}
+                                  >
+                                    Annulla
+                                  </Button>
+                                  {canForceNotFound(item) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs text-red-600 border-red-300"
+                                      onClick={() => forceMarkNotFound(item.originalIndex)}
+                                    >
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Non Trovato
+                                    </Button>
+                                  )}
+                                  {!canForceNotFound(item) && item.alternativeProposedAt && (
+                                    <span className="text-xs text-muted-foreground flex items-center">
+                                      ⏱️ {Math.max(0, Math.ceil((2 * 60 * 1000 - (Date.now() - new Date(item.alternativeProposedAt).getTime())) / 1000))}s
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {item.notFound && (
                                 <Button
                                   variant="ghost"
                                   size="sm"

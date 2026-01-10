@@ -256,14 +256,15 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         let telegramMessage = "";
+        const orderDetailUrl = `https://alfredodelivery.lovable.app/deliverer-order/${order.id}`;
 
         switch (notification.notification_type) {
           case "24h_before":
-            telegramMessage = `📅 *Promemoria: consegna domani!*\n\nCiao ${deliverer.name}!\n\nHai una consegna programmata per domani:\n\n🔑 Codice: \`${order.pickup_code}\`\n📅 ${formatDate(order.delivery_date)}\n🕐 ${formatTimeSlot(order.time_slot)}\n🏪 ${order.store_name}\n📍 ${order.delivery_address}\n\nAssicurati di essere disponibile! 💪`;
+            telegramMessage = `📅 *Promemoria: consegna domani!*\n\nCiao ${deliverer.name}!\n\nHai una consegna programmata per domani:\n\n🔑 Ordine: [${order.pickup_code}](${orderDetailUrl})\n📅 ${formatDate(order.delivery_date)}\n🕐 ${formatTimeSlot(order.time_slot)}\n🏪 ${order.store_name}\n📍 ${order.delivery_address}\n\n📋 Clicca sul codice per vedere la lista!\nAssicurati di essere disponibile! 💪`;
             break;
 
           case "2h_before":
-            telegramMessage = `⏰ *Consegna tra 2 ore!*\n\nCiao ${deliverer.name}!\n\nTi ricordiamo la consegna programmata:\n\n🔑 Codice: \`${order.pickup_code}\`\n🕐 ${formatTimeSlot(order.time_slot)}\n🏪 ${order.store_name}\n📍 ${order.delivery_address}\n\nPreparati a partire! 🚚`;
+            telegramMessage = `⏰ *Consegna tra 2 ore!*\n\nCiao ${deliverer.name}!\n\nTi ricordiamo la consegna programmata:\n\n🔑 Ordine: [${order.pickup_code}](${orderDetailUrl})\n🕐 ${formatTimeSlot(order.time_slot)}\n🏪 ${order.store_name}\n📍 ${order.delivery_address}\n\n📋 Clicca sul codice per vedere la lista!\nPreparati a partire! 🚚`;
             break;
         }
 
