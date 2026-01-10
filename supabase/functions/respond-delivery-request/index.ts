@@ -220,6 +220,30 @@ const handler = async (req: Request): Promise<Response> => {
         })
         .eq("id", notification.deliverers.id);
 
+      // Send congratulations message to deliverer via Telegram
+      if (notification.deliverers.telegram_chat_id) {
+        const orderDetailUrl = `https://alfredodelivery.lovable.app/deliverer-order/${notification.order_id}`;
+        const congratsMessage = `🎉 *Grazie per aver accettato l'ordine!*\n\nOrdine: [${notification.orders.pickup_code}](${orderDetailUrl})\n\n📋 Clicca sul codice per vedere la lista della spesa.\n\nBuon lavoro! 💪`;
+        
+        try {
+          await fetch(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: notification.deliverers.telegram_chat_id,
+                text: congratsMessage,
+                parse_mode: "Markdown",
+              }),
+            }
+          );
+          console.log("Congratulations message sent to deliverer");
+        } catch (error) {
+          console.error("Failed to send congratulations message:", error);
+        }
+      }
+
       // Create scheduled notifications for both customer and deliverer
       await createScheduledNotifications(supabase, notification.orders, notification.deliverers.id);
 
