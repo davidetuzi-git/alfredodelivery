@@ -662,6 +662,9 @@ const DelivererOrderDetail = () => {
   const processedItems = checkedCount + notFoundCount;
   const allProcessed = processedItems === totalItems && waitingApprovalCount === 0;
   const canForceComplete = checkedCount > 0 && (notFoundCount > 0 || waitingApprovalCount > 0);
+  
+  // Shopping is locked when status is shopping_complete or beyond (on_the_way, delivered)
+  const isShoppingLocked = ['shopping_complete', 'on_the_way', 'delivered', 'cancelled'].includes(order?.delivery_status || '');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-4">
@@ -737,6 +740,11 @@ const DelivererOrderDetail = () => {
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   <CardTitle>Lista della Spesa</CardTitle>
+                  {isShoppingLocked && (
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                      ✓ Completata
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground flex flex-wrap gap-2 justify-end">
                   <span className="text-green-600">{checkedCount} ✓</span>
@@ -776,8 +784,8 @@ const DelivererOrderDetail = () => {
                       <Checkbox
                         id={`item-${index}`}
                         checked={item.checked || item.approvedAlternative}
-                        disabled={item.notFound || item.waitingApproval}
-                        onCheckedChange={() => toggleItemCheck(index)}
+                        disabled={item.notFound || item.waitingApproval || isShoppingLocked}
+                        onCheckedChange={() => !isShoppingLocked && toggleItemCheck(index)}
                         className="mt-1"
                       />
                       <div className="flex-1">
@@ -818,7 +826,7 @@ const DelivererOrderDetail = () => {
                           </div>
                         </div>
                         
-                        {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
+                        {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && !isShoppingLocked && (
                           <div className="flex gap-2 mt-2 pt-2 border-t">
                             <Button
                               variant="outline"
@@ -841,7 +849,7 @@ const DelivererOrderDetail = () => {
                           </div>
                         )}
                         
-                        {item.waitingApproval && (
+                        {item.waitingApproval && !isShoppingLocked && (
                           <div className="mt-2 pt-2 border-t flex flex-wrap gap-2">
                             <Button
                               variant="ghost"
@@ -869,7 +877,7 @@ const DelivererOrderDetail = () => {
                           </div>
                         )}
                         
-                        {item.notFound && (
+                        {item.notFound && !isShoppingLocked && (
                           <div className="mt-2 pt-2 border-t">
                             <Button
                               variant="ghost"
@@ -913,8 +921,8 @@ const DelivererOrderDetail = () => {
                             <Checkbox
                               id={`item-smart-${item.originalIndex}`}
                               checked={item.checked || item.approvedAlternative}
-                              disabled={item.notFound || item.waitingApproval}
-                              onCheckedChange={() => toggleItemCheck(item.originalIndex)}
+                              disabled={item.notFound || item.waitingApproval || isShoppingLocked}
+                              onCheckedChange={() => !isShoppingLocked && toggleItemCheck(item.originalIndex)}
                               className="mt-0.5"
                             />
                             <div className="flex-1">
@@ -953,7 +961,7 @@ const DelivererOrderDetail = () => {
                                 </div>
                               </div>
                               
-                              {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && (
+                              {!item.checked && !item.approvedAlternative && !item.notFound && !item.waitingApproval && !isShoppingLocked && (
                                 <div className="flex gap-1 mt-1">
                                   <Button
                                     variant="ghost"
@@ -974,7 +982,7 @@ const DelivererOrderDetail = () => {
                                 </div>
                               )}
                               
-                              {item.waitingApproval && (
+                              {item.waitingApproval && !isShoppingLocked && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   <Button
                                     variant="ghost"
@@ -1003,7 +1011,7 @@ const DelivererOrderDetail = () => {
                                 </div>
                               )}
                               
-                              {item.notFound && (
+                              {item.notFound && !isShoppingLocked && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
