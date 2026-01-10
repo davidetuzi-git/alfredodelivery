@@ -23,7 +23,8 @@ import {
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
 import { UserSubmenu } from "@/components/UserSubmenu";
-import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw, Edit, XCircle, Download, FileText } from "lucide-react";
+import { Package, Clock, MapPin, ShoppingBag, Eye, Loader2, Calendar, User, Phone, Star, RefreshCw, Edit, XCircle, Download, FileText, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -69,8 +70,11 @@ const MyOrders = () => {
   const [orderToRepeat, setOrderToRepeat] = useState<Order | null>(null);
   const [filterTab, setFilterTab] = useState<'active' | 'closed'>('active');
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [adminCancelDialogOpen, setAdminCancelDialogOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [pendingCancellations, setPendingCancellations] = useState<Set<string>>(new Set());
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   // Get order ID from location state (when navigating from Home)
@@ -131,6 +135,17 @@ const MyOrders = () => {
         
         if (feedbackData) {
           setFeedbackGiven(new Set(feedbackData.map(f => f.order_id)));
+        }
+
+        // Check which orders have pending cancellation requests
+        const { data: cancelData } = await supabase
+          .from("cancellation_requests")
+          .select("order_id")
+          .in("order_id", orderIds)
+          .eq("status", "pending");
+        
+        if (cancelData) {
+          setPendingCancellations(new Set(cancelData.map(c => c.order_id)));
         }
       }
     } catch (error) {
@@ -219,15 +234,34 @@ const MyOrders = () => {
     return order.total_amount - order.delivery_fee + order.discount + order.voucher_discount;
   };
 
-  // Check if order can be cancelled (24+ hours before delivery and not yet in progress)
-  const canCancelOrder = (order: Order) => {
-    if (['delivered', 'cancelled', 'on_the_way', 'shopping_complete'].includes(order.delivery_status)) {
+  // Check if order can be cancelled (24+ hours before delivery and not yet in progress at store)
+  // Orders that are at_store, shopping_complete, on_the_way, delivered, cancelled cannot be cancelled directly
+  // They need to request cancellation through admin
+  const canCancelOrderDirectly = (order: Order) => {
+    // Can only cancel directly if order is confirmed or assigned (not yet at store)
+    if (!['confirmed', 'assigned'].includes(order.delivery_status)) {
       return false;
     }
     const deliveryDate = new Date(order.delivery_date);
     const now = new Date();
     const hoursUntilDelivery = (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     return hoursUntilDelivery >= 24;
+  };
+
+  // Check if order needs admin approval for cancellation
+  const needsAdminCancellation = (order: Order) => {
+    // Orders that are in progress but not completed need admin approval
+    if (['at_store', 'shopping_complete', 'on_the_way'].includes(order.delivery_status)) {
+      return true;
+    }
+    // Orders within 24 hours also need admin approval
+    if (['confirmed', 'assigned'].includes(order.delivery_status)) {
+      const deliveryDate = new Date(order.delivery_date);
+      const now = new Date();
+      const hoursUntilDelivery = (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return hoursUntilDelivery < 24;
+    }
+    return false;
   };
 
   // Check if order can be edited
@@ -291,7 +325,60 @@ const MyOrders = () => {
   const openCancelDialog = (order: Order, e: React.MouseEvent) => {
     e.stopPropagation();
     setOrderToCancel(order);
-    setCancelDialogOpen(true);
+    if (canCancelOrderDirectly(order)) {
+      setCancelDialogOpen(true);
+    } else if (needsAdminCancellation(order)) {
+      setCancelReason("");
+      setAdminCancelDialogOpen(true);
+    }
+  };
+
+  // Request cancellation through admin
+  const handleRequestCancellation = async () => {
+    if (!orderToCancel || !session) return;
+    
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('cancellation_requests')
+        .insert({
+          order_id: orderToCancel.id,
+          user_id: session.user.id,
+          reason: cancelReason || null,
+        });
+
+      if (error) throw error;
+
+      // Create admin notification
+      await supabase
+        .from('admin_notifications')
+        .insert({
+          type: 'cancellation_request',
+          title: `Richiesta annullamento ordine ${orderToCancel.pickup_code}`,
+          message: `Il cliente ${orderToCancel.customer_name} ha richiesto l'annullamento dell'ordine. Motivo: ${cancelReason || 'Non specificato'}`,
+          data: { order_id: orderToCancel.id, pickup_code: orderToCancel.pickup_code }
+        });
+
+      toast({
+        title: "Richiesta inviata",
+        description: "La tua richiesta di annullamento è stata inviata all'admin per approvazione",
+      });
+      
+      // Add to pending cancellations
+      setPendingCancellations(prev => new Set([...prev, orderToCancel.id]));
+      setAdminCancelDialogOpen(false);
+      setOrderToCancel(null);
+      setCancelReason("");
+    } catch (error) {
+      console.error('Error requesting cancellation:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile inviare la richiesta di annullamento",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const handleDownloadReceipt = async (order: Order) => {
@@ -332,9 +419,12 @@ const MyOrders = () => {
     }
   };
 
+  // Active orders: NOT delivered, cancelled, or expired
+  // shopping_complete is still "active" because delivery hasn't happened yet
   const activeOrders = orders.filter(
     (o) => !["delivered", "cancelled", "expired"].includes(o.delivery_status)
   );
+  // Closed orders: delivered, cancelled, expired
   const completedOrders = orders.filter((o) =>
     ["delivered", "cancelled", "expired"].includes(o.delivery_status)
   );
@@ -460,7 +550,7 @@ const MyOrders = () => {
                           Modifica
                         </Button>
                       )}
-                      {canCancelOrder(order) && (
+                      {(canCancelOrderDirectly(order) || needsAdminCancellation(order)) && !pendingCancellations.has(order.id) && (
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -468,8 +558,13 @@ const MyOrders = () => {
                           onClick={(e) => openCancelDialog(order, e)}
                         >
                           <XCircle className="h-4 w-4 mr-2" />
-                          Annulla
+                          {needsAdminCancellation(order) ? 'Richiedi Annullamento' : 'Annulla'}
                         </Button>
+                      )}
+                      {pendingCancellations.has(order.id) && (
+                        <Badge variant="outline" className="flex-1 justify-center py-2 text-yellow-700 border-yellow-500 bg-yellow-50">
+                          ⏳ Annullamento in attesa
+                        </Badge>
                       )}
                     </div>
                   )}
@@ -795,6 +890,54 @@ const MyOrders = () => {
         order={orderToRepeat}
         session={session}
       />
+
+      {/* Admin Cancellation Request Dialog */}
+      <AlertDialog open={adminCancelDialogOpen} onOpenChange={setAdminCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Richiedi annullamento ordine
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Questo ordine è già in lavorazione. La tua richiesta di annullamento 
+                verrà inviata all'amministratore per approvazione.
+              </p>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Motivo della richiesta (opzionale):
+                </label>
+                <Textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Spiega brevemente perché vuoi annullare l'ordine..."
+                  className="min-h-[80px]"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>
+              Torna indietro
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRequestCancellation}
+              disabled={cancelling}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Invio...
+                </>
+              ) : (
+                "Invia richiesta"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Navigation />
     </div>
