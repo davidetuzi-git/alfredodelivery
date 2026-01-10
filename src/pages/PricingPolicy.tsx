@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Truck, Package, Droplets, Clock, Gift, Trophy, 
-  MapPin, ShoppingBag, Sparkles, Calendar, Users 
+  MapPin, ShoppingBag, Sparkles, Calendar, Users, AlertCircle, Wallet
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LOYALTY_LEVELS } from "@/hooks/useLoyalty";
@@ -324,9 +324,63 @@ const PricingPolicy = () => {
           </CardContent>
         </Card>
 
+        {/* Price Deviation and Credits Policy */}
+        <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              Variazioni di Prezzo e Crediti Spesa
+            </CardTitle>
+            <CardDescription>
+              Trasparenza sulle possibili differenze tra prezzi stimati e reali
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-background rounded-lg border border-orange-200">
+              <h4 className="font-semibold mb-2 text-orange-700 dark:text-orange-400">⚠️ Avviso Importante sui Prezzi</h4>
+              <p className="text-sm text-muted-foreground mb-3">
+                I prezzi mostrati durante la preparazione della lista spesa sono <strong>stime</strong> basate su dati 
+                storici e potrebbero differire dai prezzi effettivi al momento dell'acquisto. Le promozioni in corso 
+                presso il supermercato <strong>non sono incluse</strong> nelle stime.
+              </p>
+            </div>
+
+            <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200">
+              <h4 className="font-semibold mb-2 text-green-700 dark:text-green-400 flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Garanzia ALFREDO sui Prezzi
+              </h4>
+              <ul className="text-sm space-y-2 text-muted-foreground">
+                <li>• ALFREDO si assume la <strong>responsabilità</strong> per eventuali incrementi di prezzo rispetto al preventivo confermato.</li>
+                <li>• In caso di discrepanza in favore del cliente, la differenza verrà <strong>rimborsata sotto forma di credito</strong> per spese successive.</li>
+                <li>• I crediti sono utilizzabili per qualsiasi ordine futuro e vengono applicati automaticamente al checkout.</li>
+              </ul>
+            </div>
+
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200">
+              <h4 className="font-semibold mb-2 text-amber-700 dark:text-amber-400">📅 Validità dei Crediti</h4>
+              <ul className="text-sm space-y-2 text-muted-foreground">
+                <li>• I crediti spesa hanno validità di <strong>365 giorni</strong> dalla data di erogazione.</li>
+                <li>• Riceverai una <strong>email di promemoria</strong> 30 giorni prima della scadenza.</li>
+                <li>• I crediti non utilizzati entro la scadenza <strong>non saranno recuperabili</strong>.</li>
+                <li>• Puoi verificare il saldo crediti e le relative scadenze nella sezione <strong>"I miei crediti"</strong> del tuo profilo.</li>
+              </ul>
+            </div>
+
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200">
+              <h4 className="font-semibold mb-2 text-blue-700 dark:text-blue-400">💳 Come Utilizzare i Crediti</h4>
+              <p className="text-sm text-muted-foreground">
+                Durante il checkout, se hai crediti disponibili, comparirà il pulsante <strong>"Usa crediti spesa"</strong>. 
+                Premendolo, il sistema utilizzerà automaticamente i crediti in ordine di scadenza (FIFO). L'eventuale 
+                importo residuo sarà addebitato con il metodo di pagamento scelto.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Footer note */}
         <div className="text-center text-sm text-muted-foreground py-4">
-          <p>Ultimo aggiornamento: Dicembre 2024</p>
+          <p>Ultimo aggiornamento: Gennaio 2026</p>
           <p>Prezzi IVA inclusa. ALFREDO si riserva il diritto di modificare le tariffe.</p>
         </div>
 

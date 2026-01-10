@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid, XCircle, RefreshCw, AlertTriangle, MessageSquare, ShoppingBag, Camera, Upload, Loader2, Receipt } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Store, User, Phone, Package, CheckCircle2, Navigation, List, LayoutGrid, XCircle, RefreshCw, AlertTriangle, MessageSquare, ShoppingBag, Camera, Upload, Loader2, Receipt, CreditCard } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderChat from "@/components/OrderChat";
 import {
@@ -126,6 +126,8 @@ const DelivererOrderDetail = () => {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
   const [, setTimeoutTick] = useState(0); // Force re-render for timeout check
+  const [customerLoyaltyCard, setCustomerLoyaltyCard] = useState<{ barcode: string; store_chain: string; card_name: string | null } | null>(null);
+  const [showLoyaltyCardDialog, setShowLoyaltyCardDialog] = useState(false);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   // Timer to check alternative timeouts every 30 seconds
@@ -256,6 +258,33 @@ const DelivererOrderDetail = () => {
     }
   };
 
+  // Load customer's loyalty card for the store
+  const loadCustomerLoyaltyCard = async (userId: string, storeName: string) => {
+    try {
+      // Extract store chain from store name (e.g., "Conad - Via Roma" -> "Conad")
+      const storeChain = storeName.split(' ')[0].toLowerCase();
+      
+      const { data, error } = await supabase
+        .from('store_loyalty_cards')
+        .select('barcode, store_chain, card_name')
+        .eq('user_id', userId)
+        .ilike('store_chain', `%${storeChain}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading loyalty card:', error);
+        return;
+      }
+
+      if (data) {
+        setCustomerLoyaltyCard(data);
+      }
+    } catch (error) {
+      console.error('Error in loadCustomerLoyaltyCard:', error);
+    }
+  };
+
   const loadOrderDetails = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -302,6 +331,9 @@ const DelivererOrderDetail = () => {
         if (orderData.receipt_url) {
           setReceiptUploaded(true);
         }
+        
+        // Load customer's loyalty card for this store
+        loadCustomerLoyaltyCard(orderData.user_id, orderData.store_name);
       }
     } catch (error: any) {
       console.error("Error loading order:", error);
@@ -1040,6 +1072,33 @@ const DelivererOrderDetail = () => {
                 (Include €{order.delivery_fee.toFixed(2)} di consegna)
               </p>
             </div>
+            
+            {/* Customer Loyalty Card - only during shopping phase */}
+            {customerLoyaltyCard && !isShoppingLocked && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-amber-600" />
+                      <div>
+                        <p className="font-medium text-sm">Tessera Fedeltà Cliente</p>
+                        <p className="text-xs text-muted-foreground">
+                          {customerLoyaltyCard.store_chain} {customerLoyaltyCard.card_name ? `- ${customerLoyaltyCard.card_name}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                      onClick={() => setShowLoyaltyCardDialog(true)}
+                    >
+                      Mostra
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1311,6 +1370,40 @@ const DelivererOrderDetail = () => {
                     Carica scontrino
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Loyalty Card Dialog */}
+        <Dialog open={showLoyaltyCardDialog} onOpenChange={setShowLoyaltyCardDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-amber-600" />
+                Tessera Fedeltà Cliente
+              </DialogTitle>
+              <DialogDescription>
+                Mostra questo codice a barre alla cassa per applicare la tessera del cliente.
+              </DialogDescription>
+            </DialogHeader>
+            {customerLoyaltyCard && (
+              <div className="py-4 text-center space-y-4">
+                <div className="p-4 bg-white rounded-lg border">
+                  <p className="font-mono text-2xl tracking-widest mb-2">
+                    {customerLoyaltyCard.barcode}
+                  </p>
+                  <div className="h-16 bg-gradient-to-r from-black via-white to-black bg-[length:4px_100%]" 
+                       style={{ backgroundImage: `repeating-linear-gradient(90deg, black 0px, black 2px, white 2px, white 4px)` }} />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {customerLoyaltyCard.store_chain} {customerLoyaltyCard.card_name && `- ${customerLoyaltyCard.card_name}`}
+                </p>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setShowLoyaltyCardDialog(false)}>
+                Chiudi
               </Button>
             </DialogFooter>
           </DialogContent>

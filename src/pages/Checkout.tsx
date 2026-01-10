@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "@/components/Navigation";
-import { CreditCard, Wallet, Receipt, ArrowLeft, Loader2, Crown } from "lucide-react";
+import { CreditCard, Wallet, Receipt, ArrowLeft, Loader2, Crown, Coins, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Session } from "@supabase/supabase-js";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useUserCredits } from "@/hooks/useUserCredits";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -19,7 +20,9 @@ const Checkout = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [useCreditsSelected, setUseCreditsSelected] = useState(false);
   const { decrementDelivery } = useSubscription();
+  const { totalBalance: creditBalance, useCredits, getDaysUntilNextExpiry } = useUserCredits();
   
   
   // Recupera dati da location.state O da localStorage (per il caso di ritorno dal 3D Secure)
@@ -48,7 +51,12 @@ const Checkout = () => {
   const schedulingAdjustment = orderData.schedulingAdjustment || { amount: 0, description: '' };
   const subscriptionData = orderData.orderData?.subscription || null;
   const itemCount = orderData.itemCount || 0;
-  const finalTotal = orderData.total || 0;
+  const rawTotal = orderData.total || 0;
+  
+  // Calculate credit to apply
+  const creditToApply = useCreditsSelected ? Math.min(creditBalance, rawTotal) : 0;
+  const finalTotal = Math.max(0, rawTotal - creditToApply);
+  const daysUntilExpiry = getDaysUntilNextExpiry();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -550,6 +558,49 @@ const Checkout = () => {
               <span className="font-semibold">-€{discount.toFixed(2)}</span>
             </div>
             
+            {/* Credits section */}
+            {creditBalance > 0 && (
+              <div className="border-t pt-3 mt-3">
+                <div 
+                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    useCreditsSelected 
+                      ? 'border-green-500 bg-green-50 dark:bg-green-950/30' 
+                      : 'border-dashed border-muted-foreground/30 hover:border-primary/50'
+                  }`}
+                  onClick={() => setUseCreditsSelected(!useCreditsSelected)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        useCreditsSelected ? 'bg-green-500 border-green-500' : 'border-muted-foreground/50'
+                      }`}>
+                        {useCreditsSelected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <Coins className="h-4 w-4 text-amber-600" />
+                      <span className="font-medium">Usa crediti spesa</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-amber-600">€{creditBalance.toFixed(2)}</span>
+                      {daysUntilExpiry && daysUntilExpiry <= 30 && (
+                        <p className="text-xs text-orange-600">Scade tra {daysUntilExpiry}g</p>
+                      )}
+                    </div>
+                  </div>
+                  {useCreditsSelected && (
+                    <div className="mt-2 text-sm text-green-700 dark:text-green-400">
+                      Applicato: -€{creditToApply.toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {creditToApply > 0 && (
+              <div className="flex justify-between text-green-600 dark:text-green-400">
+                <span>Crediti applicati</span>
+                <span className="font-semibold">-€{creditToApply.toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t pt-3 flex justify-between text-lg">
               <span className="font-bold">Totale</span>
               <span className="font-bold">€{finalTotal.toFixed(2)}</span>
