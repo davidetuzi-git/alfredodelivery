@@ -61,9 +61,12 @@ export const OrderFeedbackWithTip = ({
 
       if (feedbackError) throw feedbackError;
 
+      // Calculate rider share for notification
+      let riderShare = 0;
+
       // Insert tip if any
       if (finalTip > 0) {
-        const riderShare = finalTip * 0.8; // 80% to rider
+        riderShare = finalTip * 0.8; // 80% to rider
         const platformShare = finalTip * 0.2; // 20% to platform
 
         const { error: tipError } = await supabase
@@ -79,6 +82,18 @@ export const OrderFeedbackWithTip = ({
 
         if (tipError) throw tipError;
       }
+
+      // Notify deliverer via Telegram (fire and forget)
+      supabase.functions.invoke('notify-deliverer-feedback', {
+        body: {
+          orderId,
+          delivererId,
+          rating,
+          comment: comment || null,
+          tipAmount: finalTip,
+          riderShare,
+        }
+      }).catch(err => console.error('Error notifying deliverer:', err));
 
       toast.success(
         finalTip > 0 
