@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { Header } from "@/components/Header";
-import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2, Star, TruckIcon } from "lucide-react";
+import { Package, MapPin, Clock, User, Phone, ArrowLeft, Bell, Calendar, ShoppingBag, Edit, Trash2, Star, TruckIcon, AlertTriangle } from "lucide-react";
 import DeliveryMap from "@/components/DeliveryMap";
 import {
   AlertDialog,
@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
 import OrderChat from "@/components/OrderChat";
+import { ComplaintDialog } from "@/components/ComplaintDialog";
 
 const OrderTracking = () => {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ const OrderTracking = () => {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
+  const [showComplaintDialog, setShowComplaintDialog] = useState(false);
+  const [existingComplaint, setExistingComplaint] = useState<any>(null);
 
   useEffect(() => {
     if (pickupCodeFromState) {
@@ -108,7 +111,7 @@ const OrderTracking = () => {
         setPickupCode(code);
         
         // Carica feedback se esiste
-        if (data.delivery_status === 'delivered') {
+        if (data.deliveryStatus === 'delivered') {
           const { data: feedbackData } = await supabase
             .from('order_feedback')
             .select('*')
@@ -117,6 +120,17 @@ const OrderTracking = () => {
           
           if (feedbackData) {
             setFeedback(feedbackData);
+          }
+          
+          // Check for existing complaint
+          const { data: complaintData } = await supabase
+            .from('complaints')
+            .select('*')
+            .eq('order_id', data.id)
+            .single();
+          
+          if (complaintData) {
+            setExistingComplaint(complaintData);
           }
         }
       } else {
@@ -351,6 +365,63 @@ const OrderTracking = () => {
   // Determina se i pulsanti devono essere mostrati
   const canEditOrder = order && !['at_store', 'shopping_complete', 'on_the_way', 'delivered', 'cancelled'].includes(order.delivery_status);
   const canCancelOrder = order && !['in_progress', 'at_store', 'shopping_complete', 'on_the_way', 'delivered', 'cancelled'].includes(order.delivery_status);
+  
+  // Check if user can file a complaint (within 2 hours of delivery)
+  const canFileComplaint = useMemo(() => {
+    if (!order || order.delivery_status !== 'delivered' || existingComplaint) return false;
+    
+    // Find the delivery timestamp from status_updated_at or status_history
+    let deliveredAt: Date | null = null;
+    
+    if (order.status_history && Array.isArray(order.status_history)) {
+      const deliveredEntry = order.status_history.find((h: any) => h.status === 'delivered');
+      if (deliveredEntry?.created_at) {
+        deliveredAt = new Date(deliveredEntry.created_at);
+      }
+    }
+    
+    if (!deliveredAt && order.status_updated_at) {
+      deliveredAt = new Date(order.status_updated_at);
+    }
+    
+    if (!deliveredAt) return false;
+    
+    const now = new Date();
+    const twoHours = 2 * 60 * 60 * 1000;
+    return (now.getTime() - deliveredAt.getTime()) < twoHours;
+  }, [order, existingComplaint]);
+  
+  // Calculate remaining time for complaint
+  const complaintTimeRemaining = useMemo(() => {
+    if (!order || order.delivery_status !== 'delivered') return null;
+    
+    let deliveredAt: Date | null = null;
+    
+    if (order.status_history && Array.isArray(order.status_history)) {
+      const deliveredEntry = order.status_history.find((h: any) => h.status === 'delivered');
+      if (deliveredEntry?.created_at) {
+        deliveredAt = new Date(deliveredEntry.created_at);
+      }
+    }
+    
+    if (!deliveredAt && order.status_updated_at) {
+      deliveredAt = new Date(order.status_updated_at);
+    }
+    
+    if (!deliveredAt) return null;
+    
+    const now = new Date();
+    const twoHours = 2 * 60 * 60 * 1000;
+    const remaining = twoHours - (now.getTime() - deliveredAt.getTime());
+    
+    if (remaining <= 0) return null;
+    
+    const mins = Math.floor(remaining / 60000);
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }, [order]);
 
   if (!order) {
     return (
@@ -745,12 +816,97 @@ const OrderTracking = () => {
           </Card>
         )}
 
+        {/* Complaint Section - Only for delivered orders within 2 hours */}
+        {order.delivery_status === 'delivered' && !existingComplaint && canFileComplaint && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-6 w-6 text-orange-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-orange-800 dark:text-orange-200">
+                      Problemi con l'ordine?
+                    </p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400">
+                      Hai ancora {complaintTimeRemaining} per segnalare un problema
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-orange-500 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 whitespace-nowrap"
+                  onClick={() => setShowComplaintDialog(true)}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Segnala Problema
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Existing Complaint */}
+        {existingComplaint && (
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200 text-lg">
+                <AlertTriangle className="h-5 w-5" />
+                Segnalazione inviata
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge 
+                variant="outline" 
+                className={
+                  existingComplaint.status === 'pending' 
+                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300' 
+                    : existingComplaint.status === 'investigating'
+                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                    : existingComplaint.status === 'resolved'
+                    ? 'bg-green-100 text-green-800 border-green-300'
+                    : 'bg-red-100 text-red-800 border-red-300'
+                }
+              >
+                {existingComplaint.status === 'pending' && '⏳ In attesa di revisione'}
+                {existingComplaint.status === 'investigating' && '🔍 In corso di verifica'}
+                {existingComplaint.status === 'resolved' && '✅ Risolto'}
+                {existingComplaint.status === 'rejected' && '❌ Respinto'}
+              </Badge>
+              <div className="p-3 bg-white dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
+                <p className="text-sm text-blue-900 dark:text-blue-100">{existingComplaint.description}</p>
+              </div>
+              {existingComplaint.admin_notes && (
+                <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                  <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-1">Risposta:</p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">{existingComplaint.admin_notes}</p>
+                </div>
+              )}
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                Inviato il {format(new Date(existingComplaint.created_at), "dd MMM yyyy 'alle' HH:mm", { locale: it })}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Chat */}
         <OrderChat
           orderId={order.id}
           customerName={order.customer_name}
           delivererName={order.deliverer_name}
           userType="customer"
+        />
+
+        {/* Complaint Dialog */}
+        <ComplaintDialog
+          open={showComplaintDialog}
+          onOpenChange={setShowComplaintDialog}
+          orderId={order.id}
+          orderCode={pickupCode}
+          items={order.items || []}
+          onComplaintSubmitted={() => {
+            // Reload order to get the new complaint
+            loadOrder(pickupCode);
+          }}
         />
       </div>
 
