@@ -1555,6 +1555,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          expires_at: string
+          id: string
+          order_id: string | null
+          reminder_sent_at: string | null
+          used_at: string | null
+          used_in_order_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expires_at: string
+          id?: string
+          order_id?: string | null
+          reminder_sent_at?: string | null
+          used_at?: string | null
+          used_in_order_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expires_at?: string
+          id?: string
+          order_id?: string | null
+          reminder_sent_at?: string | null
+          used_at?: string | null
+          used_in_order_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_credits_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_credits_used_in_order_id_fkey"
+            columns: ["used_in_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notifications: {
         Row: {
           created_at: string
@@ -1829,6 +1883,7 @@ export type Database = {
         Args: { level: Database["public"]["Enums"]["loyalty_level"] }
         Returns: number
       }
+      get_user_credit_balance: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
