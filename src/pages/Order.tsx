@@ -665,7 +665,7 @@ const Order = () => {
   // ========================================
   // PRE-FETCHING: Debounce per cercare mentre l'utente digita
   // ========================================
-  const debounceTimers = useRef<Record<number, NodeJS.Timeout>>({});
+  const debounceTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   
   const updateItemName = (index: number, name: string) => {
     const newItems = [...items];
