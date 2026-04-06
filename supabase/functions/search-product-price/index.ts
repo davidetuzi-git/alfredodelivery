@@ -358,11 +358,10 @@ async function searchPriceWithAI(
   product: string,
   chainName: string,
   city: string,
-  LOVABLE_API_KEY: string
+  GOOGLE_AI_API_KEY: string
 ): Promise<{ price: number | null; confidence: string; source: string }> {
   console.log(`🔍 Ricerca AI: ${product} @ ${chainName} (${city || 'Italia'})...`);
   
-  // Determina contesto geografico
   const cityLower = city.toLowerCase().trim();
   const geoInfo = PROVINCE_TO_REGION[cityLower];
   const province = geoInfo?.province || city || '';
@@ -371,9 +370,8 @@ async function searchPriceWithAI(
   
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 sec timeout per ricerca più approfondita
+    const timeout = setTimeout(() => controller.abort(), 8000);
     
-    // Prompt strutturato per ricerca reale con gerarchia geografica
     const prompt = `Sei un esperto di prezzi dei supermercati italiani. Devi trovare il prezzo REALE di un prodotto.
 
 PRODOTTO: ${product}
@@ -401,20 +399,21 @@ Rispondi SOLO con questo JSON:
   "source": "dove hai trovato il prezzo (es: volantino, sito ufficiale, confronto prezzi, stima regionale)"
 }`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',  // Modello più potente per ricerca
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 150,
-      }),
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 150
+          }
+        }),
+        signal: controller.signal
+      }
+    );
     
     clearTimeout(timeout);
 
@@ -424,7 +423,7 @@ Rispondi SOLO con questo JSON:
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
