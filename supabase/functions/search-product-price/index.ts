@@ -628,12 +628,12 @@ serve(async (req) => {
     let imagePromise: Promise<string | null> = Promise.resolve(null);
     
     // Avvia la generazione immagine in parallelo (se abbiamo API key)
-    if (LOVABLE_API_KEY) {
-      imagePromise = generateProductImage(product, chainName, LOVABLE_API_KEY);
+    if (GOOGLE_AI_API_KEY) {
+      imagePromise = generateProductImage(product, chainName, GOOGLE_AI_API_KEY);
     }
 
-    if (foundPrice === null && LOVABLE_API_KEY) {
-      const aiResult = await searchPriceWithAI(product, chainName, city, LOVABLE_API_KEY);
+    if (foundPrice === null && GOOGLE_AI_API_KEY) {
+      const aiResult = await searchPriceWithAI(product, chainName, city, GOOGLE_AI_API_KEY);
       
       if (aiResult.price !== null) {
         foundPrice = aiResult.price;
