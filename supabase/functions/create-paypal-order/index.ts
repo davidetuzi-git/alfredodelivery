@@ -12,6 +12,18 @@ const PAYPAL_API = Deno.env.get('PAYPAL_MODE') === 'production'
 async function getPayPalAccessToken() {
   const clientId = Deno.env.get('PAYPAL_CLIENT_ID');
   const clientSecret = Deno.env.get('PAYPAL_CLIENT_SECRET');
+  const paypalMode = Deno.env.get('PAYPAL_MODE');
+  
+  console.log('PayPal debug:', {
+    clientIdLength: clientId?.length,
+    clientIdPrefix: clientId?.substring(0, 4),
+    clientIdSuffix: clientId?.substring((clientId?.length || 0) - 4),
+    secretLength: clientSecret?.length,
+    secretPrefix: clientSecret?.substring(0, 4),
+    secretSuffix: clientSecret?.substring((clientSecret?.length || 0) - 4),
+    mode: paypalMode,
+    apiUrl: PAYPAL_API,
+  });
   
   if (!clientId || !clientSecret) {
     throw new Error('PayPal credentials not configured');
