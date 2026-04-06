@@ -7,36 +7,29 @@ const corsHeaders = {
 };
 
 // Genera immagine prodotto con timeout (max 15 secondi per stare nei 20s richiesti dall'utente)
-async function generateProductImage(productName: string, storeName: string, LOVABLE_API_KEY: string): Promise<string | null> {
+async function generateProductImage(productName: string, storeName: string, GOOGLE_AI_API_KEY: string): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondi timeout
     
-    // Prompt ottimizzato per prodotto specifico + brand/catena
     const prompt = `Ultra realistic product photography of exactly: ${productName}. 
 Product as sold in Italian supermarket ${storeName}. 
 Professional studio shot with perfect lighting, white background, centered, highly detailed, 
 photorealistic, commercial quality, sharp focus, true-to-life colors, exact product representation.
 Show the actual product packaging/brand if known.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+        }),
+        signal: controller.signal
+      }
+    );
 
     clearTimeout(timeoutId);
 
@@ -46,11 +39,13 @@ Show the actual product packaging/brand if known.`;
     }
 
     const data = await response.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const parts = data.candidates?.[0]?.content?.parts || [];
     
-    if (imageUrl) {
-      console.log(`✓ Image generated for "${productName}"`);
-      return imageUrl;
+    for (const part of parts) {
+      if (part.inlineData) {
+        console.log(`✓ Image generated for "${productName}"`);
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
     }
     
     return null;
@@ -363,11 +358,10 @@ async function searchPriceWithAI(
   product: string,
   chainName: string,
   city: string,
-  LOVABLE_API_KEY: string
+  GOOGLE_AI_API_KEY: string
 ): Promise<{ price: number | null; confidence: string; source: string }> {
   console.log(`🔍 Ricerca AI: ${product} @ ${chainName} (${city || 'Italia'})...`);
   
-  // Determina contesto geografico
   const cityLower = city.toLowerCase().trim();
   const geoInfo = PROVINCE_TO_REGION[cityLower];
   const province = geoInfo?.province || city || '';
@@ -376,9 +370,8 @@ async function searchPriceWithAI(
   
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 sec timeout per ricerca più approfondita
+    const timeout = setTimeout(() => controller.abort(), 8000);
     
-    // Prompt strutturato per ricerca reale con gerarchia geografica
     const prompt = `Sei un esperto di prezzi dei supermercati italiani. Devi trovare il prezzo REALE di un prodotto.
 
 PRODOTTO: ${product}
@@ -406,20 +399,21 @@ Rispondi SOLO con questo JSON:
   "source": "dove hai trovato il prezzo (es: volantino, sito ufficiale, confronto prezzi, stima regionale)"
 }`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',  // Modello più potente per ricerca
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 150,
-      }),
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 150
+          }
+        }),
+        signal: controller.signal
+      }
+    );
     
     clearTimeout(timeout);
 
@@ -429,7 +423,7 @@ Rispondi SOLO con questo JSON:
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -483,7 +477,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
 
     const storeNameParts = storeName.split(' - ');
     const chainName = storeNameParts[0].trim();
@@ -634,12 +628,12 @@ serve(async (req) => {
     let imagePromise: Promise<string | null> = Promise.resolve(null);
     
     // Avvia la generazione immagine in parallelo (se abbiamo API key)
-    if (LOVABLE_API_KEY) {
-      imagePromise = generateProductImage(product, chainName, LOVABLE_API_KEY);
+    if (GOOGLE_AI_API_KEY) {
+      imagePromise = generateProductImage(product, chainName, GOOGLE_AI_API_KEY);
     }
 
-    if (foundPrice === null && LOVABLE_API_KEY) {
-      const aiResult = await searchPriceWithAI(product, chainName, city, LOVABLE_API_KEY);
+    if (foundPrice === null && GOOGLE_AI_API_KEY) {
+      const aiResult = await searchPriceWithAI(product, chainName, city, GOOGLE_AI_API_KEY);
       
       if (aiResult.price !== null) {
         foundPrice = aiResult.price;

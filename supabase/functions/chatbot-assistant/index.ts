@@ -15,9 +15,9 @@ serve(async (req) => {
     
     console.log('Chatbot request:', { message, historyLength: conversationHistory.length });
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error('GOOGLE_AI_API_KEY not configured');
     }
 
     const systemPrompt = `Sei un assistente virtuale per un servizio di consegna spesa a domicilio italiano. 
@@ -46,25 +46,38 @@ Puoi aiutare con:
 
 Rispondi in modo conciso (max 3-4 frasi) e se non sai qualcosa, sii onesto e suggerisci di contattare il supporto.`;
 
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory,
-      { role: 'user', content: message }
-    ];
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 500
-      }),
+    // Build conversation contents for Google AI
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    
+    // Add conversation history
+    for (const msg of conversationHistory) {
+      contents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      });
+    }
+    
+    // Add current message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
     });
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -79,25 +92,13 @@ Rispondi in modo conciso (max 3-4 frasi) e se non sai qualcosa, sii onesto e sug
           }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Servizio temporaneamente non disponibile. Riprova più tardi.',
-            paymentRequired: true 
-          }), 
-          {
-            status: 402,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
       const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
+      console.error('Google AI error:', response.status, errorText);
       throw new Error('AI API error');
     }
 
     const data = await response.json();
-    const reply = data.choices[0]?.message?.content || 'Mi dispiace, non ho capito. Puoi riformulare?';
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Mi dispiace, non ho capito. Puoi riformulare?';
 
     console.log('Chatbot response:', reply);
 
