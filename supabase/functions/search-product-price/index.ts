@@ -7,36 +7,29 @@ const corsHeaders = {
 };
 
 // Genera immagine prodotto con timeout (max 15 secondi per stare nei 20s richiesti dall'utente)
-async function generateProductImage(productName: string, storeName: string, LOVABLE_API_KEY: string): Promise<string | null> {
+async function generateProductImage(productName: string, storeName: string, GOOGLE_AI_API_KEY: string): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondi timeout
     
-    // Prompt ottimizzato per prodotto specifico + brand/catena
     const prompt = `Ultra realistic product photography of exactly: ${productName}. 
 Product as sold in Italian supermarket ${storeName}. 
 Professional studio shot with perfect lighting, white background, centered, highly detailed, 
 photorealistic, commercial quality, sharp focus, true-to-life colors, exact product representation.
 Show the actual product packaging/brand if known.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+        }),
+        signal: controller.signal
+      }
+    );
 
     clearTimeout(timeoutId);
 
@@ -46,11 +39,13 @@ Show the actual product packaging/brand if known.`;
     }
 
     const data = await response.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const parts = data.candidates?.[0]?.content?.parts || [];
     
-    if (imageUrl) {
-      console.log(`✓ Image generated for "${productName}"`);
-      return imageUrl;
+    for (const part of parts) {
+      if (part.inlineData) {
+        console.log(`✓ Image generated for "${productName}"`);
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
     }
     
     return null;
