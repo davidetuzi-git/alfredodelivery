@@ -58,6 +58,13 @@ serve(async (req) => {
   try {
     const { amount, returnUrl, cancelUrl } = await req.json();
 
+    if (!amount || typeof amount !== 'number') {
+      return new Response(
+        JSON.stringify({ error: 'Amount is required and must be a number' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     console.log('Creating PayPal order for amount:', amount);
 
     const accessToken = await getPayPalAccessToken();
