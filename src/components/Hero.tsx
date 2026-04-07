@@ -38,11 +38,9 @@ export const Hero = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left content */}
           <div className="animate-slide-up space-y-8">
-            <div className="inline-block">
-              <span className="bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold border border-primary/20">
-                🛒 Servizio di spesa a domicilio
-              </span>
-            </div>
+            <p className="text-sm font-medium tracking-widest uppercase text-primary">
+              🛒 Servizio di spesa a domicilio
+            </p>
             
             <h1 className="leading-tight">
               La tua spesa,{" "}
