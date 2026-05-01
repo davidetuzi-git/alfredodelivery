@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, User, KeyRound, Home } from "lucide-react";
+import { Lock, User, KeyRound, Home, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const AdminLogin = () => {
