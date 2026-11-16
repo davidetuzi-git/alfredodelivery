@@ -41,20 +41,22 @@ const Auth = () => {
 
     checkUserAndRedirect();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        const returnTo = location.state?.returnTo;
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("onboarding_completed")
-          .eq("id", session.user.id)
-          .single();
+        setTimeout(async () => {
+          const returnTo = location.state?.returnTo;
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("onboarding_completed")
+            .eq("id", session.user.id)
+            .single();
 
-        if (profile?.onboarding_completed) {
-          navigate(returnTo || "/home");
-        } else {
-          navigate("/onboarding");
-        }
+          if (profile?.onboarding_completed) {
+            navigate(returnTo || "/home");
+          } else {
+            navigate("/onboarding");
+          }
+        }, 0);
       }
     });
 
